@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['Outfit', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -53,6 +53,11 @@ export default {
         },
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
+        info: "hsl(var(--info))",
+        rose: "hsl(var(--rose))",
+        amber: "hsl(var(--amber))",
+        emerald: "hsl(var(--emerald))",
+        violet: "hsl(var(--violet))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -68,14 +73,18 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        xl: "1rem",
+        xl: "1.25rem",
         "2xl": "1.5rem",
         "3xl": "2rem",
+        "4xl": "2.5rem",
       },
       boxShadow: {
         glow: "0 0 40px hsl(var(--primary) / 0.3)",
-        "glow-lg": "0 0 60px hsl(var(--primary) / 0.4)",
-        soft: "0 4px 20px -4px hsl(var(--foreground) / 0.1)",
+        "glow-lg": "0 0 80px hsl(var(--primary) / 0.4)",
+        "glow-emerald": "0 0 40px hsl(var(--emerald) / 0.3)",
+        "glow-amber": "0 0 40px hsl(var(--amber) / 0.3)",
+        soft: "0 4px 30px -4px hsl(var(--foreground) / 0.08)",
+        "soft-lg": "0 10px 50px -10px hsl(var(--foreground) / 0.15)",
       },
       keyframes: {
         "accordion-down": {
@@ -90,16 +99,20 @@ export default {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-20px)" },
         },
-        pulse: {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.5" },
+        "spin-slow": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         float: "float 6s ease-in-out infinite",
-        "pulse-slow": "pulse 3s ease-in-out infinite",
+        "spin-slow": "spin-slow 20s linear infinite",
+      },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "gradient-conic": "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
     },
   },
