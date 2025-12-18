@@ -2,26 +2,28 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowRight, Sparkles, Truck, Shield, Headphones } from 'lucide-react';
+import { ArrowRight, Sparkles, Truck, Shield, Headphones, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
-import { products, categories } from '@/data/products';
+import { useProducts, useCategories } from '@/hooks/useApi';
 import { Button } from '@/components/ui/button';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const HomePage = () => {
   const heroRef = useRef<HTMLDivElement>(null);
+  const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: categories = [] } = useCategories();
+
+  const featuredProducts = products.slice(0, 8);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Hero animation
       gsap.fromTo('.hero-content > *', 
         { opacity: 0, y: 60 },
         { opacity: 1, y: 0, duration: 1, stagger: 0.15, ease: 'power3.out' }
       );
 
-      // Categories
       gsap.fromTo('.category-item',
         { opacity: 0, scale: 0.9 },
         { opacity: 1, scale: 1, duration: 0.5, stagger: 0.05, ease: 'back.out(1.7)',
@@ -29,7 +31,6 @@ const HomePage = () => {
         }
       );
 
-      // Products
       gsap.fromTo('.product-item',
         { opacity: 0, y: 40 },
         { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power2.out',
@@ -39,9 +40,7 @@ const HomePage = () => {
     });
 
     return () => ctx.revert();
-  }, []);
-
-  const featuredProducts = products.slice(0, 8);
+  }, [products, categories]);
 
   return (
     <Layout>
@@ -136,13 +135,19 @@ const HomePage = () => {
             <Link to="/products" className="text-sm text-primary hover:underline">View All</Link>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {featuredProducts.map((product) => (
-              <div key={product.id} className="product-item">
-                <ProductCard product={product} />
-              </div>
-            ))}
-          </div>
+          {productsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {featuredProducts.map((product) => (
+                <div key={product.id} className="product-item">
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
