@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, Eye, Plus } from 'lucide-react';
+import { Heart, ShoppingCart, Star, Plus } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { toast } from 'sonner';
@@ -29,34 +29,62 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const cardRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const card = cardRef.current;
     const image = imageRef.current;
-    const overlay = overlayRef.current;
+    const glow = glowRef.current;
 
-    if (!card || !image || !overlay) return;
+    if (!card || !image || !glow) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      
+      const rotateX = (y - centerY) / 20;
+      const rotateY = (centerX - x) / 20;
+
+      gsap.to(card, {
+        rotateX: rotateX,
+        rotateY: rotateY,
+        duration: 0.3,
+        ease: 'power2.out',
+        transformPerspective: 1000,
+      });
+
+      gsap.to(glow, {
+        x: x - rect.width / 2,
+        y: y - rect.height / 2,
+        opacity: 0.3,
+        duration: 0.3,
+      });
+    };
 
     const handleMouseEnter = () => {
-      gsap.to(image, { scale: 1.15, duration: 0.5, ease: 'power2.out' });
-      gsap.to(overlay, { opacity: 1, duration: 0.3 });
-      gsap.fromTo(
-        overlay.querySelectorAll('button'),
-        { y: 20, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.3, stagger: 0.05, ease: 'back.out(1.7)' }
-      );
+      gsap.to(image, { scale: 1.1, duration: 0.4, ease: 'power2.out' });
     };
 
     const handleMouseLeave = () => {
-      gsap.to(image, { scale: 1, duration: 0.5, ease: 'power2.out' });
-      gsap.to(overlay, { opacity: 0, duration: 0.2 });
+      gsap.to(card, {
+        rotateX: 0,
+        rotateY: 0,
+        duration: 0.5,
+        ease: 'power2.out',
+      });
+      gsap.to(image, { scale: 1, duration: 0.4, ease: 'power2.out' });
+      gsap.to(glow, { opacity: 0, duration: 0.3 });
     };
 
+    card.addEventListener('mousemove', handleMouseMove);
     card.addEventListener('mouseenter', handleMouseEnter);
     card.addEventListener('mouseleave', handleMouseLeave);
 
     return () => {
+      card.removeEventListener('mousemove', handleMouseMove);
       card.removeEventListener('mouseenter', handleMouseEnter);
       card.removeEventListener('mouseleave', handleMouseLeave);
     };
@@ -66,7 +94,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Animate button
     const button = e.currentTarget;
     gsap.fromTo(button, 
       { scale: 1 }, 
@@ -82,14 +109,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     });
     toast.success('Added to cart!', {
       description: product.name,
-      action: { label: 'View Cart', onClick: () => window.location.href = '/cart' }
     });
-  };
-
-  const handleQuickAdd = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleAddToCart(e);
   };
 
   const handleWishlist = (e: React.MouseEvent) => {
@@ -124,106 +144,89 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     <Link to={`/products/${product.id}`} className="group block">
       <div 
         ref={cardRef}
-        className="relative bg-card rounded-2xl overflow-hidden border border-border/50 transition-all duration-300 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5"
+        className="relative bg-card rounded-2xl overflow-hidden border border-border/50 transition-shadow duration-300 hover:shadow-xl hover:shadow-primary/10"
+        style={{ transformStyle: 'preserve-3d' }}
       >
+        {/* 3D Glow Effect */}
+        <div 
+          ref={glowRef}
+          className="absolute w-32 h-32 rounded-full bg-primary/50 blur-3xl pointer-events-none opacity-0"
+          style={{ transform: 'translate(-50%, -50%)' }}
+        />
+
         {/* Image Container */}
-        <div className="relative aspect-square bg-muted overflow-hidden">
+        <div className="relative aspect-square bg-muted/50 overflow-hidden">
           <img
             ref={imageRef}
             src={product.image}
             alt={product.name}
-            className="w-full h-full object-contain p-4 transition-transform will-change-transform"
+            className="w-full h-full object-contain p-6 transition-transform will-change-transform"
           />
           
           {/* Discount Badge */}
           {discount > 0 && (
-            <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-gradient-to-r from-rose-500 to-orange-500 text-white text-xs font-bold shadow-lg">
+            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-rose-500 text-white text-xs font-bold">
               -{discount}%
             </div>
           )}
 
-          {/* Hover Overlay */}
-          <div 
-            ref={overlayRef}
-            className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 flex flex-col justify-end p-4"
-          >
-            {/* Quick Actions */}
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <button
-                onClick={handleWishlist}
-                className={`p-3 rounded-xl backdrop-blur-sm transition-all ${
-                  isInWishlist(product.id)
-                    ? 'bg-rose-500 text-white'
-                    : 'bg-white/20 text-white hover:bg-rose-500'
-                }`}
-              >
-                <Heart className={`w-5 h-5 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
-              </button>
-              <button
-                onClick={handleAddToCart}
-                className="p-3 rounded-xl bg-white/20 text-white hover:bg-emerald-500 backdrop-blur-sm transition-all"
-              >
-                <ShoppingCart className="w-5 h-5" />
-              </button>
-              <Link
-                to={`/products/${product.id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="p-3 rounded-xl bg-white/20 text-white hover:bg-violet-500 backdrop-blur-sm transition-all"
-              >
-                <Eye className="w-5 h-5" />
-              </Link>
-            </div>
-
-            {/* Quick Add Button */}
+          {/* Quick Actions */}
+          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <button
-              onClick={handleQuickAdd}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-violet-500 text-white font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/25 transition-all"
+              onClick={handleWishlist}
+              className={`p-2.5 rounded-xl backdrop-blur-md transition-all ${
+                isInWishlist(product.id)
+                  ? 'bg-rose-500 text-white'
+                  : 'bg-background/80 text-foreground hover:bg-rose-500 hover:text-white'
+              }`}
             >
-              <Plus className="w-4 h-4" />
-              Quick Add
+              <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
+            </button>
+            <button
+              onClick={handleAddToCart}
+              className="p-2.5 rounded-xl bg-background/80 text-foreground hover:bg-primary hover:text-primary-foreground backdrop-blur-md transition-all"
+            >
+              <ShoppingCart className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-2">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+        <div className="p-4">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
             {product.category}
           </p>
-          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 min-h-[2.5rem]">
+          <h3 className="font-medium text-foreground text-sm line-clamp-1 mb-2">
             {product.name}
           </h3>
           
-          {/* Rating */}
+          {/* Rating - Simplified */}
           {product.rating && (
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <Star 
-                    key={i} 
-                    className={`w-3.5 h-3.5 ${
-                      i < Math.floor(product.rating!) 
-                        ? 'fill-amber-400 text-amber-400' 
-                        : 'fill-muted text-muted'
-                    }`} 
-                  />
-                ))}
-              </div>
-              <span className="text-sm font-medium text-foreground">{product.rating}</span>
+            <div className="flex items-center gap-1 mb-2">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <span className="text-xs font-medium text-foreground">{product.rating}</span>
               <span className="text-xs text-muted-foreground">({product.reviews})</span>
             </div>
           )}
 
-          {/* Price */}
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-              ${product.price.toFixed(2)}
-            </span>
-            {product.originalPrice && (
-              <span className="text-sm text-muted-foreground line-through">
-                ${product.originalPrice.toFixed(2)}
+          {/* Price & Add Button */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-lg font-bold text-foreground">
+                ${product.price.toFixed(0)}
               </span>
-            )}
+              {product.originalPrice && (
+                <span className="text-xs text-muted-foreground line-through">
+                  ${product.originalPrice.toFixed(0)}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleAddToCart}
+              className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
