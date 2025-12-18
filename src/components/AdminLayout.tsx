@@ -2,22 +2,24 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Package, Users, ShoppingCart, Shield, Bot, 
-  LogOut, Settings, Menu, X, Search, ChevronRight, Warehouse 
+  LogOut, Settings, Menu, X, Search, ChevronRight, Warehouse, Loader2 
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminNotifications from './AdminNotifications';
 import gsap from 'gsap';
 
 const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isAdmin) navigate('/auth');
-  }, [isAdmin, navigate]);
+    if (!loading && !isAdmin) {
+      navigate('/auth');
+    }
+  }, [isAdmin, loading, navigate]);
 
   useEffect(() => {
     if (contentRef.current) {
@@ -27,6 +29,18 @@ const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => 
       );
     }
   }, [location.pathname]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
 
   const navItems = [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -38,6 +52,11 @@ const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => 
     { to: '/admin/security', label: 'Security', icon: Shield },
     { to: '/admin/login-control', label: 'Login Control', icon: Settings },
   ];
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex">
@@ -100,7 +119,7 @@ const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => 
             </div>
           </div>
           <button 
-            onClick={() => { logout(); navigate('/'); }} 
+            onClick={handleLogout} 
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors"
           >
             <LogOut className="w-5 h-5" /> 

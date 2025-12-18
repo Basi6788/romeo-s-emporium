@@ -1,156 +1,143 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  isAdmin?: boolean;
+interface ExtendedUser extends User {
+  name?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: ExtendedUser | null;
+  session: Session | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
   loading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = 'https://romeo-backend.vercel.app';
-const ADMIN_EMAIL = 'admin@app@Romeo.com';
-const ADMIN_PASSWORD = 'uchiha.';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('romeo-user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+  const extendUser = (u: User | null): ExtendedUser | null => {
+    if (!u) return null;
+    return { ...u, name: u.user_metadata?.full_name || u.email?.split('@')[0] };
+  };
+  const checkAdminRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('has_role', {
+        _user_id: userId,
+        _role: 'admin'
+      });
+      if (error) {
+        console.error('Error checking admin role:', error);
+        return false;
+      }
+      return data === true;
+    } catch (err) {
+      console.error('Failed to check admin role:', err);
+      return false;
     }
-    setLoading(false);
+  };
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(extendUser(session?.user ?? null));
+        
+        // Defer admin check to avoid deadlock
+        if (session?.user) {
+          setTimeout(() => {
+            checkAdminRole(session.user.id).then(setIsAdmin);
+          }, 0);
+        } else {
+          setIsAdmin(false);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(extendUser(session?.user ?? null));
+      
+      if (session?.user) {
+        checkAdminRole(session.user.id).then(setIsAdmin);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Check for admin credentials
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        const adminUser: User = {
-          id: 'admin-001',
-          email: ADMIN_EMAIL,
-          name: 'Admin',
-          isAdmin: true
-        };
-        setUser(adminUser);
-        localStorage.setItem('romeo-user', JSON.stringify(adminUser));
-        return true;
-      }
-
-      // Regular user login
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const userData: User = {
-          id: data.id || Date.now().toString(),
-          email,
-          name: data.name || email.split('@')[0],
-          isAdmin: false
-        };
-        setUser(userData);
-        localStorage.setItem('romeo-user', JSON.stringify(userData));
-        return true;
+      if (error) {
+        return { success: false, error: error.message };
       }
+
+      if (data.user) {
+        const adminStatus = await checkAdminRole(data.user.id);
+        setIsAdmin(adminStatus);
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Login failed' };
+    }
+  };
+
+  const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
       
-      // Fallback for demo
-      const demoUser: User = {
-        id: Date.now().toString(),
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name: email.split('@')[0],
-        isAdmin: false
-      };
-      setUser(demoUser);
-      localStorage.setItem('romeo-user', JSON.stringify(demoUser));
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
-      // Demo fallback
-      const demoUser: User = {
-        id: Date.now().toString(),
-        email,
-        name: email.split('@')[0],
-        isAdmin: false
-      };
-      setUser(demoUser);
-      localStorage.setItem('romeo-user', JSON.stringify(demoUser));
-      return true;
-    }
-  };
-
-  const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: name,
+          }
+        }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const userData: User = {
-          id: data.id || Date.now().toString(),
-          email,
-          name,
-          isAdmin: false
-        };
-        setUser(userData);
-        localStorage.setItem('romeo-user', JSON.stringify(userData));
-        return true;
+      if (error) {
+        return { success: false, error: error.message };
       }
 
-      // Fallback for demo
-      const demoUser: User = {
-        id: Date.now().toString(),
-        email,
-        name,
-        isAdmin: false
-      };
-      setUser(demoUser);
-      localStorage.setItem('romeo-user', JSON.stringify(demoUser));
-      return true;
-    } catch (error) {
-      console.error('Register error:', error);
-      // Demo fallback
-      const demoUser: User = {
-        id: Date.now().toString(),
-        email,
-        name,
-        isAdmin: false
-      };
-      setUser(demoUser);
-      localStorage.setItem('romeo-user', JSON.stringify(demoUser));
-      return true;
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Registration failed' };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('romeo-user');
+    setSession(null);
+    setIsAdmin(false);
   };
 
   return (
     <AuthContext.Provider value={{
       user,
+      session,
       isAuthenticated: !!user,
-      isAdmin: user?.isAdmin || false,
+      isAdmin,
       login,
       register,
       logout,
