@@ -260,6 +260,33 @@ const HomePage = () => {
             {currentSlide + 1} / {heroSlides.length}
           </div>
         </div>
+
+        {/* Thumbnail Navigation */}
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex gap-2 justify-center overflow-x-auto pb-2">
+            {heroSlides.map((slide, i) => (
+              <button
+                key={slide.id}
+                onClick={() => goToSlide(i)}
+                disabled={isAnimating}
+                className={`relative flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all duration-300 ${
+                  i === currentSlide 
+                    ? 'border-primary ring-2 ring-primary/20' 
+                    : 'border-border/50 opacity-60 hover:opacity-100 hover:border-primary/50'
+                }`}
+              >
+                <img
+                  src={slide.image}
+                  alt={slide.title}
+                  className="w-full h-full object-contain bg-muted/30 p-1"
+                />
+                {i === currentSlide && (
+                  <div className="absolute inset-0 bg-primary/10" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Features Bar */}
