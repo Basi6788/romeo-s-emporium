@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Camera, LogOut, Package, Heart, Settings } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -167,10 +167,18 @@ const ProfilePage: React.FC = () => {
 
             {activeTab === 'orders' && (
               <div className="bg-card rounded-2xl border border-border/50 p-6">
-                <h2 className="text-xl font-bold mb-6">My Orders</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold">My Orders</h2>
+                  <Link to="/orders" className="text-primary hover:underline text-sm font-medium">
+                    View All Orders
+                  </Link>
+                </div>
                 <div className="text-center py-12 text-muted-foreground">
                   <Package className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p>No orders yet</p>
+                  <p className="mb-4">Track your orders and view history</p>
+                  <Link to="/orders" className="btn-primary inline-block">
+                    Go to Orders
+                  </Link>
                 </div>
               </div>
             )}
