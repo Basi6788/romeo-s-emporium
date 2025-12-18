@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
-import { Users, UserCheck, Shield, Search, Mail, Crown, User } from 'lucide-react';
+import { Users, UserCheck, Shield, Search, Mail, Crown, User, X, Package, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface UserProfile {
   id: string;
@@ -26,8 +32,23 @@ interface UserRole {
   role: 'admin' | 'moderator' | 'user';
 }
 
+interface Order {
+  id: string;
+  customer_name: string;
+  email: string;
+  total: number;
+  status: string;
+  created_at: string;
+  items: any[];
+}
+
+const ITEMS_PER_PAGE = 10;
+
 const AdminUsers: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch profiles
@@ -55,10 +76,25 @@ const AdminUsers: React.FC = () => {
     },
   });
 
+  // Fetch orders for selected user
+  const { data: userOrders = [], isLoading: loadingOrders } = useQuery({
+    queryKey: ['user-orders', selectedUser?.user_id],
+    queryFn: async () => {
+      if (!selectedUser) return [];
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', selectedUser.user_id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as Order[];
+    },
+    enabled: !!selectedUser,
+  });
+
   // Update role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'admin' | 'moderator' | 'user' }) => {
-      // Check if role exists
       const existingRole = roles.find(r => r.user_id === userId);
       
       if (existingRole) {
@@ -92,6 +128,18 @@ const AdminUsers: React.FC = () => {
     profile.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     profile.user_id.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Pagination
+  const totalPages = Math.ceil(filteredProfiles.length / ITEMS_PER_PAGE);
+  const paginatedProfiles = filteredProfiles.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const openUserModal = (profile: UserProfile) => {
+    setSelectedUser(profile);
+    setIsModalOpen(true);
+  };
 
   const stats = [
     { 
@@ -152,7 +200,10 @@ const AdminUsers: React.FC = () => {
             type="text" 
             placeholder="Search users by name or ID..." 
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-12 pr-4 py-3 bg-[#111111] border border-white/5 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:border-orange-500/50"
           />
         </div>
@@ -177,17 +228,21 @@ const AdminUsers: React.FC = () => {
                       Loading users...
                     </td>
                   </tr>
-                ) : filteredProfiles.length === 0 ? (
+                ) : paginatedProfiles.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="p-8 text-center text-gray-500">
                       No users found
                     </td>
                   </tr>
                 ) : (
-                  filteredProfiles.map((profile) => {
+                  paginatedProfiles.map((profile) => {
                     const currentRole = getUserRole(profile.user_id);
                     return (
-                      <tr key={profile.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <tr 
+                        key={profile.id} 
+                        className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                        onClick={() => openUserModal(profile)}
+                      >
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
@@ -222,7 +277,7 @@ const AdminUsers: React.FC = () => {
                         <td className="p-4 text-gray-400 hidden sm:table-cell text-sm">
                           {new Date(profile.created_at).toLocaleDateString()}
                         </td>
-                        <td className="p-4">
+                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
                           <Select
                             value={currentRole}
                             onValueChange={(value: 'admin' | 'moderator' | 'user') => {
@@ -246,8 +301,168 @@ const AdminUsers: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-white/5">
+              <p className="text-sm text-gray-500">
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredProfiles.length)} of {filteredProfiles.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={currentPage === pageNum 
+                          ? "bg-orange-500 text-white" 
+                          : "bg-white/5 border-white/10 text-white hover:bg-white/10"
+                        }
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* User Detail Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="bg-[#111111] border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">User Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="space-y-6">
+              {/* User Info */}
+              <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/30 to-purple-500/30 flex items-center justify-center">
+                  {selectedUser.avatar_url ? (
+                    <img src={selectedUser.avatar_url} alt="" className="w-16 h-16 rounded-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8 text-violet-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold">{selectedUser.full_name || 'No name'}</h3>
+                  <p className="text-sm text-gray-400">User ID: {selectedUser.user_id}</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      getUserRole(selectedUser.user_id) === 'admin' ? 'bg-amber-500/20 text-amber-400' :
+                      getUserRole(selectedUser.user_id) === 'moderator' ? 'bg-emerald-500/20 text-emerald-400' :
+                      'bg-blue-500/20 text-blue-400'
+                    }`}>
+                      {getUserRole(selectedUser.user_id)}
+                    </span>
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Joined {new Date(selectedUser.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order History */}
+              <div>
+                <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  Order History ({userOrders.length})
+                </h4>
+                
+                {loadingOrders ? (
+                  <p className="text-gray-500 text-center py-4">Loading orders...</p>
+                ) : userOrders.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4 bg-white/5 rounded-xl">No orders found</p>
+                ) : (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                    {userOrders.map((order) => (
+                      <div key={order.id} className="p-4 bg-white/5 rounded-xl">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">#{order.id.slice(0, 8)}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            order.status === 'delivered' ? 'bg-emerald-500/20 text-emerald-400' :
+                            order.status === 'shipped' ? 'bg-blue-500/20 text-blue-400' :
+                            order.status === 'processing' ? 'bg-yellow-500/20 text-yellow-400' :
+                            order.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </span>
+                          <span className="font-bold text-orange-400">${order.total.toFixed(2)}</span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          {Array.isArray(order.items) ? order.items.length : 0} item(s)
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 bg-white/5 rounded-xl text-center">
+                  <p className="text-2xl font-bold text-white">{userOrders.length}</p>
+                  <p className="text-xs text-gray-500">Total Orders</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-xl text-center">
+                  <p className="text-2xl font-bold text-orange-400">
+                    ${userOrders.reduce((sum, o) => sum + o.total, 0).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-gray-500">Total Spent</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-xl text-center">
+                  <p className="text-2xl font-bold text-emerald-400">
+                    {userOrders.filter(o => o.status === 'delivered').length}
+                  </p>
+                  <p className="text-xs text-gray-500">Delivered</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };
