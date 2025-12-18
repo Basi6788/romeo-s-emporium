@@ -6,6 +6,7 @@ import Layout from '@/components/Layout';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createOrder, OrderData } from '@/lib/firebase';
+import { createDbOrder } from '@/lib/dbOrders';
 import { sendOrderNotification } from '@/lib/orderNotifications';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -63,7 +64,26 @@ const CheckoutPage: React.FC = () => {
         image: item.image
       }));
 
-      const orderId = await createOrder({
+      // Create order in database (for realtime notifications)
+      const dbOrderId = await createDbOrder({
+        user_id: user?.id,
+        customer_name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        postal_code: formData.postalCode,
+        country: formData.country,
+        payment_method: formData.paymentMethod,
+        items: orderItems,
+        subtotal: total,
+        shipping,
+        tax,
+        total: grandTotal,
+      });
+
+      // Also save to localStorage as fallback
+      const orderId = dbOrderId || await createOrder({
         userId: user?.id,
         customerName: formData.name,
         email: formData.email,
