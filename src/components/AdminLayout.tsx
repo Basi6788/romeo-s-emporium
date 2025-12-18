@@ -2,9 +2,10 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Package, Users, ShoppingCart, Shield, Bot, 
-  LogOut, Settings, Menu, X, Search, Bell, ChevronRight 
+  LogOut, Settings, Menu, X, Search, ChevronRight 
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import AdminNotifications from './AdminNotifications';
 import gsap from 'gsap';
 
 const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -130,11 +131,8 @@ const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => 
             </div>
           </div>
 
-          {/* Actions */}
-          <button className="relative p-2.5 hover:bg-white/5 rounded-xl transition-colors">
-            <Bell className="w-5 h-5 text-gray-400" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full" />
-          </button>
+          {/* Notifications */}
+          <AdminNotifications />
         </header>
 
         {/* Page Content */}

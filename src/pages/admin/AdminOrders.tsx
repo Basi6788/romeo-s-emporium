@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
-import { Package, Truck, CheckCircle, Clock, Search, Filter, ChevronDown, Mail, Eye, X } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, Search, Filter, ChevronDown, Mail, Eye } from 'lucide-react';
 import gsap from 'gsap';
+import { getDbOrders, updateDbOrderStatus, DbOrder } from '@/lib/dbOrders';
 import { getOrders, OrderData } from '@/lib/firebase';
 import { sendOrderStatusUpdate } from '@/lib/orderNotifications';
+import { useOrdersSubscription } from '@/hooks/useRealtimeOrders';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -26,58 +28,105 @@ const statusConfig: Record<string, { color: string; bg: string; icon: React.Elem
 };
 
 const AdminOrders: React.FC = () => {
-  const [orders, setOrders] = useState<OrderData[]>([]);
+  // Use realtime subscription for database orders
+  const { orders: realtimeOrders, loading: realtimeLoading } = useOrdersSubscription();
+  const [localOrders, setLocalOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
+  // Combine database orders and local storage orders
+  const allOrders = [
+    ...realtimeOrders.map(o => ({
+      id: o.id,
+      customerName: o.customer_name,
+      email: o.email,
+      phone: o.phone || '',
+      address: o.address || '',
+      city: o.city || '',
+      postalCode: o.postal_code || '',
+      country: o.country || '',
+      paymentMethod: o.payment_method || 'cod',
+      items: o.items as any[],
+      subtotal: Number(o.subtotal),
+      shipping: Number(o.shipping),
+      tax: Number(o.tax),
+      total: Number(o.total),
+      status: o.status as OrderData['status'],
+      createdAt: new Date(o.created_at),
+      isDbOrder: true
+    })),
+    ...localOrders.filter(lo => !realtimeOrders.some(ro => ro.id === lo.id))
+  ];
+
   useEffect(() => {
-    fetchOrders();
+    // Also fetch local storage orders
+    const fetchLocalOrders = async () => {
+      try {
+        const orders = await getOrders();
+        setLocalOrders(orders);
+      } catch (error) {
+        console.error('Failed to fetch local orders:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLocalOrders();
   }, []);
 
   useEffect(() => {
-    if (!loading && orders.length > 0) {
+    if (!loading && !realtimeLoading && allOrders.length > 0) {
       gsap.fromTo('.order-row', 
         { opacity: 0, x: -20 },
         { opacity: 1, x: 0, duration: 0.4, stagger: 0.05, ease: 'power2.out' }
       );
     }
-  }, [loading, orders]);
+  }, [loading, realtimeLoading, allOrders.length]);
 
-  const fetchOrders = async () => {
-    try {
-      const allOrders = await getOrders();
-      setOrders(allOrders);
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
-      toast.error('Failed to load orders');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateOrderStatus = async (order: OrderData, newStatus: OrderData['status']) => {
+  const updateOrderStatus = async (order: any, newStatus: OrderData['status']) => {
     if (!order.id) return;
     
     setUpdatingStatus(order.id);
     
     try {
-      // Update order in localStorage
-      const existingOrders = JSON.parse(localStorage.getItem('basitshop_orders') || '[]');
-      const updatedOrders = existingOrders.map((o: OrderData) => 
-        o.id === order.id ? { ...o, status: newStatus } : o
-      );
-      localStorage.setItem('basitshop_orders', JSON.stringify(updatedOrders));
-      
-      // Update local state
-      setOrders(prev => prev.map(o => 
-        o.id === order.id ? { ...o, status: newStatus } : o
-      ));
-
+      // Update in database if it's a DB order
+      if (order.isDbOrder) {
+        await updateDbOrderStatus(order.id, newStatus);
+      } else {
+        // Update order in localStorage
+        const existingOrders = JSON.parse(localStorage.getItem('basitshop_orders') || '[]');
+        const updatedOrders = existingOrders.map((o: OrderData) => 
+          o.id === order.id ? { ...o, status: newStatus } : o
+        );
+        localStorage.setItem('basitshop_orders', JSON.stringify(updatedOrders));
+        
+        // Update local state
+        setLocalOrders(prev => prev.map(o => 
+          o.id === order.id ? { ...o, status: newStatus } : o
+        ));
+      }
       // Send email notification
-      const result = await sendOrderStatusUpdate(order, newStatus);
+      const result = await sendOrderStatusUpdate({
+        id: order.id,
+        userId: order.userId,
+        customerName: order.customerName,
+        email: order.email,
+        phone: order.phone,
+        address: order.address,
+        city: order.city,
+        postalCode: order.postalCode,
+        country: order.country,
+        paymentMethod: order.paymentMethod,
+        items: order.items,
+        subtotal: order.subtotal,
+        shipping: order.shipping,
+        tax: order.tax,
+        total: order.total,
+        status: order.status,
+        createdAt: order.createdAt
+      }, newStatus);
       
       if (result.success) {
         toast.success(`Order status updated to ${statusConfig[newStatus].label}. Email notification sent!`);
@@ -93,7 +142,7 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = allOrders.filter(order => {
     const matchesSearch = 
       order.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -103,10 +152,10 @@ const AdminOrders: React.FC = () => {
   });
 
   const stats = [
-    { label: 'Total Orders', value: orders.length.toString(), change: 'All time', icon: Package, gradient: 'from-violet-500 to-purple-500' },
-    { label: 'Pending', value: orders.filter(o => o.status === 'pending').length.toString(), change: 'Awaiting', icon: Clock, gradient: 'from-amber-500 to-orange-500' },
-    { label: 'Processing', value: orders.filter(o => o.status === 'processing').length.toString(), change: 'In progress', icon: Package, gradient: 'from-blue-500 to-cyan-500' },
-    { label: 'Delivered', value: orders.filter(o => o.status === 'delivered').length.toString(), change: 'Completed', icon: CheckCircle, gradient: 'from-emerald-500 to-teal-500' },
+    { label: 'Total Orders', value: allOrders.length.toString(), change: 'All time', icon: Package, gradient: 'from-violet-500 to-purple-500' },
+    { label: 'Pending', value: allOrders.filter(o => o.status === 'pending').length.toString(), change: 'Awaiting', icon: Clock, gradient: 'from-amber-500 to-orange-500' },
+    { label: 'Processing', value: allOrders.filter(o => o.status === 'processing').length.toString(), change: 'In progress', icon: Package, gradient: 'from-blue-500 to-cyan-500' },
+    { label: 'Delivered', value: allOrders.filter(o => o.status === 'delivered').length.toString(), change: 'Completed', icon: CheckCircle, gradient: 'from-emerald-500 to-teal-500' },
   ];
 
   const formatDate = (date: Date) => {
@@ -204,7 +253,7 @@ const AdminOrders: React.FC = () => {
             <div className="p-12 text-center">
               <Package className="w-16 h-16 mx-auto mb-4 text-gray-600" />
               <p className="text-gray-400">
-                {orders.length === 0 ? 'No orders yet' : 'No orders match your search'}
+                {allOrders.length === 0 ? 'No orders yet' : 'No orders match your search'}
               </p>
             </div>
           ) : (
