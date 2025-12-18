@@ -36,6 +36,7 @@ import AdminLoginControl from "./pages/admin/AdminLoginControl";
 import AdminInventory from "./pages/admin/AdminInventory";
 import NotFound from "./pages/NotFound";
 
+// Query client for data fetching
 const queryClient = new QueryClient();
 
 const AnimatedRoutes = () => {
