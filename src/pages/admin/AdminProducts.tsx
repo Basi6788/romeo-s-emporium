@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { 
-  Package, Plus, Edit2, Trash2, Search, Grid, List, Eye, X, 
-  Upload, Loader2, AlertTriangle 
+  Package, Plus, Edit2, Trash2, Search, Grid, List, X, 
+  Upload, Loader2, AlertTriangle, Image, GripVertical, Eye, EyeOff
 } from 'lucide-react';
 import { useProductsFromDb, useCreateProduct, useUpdateProduct, useDeleteProduct, uploadProductImage, Product, ProductInsert } from '@/hooks/useProducts';
+import { useAllHeroImages, useCreateHeroImage, useUpdateHeroImage, useDeleteHeroImage, uploadHeroImage, HeroImage, HeroImageInsert } from '@/hooks/useHeroImages';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +14,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import gsap from 'gsap';
 
 const categories = ['smartphones', 'laptops', 'tablets', 'audio', 'wearables', 'accessories', 'gaming', 'cameras'];
+
+const gradientOptions = [
+  { value: 'from-violet-600 via-purple-600 to-indigo-800', label: 'Purple' },
+  { value: 'from-orange-500 via-rose-500 to-pink-600', label: 'Orange/Rose' },
+  { value: 'from-emerald-500 via-teal-500 to-cyan-600', label: 'Emerald' },
+  { value: 'from-slate-600 via-gray-700 to-zinc-900', label: 'Slate' },
+  { value: 'from-blue-500 via-indigo-500 to-purple-600', label: 'Blue' },
+  { value: 'from-red-500 via-orange-500 to-yellow-500', label: 'Sunset' },
+];
 
 const AdminProducts: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -28,10 +39,24 @@ const AdminProducts: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Hero Image states
+  const [isHeroDialogOpen, setIsHeroDialogOpen] = useState(false);
+  const [editingHero, setEditingHero] = useState<HeroImage | null>(null);
+  const [deleteHeroId, setDeleteHeroId] = useState<string | null>(null);
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
+  const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
+
   const { data: products = [], isLoading } = useProductsFromDb();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+
+  // Hero Image hooks
+  const { data: heroImages = [], isLoading: isLoadingHeroes } = useAllHeroImages();
+  const createHeroImage = useCreateHeroImage();
+  const updateHeroImage = useUpdateHeroImage();
+  const deleteHeroImage = useDeleteHeroImage();
 
   const [formData, setFormData] = useState<Partial<ProductInsert>>({
     name: '',
@@ -48,6 +73,17 @@ const AdminProducts: React.FC = () => {
     rating: 0,
     reviews: 0,
     colors: []
+  });
+
+  const [heroFormData, setHeroFormData] = useState<Partial<HeroImageInsert>>({
+    title: '',
+    subtitle: '',
+    image: '',
+    gradient: 'from-violet-600 via-purple-600 to-indigo-800',
+    badge: 'New',
+    link: '/products',
+    sort_order: 0,
+    is_active: true
   });
 
   useEffect(() => {
@@ -85,6 +121,22 @@ const AdminProducts: React.FC = () => {
     setEditingProduct(null);
   };
 
+  const resetHeroForm = () => {
+    setHeroFormData({
+      title: '',
+      subtitle: '',
+      image: '',
+      gradient: 'from-violet-600 via-purple-600 to-indigo-800',
+      badge: 'New',
+      link: '/products',
+      sort_order: heroImages.length,
+      is_active: true
+    });
+    setHeroImageFile(null);
+    setHeroImagePreview(null);
+    setEditingHero(null);
+  };
+
   const openCreateDialog = () => {
     resetForm();
     setIsDialogOpen(true);
@@ -112,11 +164,40 @@ const AdminProducts: React.FC = () => {
     setIsDialogOpen(true);
   };
 
+  const openCreateHeroDialog = () => {
+    resetHeroForm();
+    setIsHeroDialogOpen(true);
+  };
+
+  const openEditHeroDialog = (hero: HeroImage) => {
+    setEditingHero(hero);
+    setHeroFormData({
+      title: hero.title,
+      subtitle: hero.subtitle || '',
+      image: hero.image,
+      gradient: hero.gradient,
+      badge: hero.badge,
+      link: hero.link,
+      sort_order: hero.sort_order,
+      is_active: hero.is_active
+    });
+    setHeroImagePreview(hero.image);
+    setIsHeroDialogOpen(true);
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleHeroImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setHeroImageFile(file);
+      setHeroImagePreview(URL.createObjectURL(file));
     }
   };
 
@@ -127,7 +208,6 @@ const AdminProducts: React.FC = () => {
     try {
       let imageUrl = formData.image;
 
-      // Upload new image if selected
       if (imageFile) {
         const uploadedUrl = await uploadProductImage(imageFile);
         if (uploadedUrl) {
@@ -167,11 +247,65 @@ const AdminProducts: React.FC = () => {
     }
   };
 
+  const handleHeroSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUploading(true);
+
+    try {
+      let imageUrl = heroFormData.image;
+
+      if (heroImageFile) {
+        const uploadedUrl = await uploadHeroImage(heroImageFile);
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        }
+      }
+
+      const heroData: HeroImageInsert = {
+        title: heroFormData.title || '',
+        subtitle: heroFormData.subtitle || null,
+        image: imageUrl || '',
+        gradient: heroFormData.gradient || 'from-violet-600 via-purple-600 to-indigo-800',
+        badge: heroFormData.badge || 'New',
+        link: heroFormData.link || '/products',
+        sort_order: heroFormData.sort_order || 0,
+        is_active: heroFormData.is_active ?? true
+      };
+
+      if (editingHero) {
+        await updateHeroImage.mutateAsync({ id: editingHero.id, updates: heroData });
+      } else {
+        await createHeroImage.mutateAsync(heroData);
+      }
+
+      setIsHeroDialogOpen(false);
+      resetHeroForm();
+    } catch (error) {
+      console.error('Failed to save hero image:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (deleteProductId) {
       await deleteProduct.mutateAsync(deleteProductId);
       setDeleteProductId(null);
     }
+  };
+
+  const handleDeleteHero = async () => {
+    if (deleteHeroId) {
+      await deleteHeroImage.mutateAsync(deleteHeroId);
+      setDeleteHeroId(null);
+    }
+  };
+
+  const toggleHeroActive = async (hero: HeroImage) => {
+    await updateHeroImage.mutateAsync({
+      id: hero.id,
+      updates: { is_active: !hero.is_active }
+    });
   };
 
   const getStockStatus = (product: Product) => {
@@ -187,190 +321,294 @@ const AdminProducts: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Products Management</h1>
-            <p className="text-gray-500 mt-1 text-sm sm:text-base">Manage your catalog ({products.length} products)</p>
-          </div>
-          <Button onClick={openCreateDialog} className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-lg hover:shadow-orange-500/25">
-            <Plus className="w-5 h-5" />
-            Add Product
-          </Button>
-        </div>
-
-        {/* Search & View Toggle */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-            <input 
-              type="text" 
-              placeholder="Search products by name, category, or SKU..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-[#111111] border border-white/5 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:border-orange-500/50"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setViewMode('grid')}
-              className={`p-3 rounded-xl border transition-colors ${viewMode === 'grid' ? 'bg-orange-500/20 border-orange-500/50 text-orange-400' : 'bg-[#111111] border-white/5 text-gray-400 hover:text-white'}`}
-            >
-              <Grid className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={() => setViewMode('list')}
-              className={`p-3 rounded-xl border transition-colors ${viewMode === 'list' ? 'bg-orange-500/20 border-orange-500/50 text-orange-400' : 'bg-[#111111] border-white/5 text-gray-400 hover:text-white'}`}
-            >
-              <List className="w-5 h-5" />
-            </button>
+            <p className="text-gray-500 mt-1 text-sm sm:text-base">Manage your catalog and hero banners</p>
           </div>
         </div>
 
-        {/* Loading State */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-20">
-            <Package className="w-16 h-16 mx-auto text-gray-600 mb-4" />
-            <h3 className="text-xl font-medium text-white mb-2">No products found</h3>
-            <p className="text-gray-500 mb-6">
-              {searchQuery ? 'Try a different search term' : 'Start by adding your first product'}
-            </p>
-            {!searchQuery && (
-              <Button onClick={openCreateDialog} className="bg-orange-500 hover:bg-orange-600">
-                <Plus className="w-4 h-4 mr-2" /> Add Product
-              </Button>
-            )}
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredProducts.map((product) => {
-              const stockStatus = getStockStatus(product);
-              return (
-                <div 
-                  key={product.id} 
-                  className="product-item bg-[#111111] rounded-2xl border border-white/5 overflow-hidden group hover:border-white/10 transition-all"
+        <Tabs defaultValue="products" className="w-full">
+          <TabsList className="w-full sm:w-auto bg-[#111111] border border-white/5 p-1 gap-1">
+            <TabsTrigger value="products" className="flex-1 sm:flex-none data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+              <Package className="w-4 h-4 mr-2" />
+              Products ({products.length})
+            </TabsTrigger>
+            <TabsTrigger value="heroes" className="flex-1 sm:flex-none data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+              <Image className="w-4 h-4 mr-2" />
+              Hero Banners ({heroImages.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Products Tab */}
+          <TabsContent value="products" className="mt-6">
+            {/* Search & View Toggle */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input 
+                  type="text" 
+                  placeholder="Search products by name, category, or SKU..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-[#111111] border border-white/5 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:border-orange-500/50"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setViewMode('grid')}
+                  className={`p-3 rounded-xl border transition-colors ${viewMode === 'grid' ? 'bg-orange-500/20 border-orange-500/50 text-orange-400' : 'bg-[#111111] border-white/5 text-gray-400 hover:text-white'}`}
                 >
-                  <div className="relative aspect-square bg-[#1a1a1a] p-4">
-                    {product.image ? (
-                      <img 
-                        src={product.image} 
-                        alt={product.name}
-                        className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="w-16 h-16 text-gray-600" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <button 
-                        onClick={() => openEditDialog(product)}
-                        className="p-2.5 bg-white/10 rounded-xl hover:bg-blue-500 transition-colors"
-                      >
-                        <Edit2 className="w-5 h-5 text-white" />
-                      </button>
-                      <button 
-                        onClick={() => setDeleteProductId(product.id)}
-                        className="p-2.5 bg-white/10 rounded-xl hover:bg-red-500 transition-colors"
-                      >
-                        <Trash2 className="w-5 h-5 text-white" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{product.category}</p>
-                    <h3 className="font-medium text-white truncate">{product.name}</h3>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-lg font-bold text-orange-400">${product.price}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${stockStatus.color}`}>
-                        {stockStatus.label}
-                      </span>
-                    </div>
-                    {product.stock_quantity <= product.low_stock_threshold && product.stock_quantity > 0 && (
-                      <p className="text-xs text-amber-400 mt-2 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        Only {product.stock_quantity} left
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="bg-[#111111] rounded-2xl border border-white/5 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="text-left p-4 text-sm font-medium text-gray-500">Product</th>
-                  <th className="text-left p-4 text-sm font-medium text-gray-500 hidden md:table-cell">Category</th>
-                  <th className="text-left p-4 text-sm font-medium text-gray-500">Price</th>
-                  <th className="text-left p-4 text-sm font-medium text-gray-500 hidden sm:table-cell">Stock</th>
-                  <th className="text-left p-4 text-sm font-medium text-gray-500">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+                  <Grid className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setViewMode('list')}
+                  className={`p-3 rounded-xl border transition-colors ${viewMode === 'list' ? 'bg-orange-500/20 border-orange-500/50 text-orange-400' : 'bg-[#111111] border-white/5 text-gray-400 hover:text-white'}`}
+                >
+                  <List className="w-5 h-5" />
+                </button>
+                <Button onClick={openCreateDialog} className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-lg hover:shadow-orange-500/25">
+                  <Plus className="w-5 h-5" />
+                  <span className="hidden sm:inline">Add Product</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-20">
+                <Package className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+                <h3 className="text-xl font-medium text-white mb-2">No products found</h3>
+                <p className="text-gray-500 mb-6">
+                  {searchQuery ? 'Try a different search term' : 'Start by adding your first product'}
+                </p>
+                {!searchQuery && (
+                  <Button onClick={openCreateDialog} className="bg-orange-500 hover:bg-orange-600">
+                    <Plus className="w-4 h-4 mr-2" /> Add Product
+                  </Button>
+                )}
+              </div>
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredProducts.map((product) => {
                   const stockStatus = getStockStatus(product);
                   return (
-                    <tr key={product.id} className="product-item border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-[#1a1a1a] flex items-center justify-center overflow-hidden">
-                            {product.image ? (
-                              <img src={product.image} alt={product.name} className="w-10 h-10 object-contain" />
-                            ) : (
-                              <Package className="w-6 h-6 text-gray-600" />
-                            )}
+                    <div 
+                      key={product.id} 
+                      className="product-item bg-[#111111] rounded-2xl border border-white/5 overflow-hidden group hover:border-white/10 transition-all"
+                    >
+                      <div className="relative aspect-square bg-[#1a1a1a] p-4">
+                        {product.image ? (
+                          <img 
+                            src={product.image} 
+                            alt={product.name}
+                            className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-16 h-16 text-gray-600" />
                           </div>
-                          <div>
-                            <span className="font-medium text-white">{product.name}</span>
-                            {product.sku && (
-                              <p className="text-xs text-gray-500">SKU: {product.sku}</p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4 text-gray-400 capitalize hidden md:table-cell">{product.category}</td>
-                      <td className="p-4">
-                        <span className="font-bold text-orange-400">${product.price}</span>
-                        {product.original_price && (
-                          <span className="text-xs text-gray-500 line-through ml-2">${product.original_price}</span>
                         )}
-                      </td>
-                      <td className="p-4 hidden sm:table-cell">
-                        <div className="flex flex-col gap-1">
-                          <span className={`px-3 py-1 rounded-full text-sm inline-flex items-center w-fit ${stockStatus.color}`}>
-                            {stockStatus.label}
-                          </span>
-                          <span className="text-xs text-gray-500">{product.stock_quantity} units</span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                           <button 
                             onClick={() => openEditDialog(product)}
-                            className="p-2 hover:bg-blue-500/20 rounded-lg transition-colors"
+                            className="p-2.5 bg-white/10 rounded-xl hover:bg-blue-500 transition-colors"
                           >
-                            <Edit2 className="w-4 h-4 text-blue-400" />
+                            <Edit2 className="w-5 h-5 text-white" />
                           </button>
                           <button 
                             onClick={() => setDeleteProductId(product.id)}
-                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+                            className="p-2.5 bg-white/10 rounded-xl hover:bg-red-500 transition-colors"
                           >
-                            <Trash2 className="w-4 h-4 text-red-400" />
+                            <Trash2 className="w-5 h-5 text-white" />
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{product.category}</p>
+                        <h3 className="font-medium text-white truncate">{product.name}</h3>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-lg font-bold text-orange-400">${product.price}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full ${stockStatus.color}`}>
+                            {stockStatus.label}
+                          </span>
+                        </div>
+                        {product.stock_quantity <= product.low_stock_threshold && product.stock_quantity > 0 && (
+                          <p className="text-xs text-amber-400 mt-2 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Only {product.stock_quantity} left
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </div>
+            ) : (
+              <div className="bg-[#111111] rounded-2xl border border-white/5 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="text-left p-4 text-sm font-medium text-gray-500">Product</th>
+                        <th className="text-left p-4 text-sm font-medium text-gray-500 hidden md:table-cell">Category</th>
+                        <th className="text-left p-4 text-sm font-medium text-gray-500">Price</th>
+                        <th className="text-left p-4 text-sm font-medium text-gray-500 hidden sm:table-cell">Stock</th>
+                        <th className="text-left p-4 text-sm font-medium text-gray-500">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProducts.map((product) => {
+                        const stockStatus = getStockStatus(product);
+                        return (
+                          <tr key={product.id} className="product-item border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-[#1a1a1a] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                  {product.image ? (
+                                    <img src={product.image} alt={product.name} className="w-10 h-10 object-contain" />
+                                  ) : (
+                                    <Package className="w-6 h-6 text-gray-600" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="font-medium text-white block truncate">{product.name}</span>
+                                  {product.sku && (
+                                    <p className="text-xs text-gray-500 truncate">SKU: {product.sku}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 text-gray-400 capitalize hidden md:table-cell">{product.category}</td>
+                            <td className="p-4">
+                              <span className="font-bold text-orange-400">${product.price}</span>
+                              {product.original_price && (
+                                <span className="text-xs text-gray-500 line-through ml-2">${product.original_price}</span>
+                              )}
+                            </td>
+                            <td className="p-4 hidden sm:table-cell">
+                              <div className="flex flex-col gap-1">
+                                <span className={`px-3 py-1 rounded-full text-sm inline-flex items-center w-fit ${stockStatus.color}`}>
+                                  {stockStatus.label}
+                                </span>
+                                <span className="text-xs text-gray-500">{product.stock_quantity} units</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => openEditDialog(product)}
+                                  className="p-2 hover:bg-blue-500/20 rounded-lg transition-colors"
+                                >
+                                  <Edit2 className="w-4 h-4 text-blue-400" />
+                                </button>
+                                <button 
+                                  onClick={() => setDeleteProductId(product.id)}
+                                  className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-400" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </TabsContent>
 
-        {/* Create/Edit Dialog */}
+          {/* Hero Banners Tab */}
+          <TabsContent value="heroes" className="mt-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <p className="text-gray-400 text-sm">Manage homepage hero/banner images</p>
+              <Button onClick={openCreateHeroDialog} className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-lg hover:shadow-orange-500/25">
+                <Plus className="w-5 h-5" />
+                Add Banner
+              </Button>
+            </div>
+
+            {isLoadingHeroes ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            ) : heroImages.length === 0 ? (
+              <div className="text-center py-20 bg-[#111111] rounded-2xl border border-white/5">
+                <Image className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+                <h3 className="text-xl font-medium text-white mb-2">No hero banners yet</h3>
+                <p className="text-gray-500 mb-6">Add your first homepage banner</p>
+                <Button onClick={openCreateHeroDialog} className="bg-orange-500 hover:bg-orange-600">
+                  <Plus className="w-4 h-4 mr-2" /> Add Banner
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {heroImages.map((hero, index) => (
+                  <div 
+                    key={hero.id} 
+                    className={`relative bg-gradient-to-br ${hero.gradient} rounded-2xl overflow-hidden group ${!hero.is_active ? 'opacity-50' : ''}`}
+                  >
+                    <div className="absolute inset-0 bg-black/30" />
+                    <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white/10 overflow-hidden flex-shrink-0">
+                        <img 
+                          src={hero.image} 
+                          alt={hero.title}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-xs font-medium">
+                            {hero.badge}
+                          </span>
+                          {!hero.is_active && (
+                            <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-xs">
+                              Hidden
+                            </span>
+                          )}
+                          <span className="text-white/50 text-xs">#{index + 1}</span>
+                        </div>
+                        <h3 className="text-lg sm:text-xl font-bold text-white truncate">{hero.title}</h3>
+                        <p className="text-white/70 text-sm truncate">{hero.subtitle}</p>
+                      </div>
+                    </div>
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => toggleHeroActive(hero)}
+                        className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                        title={hero.is_active ? 'Hide banner' : 'Show banner'}
+                      >
+                        {hero.is_active ? (
+                          <EyeOff className="w-4 h-4 text-white" />
+                        ) : (
+                          <Eye className="w-4 h-4 text-white" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => openEditHeroDialog(hero)}
+                        className="p-2 bg-white/10 rounded-lg hover:bg-blue-500 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4 text-white" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteHeroId(hero.id)}
+                        className="p-2 bg-white/10 rounded-lg hover:bg-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-white" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Create/Edit Product Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-[#111111] border-white/10 p-4 sm:p-6">
             <DialogHeader>
@@ -559,7 +797,196 @@ const AdminProducts: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation */}
+        {/* Create/Edit Hero Dialog */}
+        <Dialog open={isHeroDialogOpen} onOpenChange={setIsHeroDialogOpen}>
+          <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-[#111111] border-white/10 p-4 sm:p-6">
+            <DialogHeader>
+              <DialogTitle className="text-white text-lg sm:text-xl">
+                {editingHero ? 'Edit Hero Banner' : 'Create New Hero Banner'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <form onSubmit={handleHeroSubmit} className="space-y-4 sm:space-y-6">
+              {/* Image Upload */}
+              <div className="space-y-2">
+                <Label className="text-sm">Banner Image *</Label>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center sm:items-start">
+                  <div 
+                    onClick={() => heroFileInputRef.current?.click()}
+                    className="w-32 h-32 sm:w-40 sm:h-40 rounded-xl bg-[#1a1a1a] border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-colors overflow-hidden flex-shrink-0"
+                  >
+                    {heroImagePreview ? (
+                      <img src={heroImagePreview} alt="Preview" className="w-full h-full object-contain" />
+                    ) : (
+                      <Upload className="w-8 h-8 text-gray-500" />
+                    )}
+                  </div>
+                  <input
+                    ref={heroFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleHeroImageChange}
+                    className="hidden"
+                  />
+                  <div className="flex-1 text-center sm:text-left">
+                    <p className="text-sm text-gray-400 mb-2">Click to upload</p>
+                    <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 5MB</p>
+                    {heroImagePreview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 text-red-400 text-xs"
+                        onClick={() => {
+                          setHeroImageFile(null);
+                          setHeroImagePreview(null);
+                          setHeroFormData(prev => ({ ...prev, image: '' }));
+                        }}
+                      >
+                        <X className="w-4 h-4 mr-1" /> Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-2 col-span-1 sm:col-span-2">
+                  <Label htmlFor="hero-title" className="text-sm">Title *</Label>
+                  <Input
+                    id="hero-title"
+                    value={heroFormData.title}
+                    onChange={(e) => setHeroFormData(prev => ({ ...prev, title: e.target.value }))}
+                    required
+                    className="bg-[#1a1a1a] border-white/10 text-sm"
+                    placeholder="iPhone 16 Pro"
+                  />
+                </div>
+
+                <div className="space-y-2 col-span-1 sm:col-span-2">
+                  <Label htmlFor="hero-subtitle" className="text-sm">Subtitle</Label>
+                  <Input
+                    id="hero-subtitle"
+                    value={heroFormData.subtitle || ''}
+                    onChange={(e) => setHeroFormData(prev => ({ ...prev, subtitle: e.target.value }))}
+                    className="bg-[#1a1a1a] border-white/10 text-sm"
+                    placeholder="Extraordinary Visual & Power"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="hero-badge">Badge</Label>
+                  <Input
+                    id="hero-badge"
+                    value={heroFormData.badge || ''}
+                    onChange={(e) => setHeroFormData(prev => ({ ...prev, badge: e.target.value }))}
+                    className="bg-[#1a1a1a] border-white/10"
+                    placeholder="New"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="hero-link">Link</Label>
+                  <Input
+                    id="hero-link"
+                    value={heroFormData.link || ''}
+                    onChange={(e) => setHeroFormData(prev => ({ ...prev, link: e.target.value }))}
+                    className="bg-[#1a1a1a] border-white/10"
+                    placeholder="/products"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="hero-gradient">Background Gradient</Label>
+                  <Select 
+                    value={heroFormData.gradient} 
+                    onValueChange={(value) => setHeroFormData(prev => ({ ...prev, gradient: value }))}
+                  >
+                    <SelectTrigger className="bg-[#1a1a1a] border-white/10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {gradientOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded bg-gradient-to-r ${opt.value}`} />
+                            {opt.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="hero-order">Sort Order</Label>
+                  <Input
+                    id="hero-order"
+                    type="number"
+                    min="0"
+                    value={heroFormData.sort_order}
+                    onChange={(e) => setHeroFormData(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))}
+                    className="bg-[#1a1a1a] border-white/10"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between col-span-1 sm:col-span-2 p-3 sm:p-4 bg-[#1a1a1a] rounded-xl">
+                  <div>
+                    <Label htmlFor="hero-active" className="text-sm">Active</Label>
+                    <p className="text-xs text-gray-500">Show on homepage</p>
+                  </div>
+                  <Switch
+                    id="hero-active"
+                    checked={heroFormData.is_active ?? true}
+                    onCheckedChange={(checked) => setHeroFormData(prev => ({ ...prev, is_active: checked }))}
+                  />
+                </div>
+              </div>
+
+              {/* Preview */}
+              {heroFormData.title && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Preview</Label>
+                  <div className={`relative bg-gradient-to-br ${heroFormData.gradient} rounded-xl p-4 overflow-hidden`}>
+                    <div className="absolute inset-0 bg-black/20" />
+                    <div className="relative flex items-center gap-4">
+                      {heroImagePreview && (
+                        <div className="w-16 h-16 rounded-lg bg-white/10 overflow-hidden">
+                          <img src={heroImagePreview} alt="Preview" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div>
+                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-xs font-medium">
+                          {heroFormData.badge || 'New'}
+                        </span>
+                        <h3 className="text-lg font-bold text-white mt-1">{heroFormData.title}</h3>
+                        <p className="text-white/70 text-sm">{heroFormData.subtitle}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-white/5">
+                <Button type="button" variant="ghost" onClick={() => setIsHeroDialogOpen(false)} className="order-2 sm:order-1">
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isUploading || createHeroImage.isPending || updateHeroImage.isPending || !heroFormData.title || (!heroImagePreview && !heroFormData.image)}
+                  className="bg-orange-500 hover:bg-orange-600 order-1 sm:order-2"
+                >
+                  {(isUploading || createHeroImage.isPending || updateHeroImage.isPending) && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {editingHero ? 'Update' : 'Create'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Product Confirmation */}
         <AlertDialog open={!!deleteProductId} onOpenChange={() => setDeleteProductId(null)}>
           <AlertDialogContent className="w-[90vw] max-w-md bg-[#111111] border-white/10">
             <AlertDialogHeader>
@@ -575,6 +1002,28 @@ const AdminProducts: React.FC = () => {
                 className="bg-red-500 hover:bg-red-600 w-full sm:w-auto"
               >
                 {deleteProduct.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Hero Confirmation */}
+        <AlertDialog open={!!deleteHeroId} onOpenChange={() => setDeleteHeroId(null)}>
+          <AlertDialogContent className="w-[90vw] max-w-md bg-[#111111] border-white/10">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white text-lg">Delete Hero Banner</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
+                Are you sure you want to delete this banner? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5 w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteHero}
+                className="bg-red-500 hover:bg-red-600 w-full sm:w-auto"
+              >
+                {deleteHeroImage.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>

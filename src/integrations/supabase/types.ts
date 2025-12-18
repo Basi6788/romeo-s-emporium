@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      hero_images: {
+        Row: {
+          badge: string | null
+          created_at: string
+          gradient: string | null
+          id: string
+          image: string
+          is_active: boolean | null
+          link: string | null
+          sort_order: number | null
+          subtitle: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          badge?: string | null
+          created_at?: string
+          gradient?: string | null
+          id?: string
+          image: string
+          is_active?: boolean | null
+          link?: string | null
+          sort_order?: number | null
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          badge?: string | null
+          created_at?: string
+          gradient?: string | null
+          id?: string
+          image?: string
+          is_active?: boolean | null
+          link?: string | null
+          sort_order?: number | null
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           address: string | null
