@@ -86,7 +86,23 @@ export function useCategories() {
     queryKey: ['categories'],
     queryFn: async () => {
       try {
-        // Get unique categories from products table
+        // First try to get categories from the categories table
+        const { data: catData, error: catError } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+        
+        if (!catError && catData && catData.length > 0) {
+          return catData.map(cat => ({
+            id: cat.name,
+            name: cat.name.charAt(0).toUpperCase() + cat.name.slice(1),
+            icon: cat.icon,
+            image: `/placeholder.svg`,
+          }));
+        }
+        
+        // Fallback: Get unique categories from products table
         const { data, error } = await supabase
           .from('products')
           .select('category')
@@ -97,8 +113,8 @@ export function useCategories() {
         if (data && data.length > 0) {
           const uniqueCategories = [...new Set(data.map(p => p.category))];
           return uniqueCategories.map((cat, index) => ({
-            id: String(index + 1),
-            name: cat,
+            id: cat,
+            name: cat.charAt(0).toUpperCase() + cat.slice(1),
             icon: '📦',
             image: `/placeholder.svg`,
           }));

@@ -118,6 +118,27 @@ export const useDeleteHeroImage = () => {
   });
 };
 
+export const useUpdateHeroImagesOrder = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (heroes: { id: string; sort_order: number }[]) => {
+      const updates = heroes.map(hero => 
+        supabase
+          .from('hero_images')
+          .update({ sort_order: hero.sort_order })
+          .eq('id', hero.id)
+      );
+      
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hero-images'] });
+      queryClient.invalidateQueries({ queryKey: ['hero-images-all'] });
+    },
+  });
+};
+
 export const uploadHeroImage = async (file: File): Promise<string | null> => {
   const fileExt = file.name.split('.').pop();
   const fileName = `hero-${Date.now()}.${fileExt}`;

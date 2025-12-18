@@ -378,7 +378,7 @@ const HomePage = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="relative min-h-[480px] md:min-h-[540px]">
+        <div className="relative min-h-[520px] md:min-h-[600px]">
           {heroSlides.map((slide, index) => (
             <div
               key={slide.id}
@@ -386,26 +386,25 @@ const HomePage = () => {
               className="absolute inset-0 overflow-hidden"
               style={{ visibility: index === 0 ? 'visible' : 'hidden' }}
             >
-              {/* Background Image */}
+              {/* Background Image - Full width cover */}
               <img
                 ref={el => imageRefs.current[index] = el}
                 src={slide.image}
                 alt={slide.title}
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover scale-105"
                 loading={index === 0 ? 'eager' : 'lazy'}
               />
               
               {/* Overlay Gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-70`} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+              <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-60`} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
 
-              {/* Content */}
+              {/* Content - All at bottom */}
               <div className="container mx-auto px-4 h-full relative z-10">
-                <div className="flex flex-col justify-between min-h-[480px] md:min-h-[540px] py-10">
-                  {/* Top Content */}
+                <div className="flex flex-col justify-end min-h-[520px] md:min-h-[600px] pb-20">
                   <div 
                     ref={el => contentRefs.current[index] = el}
-                    className="flex-1 flex flex-col justify-center max-w-lg"
+                    className="max-w-xl"
                   >
                     <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/20 dark:bg-background/30 backdrop-blur-md text-xs font-medium mb-4 border border-foreground/20 text-foreground dark:text-foreground w-fit">
                       <Sparkles className="w-3.5 h-3.5" />
@@ -433,20 +432,9 @@ const HomePage = () => {
                         size="lg" 
                         className="h-12 px-6 border-foreground/30 bg-foreground/10 text-foreground hover:bg-foreground/20 hover:text-foreground rounded-xl backdrop-blur-sm"
                       >
-                        <Link to={slide.link || '/products'}>Learn More</Link>
+                        <Link to={slide.link || '/products'}>Explore Now</Link>
                       </Button>
                     </div>
-                  </div>
-
-                  {/* Bottom Explore Button */}
-                  <div className="flex justify-end pb-8">
-                    <Link
-                      to={slide.link || '/products'}
-                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-background/20 dark:bg-background/30 backdrop-blur-md text-foreground dark:text-foreground text-sm font-semibold border border-foreground/30 hover:bg-background/30 dark:hover:bg-background/40 transition-all duration-300 group shadow-lg"
-                    >
-                      Explore Now
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </Link>
                   </div>
                 </div>
               </div>

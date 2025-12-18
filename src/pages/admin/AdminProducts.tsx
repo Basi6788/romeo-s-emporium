@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { 
   Package, Plus, Edit2, Trash2, Search, Grid, List, X, 
-  Upload, Loader2, AlertTriangle, Image, GripVertical, Eye, EyeOff
+  Upload, Loader2, AlertTriangle, Image, GripVertical, Eye, EyeOff, Tags
 } from 'lucide-react';
 import { useProductsFromDb, useCreateProduct, useUpdateProduct, useDeleteProduct, uploadProductImage, Product, ProductInsert } from '@/hooks/useProducts';
-import { useAllHeroImages, useCreateHeroImage, useUpdateHeroImage, useDeleteHeroImage, uploadHeroImage, HeroImage, HeroImageInsert } from '@/hooks/useHeroImages';
+import { useAllHeroImages, useCreateHeroImage, useUpdateHeroImage, useDeleteHeroImage, uploadHeroImage, useUpdateHeroImagesOrder, HeroImage, HeroImageInsert } from '@/hooks/useHeroImages';
+import { useAllCategoriesFromDb, useUpdateCategory, Category } from '@/hooks/useCategories';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import gsap from 'gsap';
 
-const categories = ['smartphones', 'laptops', 'tablets', 'audio', 'wearables', 'accessories', 'gaming', 'cameras'];
+const productCategories = ['smartphones', 'laptops', 'tablets', 'audio', 'wearables', 'accessories', 'gaming', 'cameras'];
 
 const gradientOptions = [
   { value: 'from-violet-600 via-purple-600 to-indigo-800', label: 'Purple' },
@@ -26,6 +27,11 @@ const gradientOptions = [
   { value: 'from-slate-600 via-gray-700 to-zinc-900', label: 'Slate' },
   { value: 'from-blue-500 via-indigo-500 to-purple-600', label: 'Blue' },
   { value: 'from-red-500 via-orange-500 to-yellow-500', label: 'Sunset' },
+];
+
+const emojiOptions = [
+  '📱', '💻', '📟', '🎧', '⌚', '🔌', '🎮', '📷', '🖥️', '🔋', '💾', '🖨️', 
+  '📀', '🎤', '🎵', '🎬', '📺', '📡', '🔊', '💡', '🔧', '⚡', '🛒', '🎁'
 ];
 
 const AdminProducts: React.FC = () => {
@@ -46,6 +52,13 @@ const AdminProducts: React.FC = () => {
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
+  const [draggedHeroId, setDraggedHeroId] = useState<string | null>(null);
+  const [heroOrder, setHeroOrder] = useState<HeroImage[]>([]);
+
+  // Category states
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [categoryIcon, setCategoryIcon] = useState('📦');
 
   const { data: products = [], isLoading } = useProductsFromDb();
   const createProduct = useCreateProduct();
@@ -57,6 +70,15 @@ const AdminProducts: React.FC = () => {
   const createHeroImage = useCreateHeroImage();
   const updateHeroImage = useUpdateHeroImage();
   const deleteHeroImage = useDeleteHeroImage();
+  const updateHeroOrder = useUpdateHeroImagesOrder();
+
+  // Category hooks
+  const { data: categories = [], isLoading: isLoadingCategories } = useAllCategoriesFromDb();
+  const updateCategory = useUpdateCategory();
+
+  useEffect(() => {
+    setHeroOrder(heroImages);
+  }, [heroImages]);
 
   const [formData, setFormData] = useState<Partial<ProductInsert>>({
     name: '',
@@ -185,6 +207,12 @@ const AdminProducts: React.FC = () => {
     setIsHeroDialogOpen(true);
   };
 
+  const openEditCategoryDialog = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryIcon(category.icon);
+    setIsCategoryDialogOpen(true);
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -287,6 +315,22 @@ const AdminProducts: React.FC = () => {
     }
   };
 
+  const handleCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+
+    try {
+      await updateCategory.mutateAsync({ 
+        id: editingCategory.id, 
+        updates: { icon: categoryIcon } 
+      });
+      setIsCategoryDialogOpen(false);
+      setEditingCategory(null);
+    } catch (error) {
+      console.error('Failed to update category:', error);
+    }
+  };
+
   const handleDelete = async () => {
     if (deleteProductId) {
       await deleteProduct.mutateAsync(deleteProductId);
@@ -308,6 +352,48 @@ const AdminProducts: React.FC = () => {
     });
   };
 
+  // Drag and drop handlers for hero banners
+  const handleDragStart = useCallback((e: React.DragEvent, heroId: string) => {
+    setDraggedHeroId(heroId);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedHeroId || draggedHeroId === targetId) return;
+
+    const newOrder = [...heroOrder];
+    const draggedIndex = newOrder.findIndex(h => h.id === draggedHeroId);
+    const targetIndex = newOrder.findIndex(h => h.id === targetId);
+
+    if (draggedIndex !== -1 && targetIndex !== -1) {
+      const [draggedItem] = newOrder.splice(draggedIndex, 1);
+      newOrder.splice(targetIndex, 0, draggedItem);
+      
+      const updatedOrder = newOrder.map((hero, index) => ({
+        ...hero,
+        sort_order: index
+      }));
+      
+      setHeroOrder(updatedOrder);
+      
+      // Save to database
+      updateHeroOrder.mutateAsync(
+        updatedOrder.map(h => ({ id: h.id, sort_order: h.sort_order }))
+      );
+    }
+    setDraggedHeroId(null);
+  }, [draggedHeroId, heroOrder, updateHeroOrder]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedHeroId(null);
+  }, []);
+
   const getStockStatus = (product: Product) => {
     if (product.stock_quantity === 0) return { label: 'Out of Stock', color: 'text-red-400 bg-red-500/20' };
     if (product.stock_quantity <= product.low_stock_threshold) return { label: 'Low Stock', color: 'text-amber-400 bg-amber-500/20' };
@@ -321,12 +407,12 @@ const AdminProducts: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Products Management</h1>
-            <p className="text-gray-500 mt-1 text-sm sm:text-base">Manage your catalog and hero banners</p>
+            <p className="text-gray-500 mt-1 text-sm sm:text-base">Manage your catalog, hero banners, and categories</p>
           </div>
         </div>
 
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="w-full sm:w-auto bg-[#111111] border border-white/5 p-1 gap-1">
+          <TabsList className="w-full sm:w-auto bg-[#111111] border border-white/5 p-1 gap-1 flex-wrap">
             <TabsTrigger value="products" className="flex-1 sm:flex-none data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
               <Package className="w-4 h-4 mr-2" />
               Products ({products.length})
@@ -334,6 +420,10 @@ const AdminProducts: React.FC = () => {
             <TabsTrigger value="heroes" className="flex-1 sm:flex-none data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
               <Image className="w-4 h-4 mr-2" />
               Hero Banners ({heroImages.length})
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="flex-1 sm:flex-none data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+              <Tags className="w-4 h-4 mr-2" />
+              Categories ({categories.length})
             </TabsTrigger>
           </TabsList>
 
@@ -448,55 +538,53 @@ const AdminProducts: React.FC = () => {
             ) : (
               <div className="bg-[#111111] rounded-2xl border border-white/5 overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[500px]">
+                  <table className="w-full min-w-[600px]">
                     <thead>
                       <tr className="border-b border-white/5">
-                        <th className="text-left p-4 text-sm font-medium text-gray-500">Product</th>
-                        <th className="text-left p-4 text-sm font-medium text-gray-500 hidden md:table-cell">Category</th>
-                        <th className="text-left p-4 text-sm font-medium text-gray-500">Price</th>
-                        <th className="text-left p-4 text-sm font-medium text-gray-500 hidden sm:table-cell">Stock</th>
-                        <th className="text-left p-4 text-sm font-medium text-gray-500">Actions</th>
+                        <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Product</th>
+                        <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Category</th>
+                        <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Price</th>
+                        <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Stock</th>
+                        <th className="text-left p-4 text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="text-right p-4 text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredProducts.map((product) => {
                         const stockStatus = getStockStatus(product);
                         return (
-                          <tr key={product.id} className="product-item border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <tr key={product.id} className="border-b border-white/5 hover:bg-white/2 product-item">
                             <td className="p-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl bg-[#1a1a1a] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] flex items-center justify-center overflow-hidden">
                                   {product.image ? (
-                                    <img src={product.image} alt={product.name} className="w-10 h-10 object-contain" />
+                                    <img src={product.image} alt={product.name} className="w-full h-full object-contain" />
                                   ) : (
                                     <Package className="w-6 h-6 text-gray-600" />
                                   )}
                                 </div>
-                                <div className="min-w-0">
-                                  <span className="font-medium text-white block truncate">{product.name}</span>
-                                  {product.sku && (
-                                    <p className="text-xs text-gray-500 truncate">SKU: {product.sku}</p>
-                                  )}
+                                <div>
+                                  <p className="font-medium text-white">{product.name}</p>
+                                  <p className="text-xs text-gray-500">{product.sku || 'No SKU'}</p>
                                 </div>
                               </div>
                             </td>
-                            <td className="p-4 text-gray-400 capitalize hidden md:table-cell">{product.category}</td>
                             <td className="p-4">
-                              <span className="font-bold text-orange-400">${product.price}</span>
-                              {product.original_price && (
-                                <span className="text-xs text-gray-500 line-through ml-2">${product.original_price}</span>
-                              )}
-                            </td>
-                            <td className="p-4 hidden sm:table-cell">
-                              <div className="flex flex-col gap-1">
-                                <span className={`px-3 py-1 rounded-full text-sm inline-flex items-center w-fit ${stockStatus.color}`}>
-                                  {stockStatus.label}
-                                </span>
-                                <span className="text-xs text-gray-500">{product.stock_quantity} units</span>
-                              </div>
+                              <span className="text-sm text-gray-400 capitalize">{product.category}</span>
                             </td>
                             <td className="p-4">
-                              <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-white">${product.price}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-sm text-gray-400">{product.stock_quantity}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className={`text-xs px-2 py-1 rounded-full ${stockStatus.color}`}>
+                                {stockStatus.label}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center justify-end gap-1">
                                 <button 
                                   onClick={() => openEditDialog(product)}
                                   className="p-2 hover:bg-blue-500/20 rounded-lg transition-colors"
@@ -524,7 +612,10 @@ const AdminProducts: React.FC = () => {
           {/* Hero Banners Tab */}
           <TabsContent value="heroes" className="mt-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <p className="text-gray-400 text-sm">Manage homepage hero/banner images</p>
+              <div>
+                <p className="text-gray-400 text-sm">Manage homepage hero/banner images</p>
+                <p className="text-gray-500 text-xs mt-1">Drag and drop to reorder banners</p>
+              </div>
               <Button onClick={openCreateHeroDialog} className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-lg hover:shadow-orange-500/25">
                 <Plus className="w-5 h-5" />
                 Add Banner
@@ -535,7 +626,7 @@ const AdminProducts: React.FC = () => {
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
               </div>
-            ) : heroImages.length === 0 ? (
+            ) : heroOrder.length === 0 ? (
               <div className="text-center py-20 bg-[#111111] rounded-2xl border border-white/5">
                 <Image className="w-16 h-16 mx-auto text-gray-600 mb-4" />
                 <h3 className="text-xl font-medium text-white mb-2">No hero banners yet</h3>
@@ -546,19 +637,29 @@ const AdminProducts: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {heroImages.map((hero, index) => (
+                {heroOrder.map((hero, index) => (
                   <div 
                     key={hero.id} 
-                    className={`relative bg-gradient-to-br ${hero.gradient} rounded-2xl overflow-hidden group ${!hero.is_active ? 'opacity-50' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, hero.id)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, hero.id)}
+                    onDragEnd={handleDragEnd}
+                    className={`relative bg-gradient-to-br ${hero.gradient} rounded-2xl overflow-hidden group cursor-move ${!hero.is_active ? 'opacity-50' : ''} ${draggedHeroId === hero.id ? 'ring-2 ring-orange-500 scale-[0.98]' : ''} transition-all`}
                   >
                     <div className="absolute inset-0 bg-black/30" />
                     <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white/10 overflow-hidden flex-shrink-0">
-                        <img 
-                          src={hero.image} 
-                          alt={hero.title}
-                          className="w-full h-full object-contain"
-                        />
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white/10 rounded-lg cursor-grab active:cursor-grabbing">
+                          <GripVertical className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white/10 overflow-hidden flex-shrink-0">
+                          <img 
+                            src={hero.image} 
+                            alt={hero.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -602,6 +703,44 @@ const AdminProducts: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Categories Tab */}
+          <TabsContent value="categories" className="mt-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <p className="text-gray-400 text-sm">Manage category icons displayed on homepage</p>
+                <p className="text-gray-500 text-xs mt-1">Click on a category to change its icon</p>
+              </div>
+            </div>
+
+            {isLoadingCategories ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            ) : categories.length === 0 ? (
+              <div className="text-center py-20 bg-[#111111] rounded-2xl border border-white/5">
+                <Tags className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+                <h3 className="text-xl font-medium text-white mb-2">No categories yet</h3>
+                <p className="text-gray-500">Categories will appear here once products are added</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => openEditCategoryDialog(category)}
+                    className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[#111111] border border-white/5 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all group"
+                  >
+                    <span className="text-4xl group-hover:scale-110 transition-transform">{category.icon}</span>
+                    <span className="text-sm font-medium text-white capitalize">{category.name}</span>
+                    <span className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Click to edit
+                    </span>
+                  </button>
                 ))}
               </div>
             )}
@@ -722,7 +861,7 @@ const AdminProducts: React.FC = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map(cat => (
+                      {productCategories.map(cat => (
                         <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
                       ))}
                     </SelectContent>
@@ -816,7 +955,7 @@ const AdminProducts: React.FC = () => {
                     className="w-32 h-32 sm:w-40 sm:h-40 rounded-xl bg-[#1a1a1a] border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-colors overflow-hidden flex-shrink-0"
                   >
                     {heroImagePreview ? (
-                      <img src={heroImagePreview} alt="Preview" className="w-full h-full object-contain" />
+                      <img src={heroImagePreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <Upload className="w-8 h-8 text-gray-500" />
                     )}
@@ -952,7 +1091,7 @@ const AdminProducts: React.FC = () => {
                     <div className="relative flex items-center gap-4">
                       {heroImagePreview && (
                         <div className="w-16 h-16 rounded-lg bg-white/10 overflow-hidden">
-                          <img src={heroImagePreview} alt="Preview" className="w-full h-full object-contain" />
+                          <img src={heroImagePreview} alt="Preview" className="w-full h-full object-cover" />
                         </div>
                       )}
                       <div>
@@ -980,6 +1119,67 @@ const AdminProducts: React.FC = () => {
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   )}
                   {editingHero ? 'Update' : 'Create'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Category Dialog */}
+        <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+          <DialogContent className="w-[95vw] max-w-md bg-[#111111] border-white/10 p-4 sm:p-6">
+            <DialogHeader>
+              <DialogTitle className="text-white text-lg sm:text-xl">
+                Edit Category Icon
+              </DialogTitle>
+            </DialogHeader>
+            
+            <form onSubmit={handleCategorySubmit} className="space-y-6">
+              <div className="text-center">
+                <p className="text-gray-400 mb-4 capitalize">Category: {editingCategory?.name}</p>
+                <div className="text-6xl mb-4">{categoryIcon}</div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-sm">Select Icon</Label>
+                <div className="grid grid-cols-6 gap-2 p-4 bg-[#1a1a1a] rounded-xl max-h-48 overflow-y-auto">
+                  {emojiOptions.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setCategoryIcon(emoji)}
+                      className={`text-2xl p-2 rounded-lg hover:bg-white/10 transition-colors ${categoryIcon === emoji ? 'bg-orange-500/20 ring-2 ring-orange-500' : ''}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="custom-icon" className="text-sm">Or enter custom emoji</Label>
+                <Input
+                  id="custom-icon"
+                  value={categoryIcon}
+                  onChange={(e) => setCategoryIcon(e.target.value)}
+                  className="bg-[#1a1a1a] border-white/10 text-center text-2xl"
+                  maxLength={2}
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-white/5">
+                <Button type="button" variant="ghost" onClick={() => setIsCategoryDialogOpen(false)} className="order-2 sm:order-1">
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateCategory.isPending}
+                  className="bg-orange-500 hover:bg-orange-600 order-1 sm:order-2"
+                >
+                  {updateCategory.isPending && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  Save Icon
                 </Button>
               </div>
             </form>
