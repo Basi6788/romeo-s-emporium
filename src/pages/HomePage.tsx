@@ -1,47 +1,53 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
+import { useHeroImages } from '@/hooks/useHeroImages';
 import { Button } from '@/components/ui/button';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const heroSlides = [
+// Default fallback slides if no database entries exist
+const defaultHeroSlides = [
   {
-    id: 1,
+    id: 'default-1',
     title: 'iPhone 16 Pro',
     subtitle: 'Extraordinary Visual & Power',
     image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-3inch_GEO_US?wid=5120&hei=2880&fmt=webp&qlt=70&.v=1726187221849',
     gradient: 'from-violet-600 via-purple-600 to-indigo-800',
     badge: 'New',
+    link: '/products',
   },
   {
-    id: 2,
+    id: 'default-2',
     title: 'Galaxy Watch Ultra',
     subtitle: 'Ultimate Smartwatch',
     image: 'https://images.samsung.com/is/image/samsung/p6pim/uk/2407/gallery/uk-galaxy-watch-ultra-l310-sm-l310nttaeub-542342134?$1300_1038_PNG$',
     gradient: 'from-orange-500 via-rose-500 to-pink-600',
     badge: 'Popular',
+    link: '/products',
   },
   {
-    id: 3,
+    id: 'default-3',
     title: 'AirPods Pro 2',
     subtitle: 'Immersive Sound',
     image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/airpods-pro-2-hero-select-202409?wid=976&hei=916&fmt=jpeg&qlt=90&.v=1724041668836',
     gradient: 'from-emerald-500 via-teal-500 to-cyan-600',
     badge: 'Hot',
+    link: '/products',
   },
   {
-    id: 4,
+    id: 'default-4',
     title: 'MacBook Pro M3',
     subtitle: 'Power. Performance.',
     image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mbp14-spacegray-select-202310?wid=904&hei=840&fmt=jpeg&qlt=90&.v=1697230830200',
     gradient: 'from-slate-600 via-gray-700 to-zinc-900',
     badge: 'Pro',
+    link: '/products',
   },
 ];
 
@@ -64,6 +70,23 @@ const HomePage = () => {
   
   const { data: products = [], isLoading } = useProducts();
   const { data: categories = [] } = useCategories();
+  const { data: dbHeroImages = [] } = useHeroImages();
+
+  // Use database hero images if available, otherwise fallback to defaults
+  const heroSlides = useMemo(() => {
+    if (dbHeroImages.length > 0) {
+      return dbHeroImages.map(hero => ({
+        id: hero.id,
+        title: hero.title,
+        subtitle: hero.subtitle || '',
+        image: hero.image,
+        gradient: hero.gradient,
+        badge: hero.badge,
+        link: hero.link,
+      }));
+    }
+    return defaultHeroSlides;
+  }, [dbHeroImages]);
 
   const featuredProducts = products.slice(0, 8);
   const dealProducts = products.filter(p => p.originalPrice).slice(0, 4);
@@ -261,14 +284,16 @@ const HomePage = () => {
   }, [currentSlide, isAnimating, animateSlide]);
 
   const nextSlide = useCallback(() => {
+    if (heroSlides.length === 0) return;
     const next = (currentSlide + 1) % heroSlides.length;
     animateSlide(next, 'next');
-  }, [currentSlide, animateSlide]);
+  }, [currentSlide, animateSlide, heroSlides.length]);
 
   const prevSlide = useCallback(() => {
+    if (heroSlides.length === 0) return;
     const prev = currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1;
     animateSlide(prev, 'prev');
-  }, [currentSlide, animateSlide]);
+  }, [currentSlide, animateSlide, heroSlides.length]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -285,8 +310,17 @@ const HomePage = () => {
     }
   };
 
+  // Reset current slide when heroSlides changes
+  useEffect(() => {
+    if (currentSlide >= heroSlides.length && heroSlides.length > 0) {
+      setCurrentSlide(0);
+    }
+  }, [heroSlides.length, currentSlide]);
+
   // Initial setup and autoplay
   useEffect(() => {
+    if (heroSlides.length === 0) return;
+
     slideRefs.current.forEach((slide, index) => {
       if (slide) {
         gsap.set(slide, {
@@ -315,7 +349,7 @@ const HomePage = () => {
     }, 6000);
 
     return () => clearInterval(autoplay);
-  }, []);
+  }, [heroSlides.length]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -379,7 +413,7 @@ const HomePage = () => {
                         size="lg" 
                         className="h-12 px-6 bg-white text-gray-900 hover:bg-white/90 rounded-xl font-semibold shadow-xl"
                       >
-                        <Link to="/products">
+                        <Link to={slide.link || '/products'}>
                           Shop Now <ArrowRight className="ml-2 w-4 h-4" />
                         </Link>
                       </Button>
@@ -389,7 +423,7 @@ const HomePage = () => {
                         size="lg" 
                         className="h-12 px-6 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white rounded-xl backdrop-blur-sm"
                       >
-                        <Link to="/products">Learn More</Link>
+                        <Link to={slide.link || '/products'}>Learn More</Link>
                       </Button>
                     </div>
                   </div>
@@ -406,7 +440,7 @@ const HomePage = () => {
                       />
                       {/* Explore Button */}
                       <Link
-                        to="/products"
+                        to={slide.link || '/products'}
                         className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white text-sm font-medium border border-white/30 hover:bg-white/30 transition-all duration-300 group"
                       >
                         Explore
