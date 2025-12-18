@@ -5,6 +5,7 @@ export interface Category {
   id: string;
   name: string;
   icon: string;
+  image_url: string | null;
   sort_order: number;
   is_active: boolean;
   created_at: string;
@@ -14,9 +15,31 @@ export interface Category {
 export interface CategoryInsert {
   name: string;
   icon?: string;
+  image_url?: string | null;
   sort_order?: number;
   is_active?: boolean;
 }
+
+export const uploadCategoryImage = async (file: File): Promise<string | null> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `category-${Date.now()}.${fileExt}`;
+  const filePath = `categories/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('product-images')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    console.error('Error uploading category image:', uploadError);
+    return null;
+  }
+
+  const { data } = supabase.storage
+    .from('product-images')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+};
 
 export const useCategoriesFromDb = () => {
   return useQuery({
