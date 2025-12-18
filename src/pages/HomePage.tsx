@@ -5,7 +5,7 @@ import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
 import { Button } from '@/components/ui/button';
-import useEmblaCarousel from 'embla-carousel-react';
+import gsap from 'gsap';
 
 const heroSlides = [
   {
@@ -43,10 +43,14 @@ const heroSlides = [
 ];
 
 const HomePage = () => {
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, dragFree: false });
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const contentRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const imageRefs = useRef<(HTMLImageElement | null)[]>([]);
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
   
   const { data: products = [], isLoading } = useProducts();
   const { data: categories = [] } = useCategories();
@@ -54,114 +58,256 @@ const HomePage = () => {
   const featuredProducts = products.slice(0, 8);
   const dealProducts = products.filter(p => p.originalPrice).slice(0, 4);
 
-  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
-  const scrollTo = useCallback((index: number) => emblaApi && emblaApi.scrollTo(index), [emblaApi]);
+  // GSAP animation for slide transition
+  const animateSlide = useCallback((newIndex: number, direction: 'next' | 'prev') => {
+    if (isAnimating) return;
+    setIsAnimating(true);
 
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return;
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-    setCanScrollPrev(emblaApi.canScrollPrev());
-    setCanScrollNext(emblaApi.canScrollNext());
-  }, [emblaApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    onSelect();
-    emblaApi.on('select', onSelect);
-    emblaApi.on('reInit', onSelect);
+    const currentContent = contentRefs.current[currentSlide];
+    const currentImage = imageRefs.current[currentSlide];
+    const currentSlideEl = slideRefs.current[currentSlide];
     
-    // Auto-play
-    const autoplay = setInterval(() => {
-      if (emblaApi.canScrollNext()) {
-        emblaApi.scrollNext();
-      } else {
-        emblaApi.scrollTo(0);
+    const newContent = contentRefs.current[newIndex];
+    const newImage = imageRefs.current[newIndex];
+    const newSlideEl = slideRefs.current[newIndex];
+
+    const xOffset = direction === 'next' ? 100 : -100;
+
+    // Create timeline
+    const tl = gsap.timeline({
+      onComplete: () => {
+        setCurrentSlide(newIndex);
+        setIsAnimating(false);
       }
-    }, 5000);
+    });
+
+    // Animate out current slide
+    tl.to(currentContent, {
+      opacity: 0,
+      x: -xOffset,
+      duration: 0.4,
+      ease: 'power2.inOut'
+    }, 0)
+    .to(currentImage, {
+      opacity: 0,
+      scale: 0.8,
+      x: -xOffset * 0.5,
+      duration: 0.4,
+      ease: 'power2.inOut'
+    }, 0)
+    .set(currentSlideEl, { 
+      visibility: 'hidden',
+      zIndex: 0 
+    }, 0.4);
+
+    // Animate in new slide
+    tl.set(newSlideEl, { 
+      visibility: 'visible',
+      zIndex: 10 
+    }, 0.35)
+    .fromTo(newContent, 
+      { opacity: 0, x: xOffset },
+      { opacity: 1, x: 0, duration: 0.5, ease: 'power2.out' },
+      0.4
+    )
+    .fromTo(newImage,
+      { opacity: 0, scale: 1.2, x: xOffset * 0.5 },
+      { opacity: 1, scale: 1, x: 0, duration: 0.5, ease: 'power2.out' },
+      0.4
+    );
+  }, [currentSlide, isAnimating]);
+
+  const goToSlide = useCallback((index: number) => {
+    if (index === currentSlide || isAnimating) return;
+    const direction = index > currentSlide ? 'next' : 'prev';
+    animateSlide(index, direction);
+  }, [currentSlide, isAnimating, animateSlide]);
+
+  const nextSlide = useCallback(() => {
+    const next = (currentSlide + 1) % heroSlides.length;
+    animateSlide(next, 'next');
+  }, [currentSlide, animateSlide]);
+
+  const prevSlide = useCallback(() => {
+    const prev = currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1;
+    animateSlide(prev, 'prev');
+  }, [currentSlide, animateSlide]);
+
+  // Touch handlers for swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 50;
+
+    if (Math.abs(diff) > minSwipeDistance) {
+      if (diff > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+    }
+  };
+
+  // Initial setup and autoplay
+  useEffect(() => {
+    // Set initial visibility
+    slideRefs.current.forEach((slide, index) => {
+      if (slide) {
+        gsap.set(slide, {
+          visibility: index === 0 ? 'visible' : 'hidden',
+          zIndex: index === 0 ? 10 : 0
+        });
+      }
+    });
+
+    // Entrance animation for first slide
+    const firstContent = contentRefs.current[0];
+    const firstImage = imageRefs.current[0];
     
-    return () => {
-      emblaApi.off('select', onSelect);
-      clearInterval(autoplay);
-    };
-  }, [emblaApi, onSelect]);
+    if (firstContent && firstImage) {
+      gsap.fromTo(firstContent,
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out', delay: 0.2 }
+      );
+      gsap.fromTo(firstImage,
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.8, ease: 'power2.out', delay: 0.3 }
+      );
+    }
+
+    // Autoplay
+    const autoplay = setInterval(() => {
+      setCurrentSlide(current => {
+        const next = (current + 1) % heroSlides.length;
+        return next;
+      });
+    }, 6000);
+
+    return () => clearInterval(autoplay);
+  }, []);
+
+  // Handle autoplay slide changes
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!isAnimating && slideRefs.current[currentSlide]) {
+        slideRefs.current.forEach((slide, index) => {
+          if (slide) {
+            gsap.set(slide, {
+              visibility: index === currentSlide ? 'visible' : 'hidden',
+              zIndex: index === currentSlide ? 10 : 0
+            });
+          }
+        });
+      }
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [currentSlide, isAnimating]);
 
   return (
     <Layout>
-      {/* Hero Carousel - Swipeable */}
-      <section className="relative">
-        <div className="overflow-hidden" ref={emblaRef}>
-          <div className="flex touch-pan-y">
-            {heroSlides.map((slide, index) => (
-              <div 
-                key={slide.id} 
-                className="flex-[0_0_100%] min-w-0"
-              >
-                <div className={`relative min-h-[520px] md:min-h-[580px] bg-gradient-to-br ${slide.gradient}`}>
-                  {/* Decorative elements */}
-                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-                    <div className="absolute bottom-10 right-10 w-96 h-96 bg-black/10 rounded-full blur-3xl" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-white/10 rounded-full" />
+      {/* Hero Section with GSAP */}
+      <section 
+        ref={heroRef}
+        className="relative overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="relative min-h-[520px] md:min-h-[600px]">
+          {heroSlides.map((slide, index) => (
+            <div
+              key={slide.id}
+              ref={el => slideRefs.current[index] = el}
+              className={`absolute inset-0 bg-gradient-to-br ${slide.gradient}`}
+              style={{ visibility: index === 0 ? 'visible' : 'hidden' }}
+            >
+              {/* Decorative elements */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+                <div className="absolute bottom-10 right-10 w-96 h-96 bg-black/10 rounded-full blur-3xl" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-white/10 rounded-full" />
+              </div>
+
+              <div className="container mx-auto px-4 h-full relative z-10">
+                <div className="grid md:grid-cols-2 gap-6 items-center min-h-[520px] md:min-h-[600px] py-12">
+                  {/* Content */}
+                  <div 
+                    ref={el => contentRefs.current[index] = el}
+                    className="order-2 md:order-1 text-white"
+                  >
+                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 backdrop-blur-md text-sm font-medium mb-6 border border-white/20">
+                      <Sparkles className="w-4 h-4" />
+                      {slide.badge}
+                    </span>
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 tracking-tight leading-tight text-white">
+                      {slide.title}
+                    </h1>
+                    <p className="text-lg md:text-xl text-white/80 mb-8 max-w-md leading-relaxed">
+                      {slide.subtitle}
+                    </p>
+                    <div className="flex flex-wrap gap-4">
+                      <Button 
+                        asChild 
+                        size="lg" 
+                        className="h-14 px-8 bg-white text-foreground hover:bg-white/90 rounded-2xl font-semibold text-base shadow-xl shadow-black/20 dark:text-foreground"
+                      >
+                        <Link to="/products">
+                          Shop Now <ArrowRight className="ml-2 w-5 h-5" />
+                        </Link>
+                      </Button>
+                      <Button 
+                        asChild 
+                        variant="outline" 
+                        size="lg" 
+                        className="h-14 px-8 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white rounded-2xl backdrop-blur-sm"
+                      >
+                        <Link to="/products">Learn More</Link>
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="container mx-auto px-4 h-full relative z-10">
-                    <div className="grid md:grid-cols-2 gap-6 items-center min-h-[520px] md:min-h-[580px] py-12">
-                      {/* Content */}
-                      <div className="order-2 md:order-1 text-white">
-                        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 backdrop-blur-md text-sm font-medium mb-6 border border-white/20">
-                          <Sparkles className="w-4 h-4" />
-                          {slide.badge}
-                        </span>
-                        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 tracking-tight leading-tight">
-                          {slide.title}
-                        </h1>
-                        <p className="text-lg md:text-xl text-white/80 mb-8 max-w-md leading-relaxed">
-                          {slide.subtitle}
-                        </p>
-                        <div className="flex flex-wrap gap-4">
-                          <Button asChild size="lg" className="h-14 px-8 bg-white text-gray-900 hover:bg-white/90 rounded-2xl font-semibold text-base shadow-xl shadow-black/20">
-                            <Link to="/products">
-                              Shop Now <ArrowRight className="ml-2 w-5 h-5" />
-                            </Link>
-                          </Button>
-                          <Button asChild variant="outline" size="lg" className="h-14 px-8 border-white/30 bg-white/10 text-white hover:bg-white/20 rounded-2xl backdrop-blur-sm">
-                            <Link to="/products">Learn More</Link>
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Image */}
-                      <div className="relative order-1 md:order-2 flex justify-center items-center">
-                        <div className="relative w-full max-w-[350px] md:max-w-[420px] aspect-square">
-                          {/* Glow behind image */}
-                          <div className="absolute inset-0 bg-white/20 rounded-full blur-3xl scale-75" />
-                          <img
-                            src={slide.image}
-                            alt={slide.title}
-                            className="relative w-full h-full object-contain drop-shadow-2xl"
-                            loading={index === 0 ? 'eager' : 'lazy'}
-                          />
-                        </div>
-                      </div>
+                  {/* Image */}
+                  <div className="relative order-1 md:order-2 flex justify-center items-center">
+                    <div className="relative w-full max-w-[350px] md:max-w-[420px] aspect-square">
+                      {/* Glow behind image */}
+                      <div className="absolute inset-0 bg-white/20 rounded-full blur-3xl scale-75" />
+                      <img
+                        ref={el => imageRefs.current[index] = el}
+                        src={slide.image}
+                        alt={slide.title}
+                        className="relative w-full h-full object-contain drop-shadow-2xl"
+                        loading={index === 0 ? 'eager' : 'lazy'}
+                      />
                     </div>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
 
         {/* Navigation Arrows */}
         <button
-          onClick={scrollPrev}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 transition-all text-white border border-white/20 shadow-lg"
+          onClick={prevSlide}
+          disabled={isAnimating}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/40 transition-all text-white border border-white/30 shadow-lg disabled:opacity-50"
+          aria-label="Previous slide"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
         <button
-          onClick={scrollNext}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 transition-all text-white border border-white/20 shadow-lg"
+          onClick={nextSlide}
+          disabled={isAnimating}
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/40 transition-all text-white border border-white/30 shadow-lg disabled:opacity-50"
+          aria-label="Next slide"
         >
           <ChevronRight className="w-6 h-6" />
         </button>
@@ -171,19 +317,21 @@ const HomePage = () => {
           {heroSlides.map((_, i) => (
             <button
               key={i}
-              onClick={() => scrollTo(i)}
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                i === selectedIndex 
+              onClick={() => goToSlide(i)}
+              disabled={isAnimating}
+              className={`h-3 rounded-full transition-all duration-300 ${
+                i === currentSlide 
                   ? 'w-10 bg-white' 
-                  : 'w-2.5 bg-white/40 hover:bg-white/60'
+                  : 'w-3 bg-white/40 hover:bg-white/60'
               }`}
+              aria-label={`Go to slide ${i + 1}`}
             />
           ))}
         </div>
       </section>
 
       {/* Features Bar */}
-      <section className="py-8 bg-card border-y border-border/50">
+      <section className="py-8 bg-card border-y border-border">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
@@ -197,7 +345,7 @@ const HomePage = () => {
                   <f.icon className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold">{f.title}</p>
+                  <p className="font-semibold text-foreground">{f.title}</p>
                   <p className="text-sm text-muted-foreground">{f.desc}</p>
                 </div>
               </div>
@@ -207,11 +355,11 @@ const HomePage = () => {
       </section>
 
       {/* Categories */}
-      <section className="py-14">
+      <section className="py-14 bg-background">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold">Shop by Category</h2>
+              <h2 className="text-3xl font-bold text-foreground">Shop by Category</h2>
               <p className="text-muted-foreground mt-1">Find what you need</p>
             </div>
             <Link to="/products" className="text-sm text-primary hover:underline font-medium">View All</Link>
@@ -222,10 +370,10 @@ const HomePage = () => {
               <Link
                 key={cat.id}
                 to={`/products?category=${cat.id}`}
-                className="flex flex-col items-center gap-3 p-5 rounded-3xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
+                className="flex flex-col items-center gap-3 p-5 rounded-3xl bg-card border border-border hover:border-primary/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
               >
                 <span className="text-4xl group-hover:scale-110 transition-transform duration-300">{cat.icon}</span>
-                <span className="text-sm font-medium text-center">{cat.name}</span>
+                <span className="text-sm font-medium text-center text-foreground">{cat.name}</span>
               </Link>
             ))}
           </div>
@@ -234,13 +382,13 @@ const HomePage = () => {
 
       {/* Flash Deals */}
       {dealProducts.length > 0 && (
-        <section className="py-14 bg-gradient-to-r from-rose-500/10 via-orange-500/10 to-amber-500/10">
+        <section className="py-14 bg-gradient-to-r from-rose-500/10 via-orange-500/10 to-amber-500/10 dark:from-rose-500/5 dark:via-orange-500/5 dark:to-amber-500/5">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
                 <span className="px-4 py-2 rounded-full bg-rose-500 text-white text-sm font-bold animate-pulse">🔥 HOT</span>
                 <div>
-                  <h2 className="text-3xl font-bold">Flash Deals</h2>
+                  <h2 className="text-3xl font-bold text-foreground">Flash Deals</h2>
                   <p className="text-muted-foreground">Limited time offers</p>
                 </div>
               </div>
@@ -257,11 +405,11 @@ const HomePage = () => {
       )}
 
       {/* Featured Products */}
-      <section className="py-14">
+      <section className="py-14 bg-background">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold">Featured Products</h2>
+              <h2 className="text-3xl font-bold text-foreground">Featured Products</h2>
               <p className="text-muted-foreground mt-1">Handpicked for you</p>
             </div>
             <Link to="/products" className="text-sm text-primary hover:underline font-medium">View All</Link>
@@ -284,7 +432,7 @@ const HomePage = () => {
       </section>
 
       {/* Promo Banners */}
-      <section className="py-14">
+      <section className="py-14 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-6">
             <div className="relative rounded-[2rem] overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 p-10 min-h-[280px] group">
@@ -320,13 +468,13 @@ const HomePage = () => {
       <section className="py-14 bg-muted/50">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-4">Subscribe to Newsletter</h2>
+            <h2 className="text-3xl font-bold mb-4 text-foreground">Subscribe to Newsletter</h2>
             <p className="text-muted-foreground mb-8 text-lg">Get 15% off your first order and stay updated with latest offers</p>
             <div className="flex gap-3 max-w-md mx-auto">
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 px-6 py-4 rounded-2xl bg-background border border-border text-base focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-6 py-4 rounded-2xl bg-background border border-border text-foreground text-base focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground"
               />
               <Button size="lg" className="h-14 px-8 rounded-2xl">Subscribe</Button>
             </div>
