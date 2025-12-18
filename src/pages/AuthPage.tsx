@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -16,8 +16,14 @@ const AuthPage: React.FC = () => {
     confirmPassword: ''
   });
 
-  const { login, register } = useAuth();
+  const { login, register, isAuthenticated, isAdmin } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(isAdmin ? '/admin' : '/');
+    }
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -29,12 +35,11 @@ const AuthPage: React.FC = () => {
 
     try {
       if (isLogin) {
-        const success = await login(formData.email, formData.password);
-        if (success) {
+        const result = await login(formData.email, formData.password);
+        if (result.success) {
           toast.success('Welcome back!');
-          navigate('/');
         } else {
-          toast.error('Invalid credentials');
+          toast.error(result.error || 'Invalid credentials');
         }
       } else {
         if (formData.password !== formData.confirmPassword) {
@@ -42,16 +47,20 @@ const AuthPage: React.FC = () => {
           setLoading(false);
           return;
         }
-        const success = await register(formData.name, formData.email, formData.password);
-        if (success) {
-          toast.success('Account created successfully!');
-          navigate('/');
+        if (formData.password.length < 6) {
+          toast.error('Password must be at least 6 characters');
+          setLoading(false);
+          return;
+        }
+        const result = await register(formData.name, formData.email, formData.password);
+        if (result.success) {
+          toast.success('Account created! Check your email to verify.');
         } else {
-          toast.error('Registration failed');
+          toast.error(result.error || 'Registration failed');
         }
       }
-    } catch (error) {
-      toast.error('Something went wrong');
+    } catch (error: any) {
+      toast.error(error.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -65,7 +74,7 @@ const AuthPage: React.FC = () => {
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-6">
               <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-2xl">R</span>
+                <span className="text-primary-foreground font-bold text-2xl">B</span>
               </div>
             </Link>
             <h1 className="text-3xl font-bold mb-2">
@@ -73,8 +82,8 @@ const AuthPage: React.FC = () => {
             </h1>
             <p className="text-muted-foreground">
               {isLogin
-                ? 'Sign in to continue to Romeo'
-                : 'Join Romeo and explore the future'}
+                ? 'Sign in to continue to BasitShop'
+                : 'Join BasitShop and start shopping'}
             </p>
           </div>
 
@@ -92,7 +101,7 @@ const AuthPage: React.FC = () => {
                       value={formData.name}
                       onChange={handleChange}
                       required={!isLogin}
-                      className="input-field pl-12"
+                      className="w-full pl-12 pr-4 py-3 bg-muted rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       placeholder="John Doe"
                     />
                   </div>
@@ -109,7 +118,7 @@ const AuthPage: React.FC = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="input-field pl-12"
+                    className="w-full pl-12 pr-4 py-3 bg-muted rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="you@example.com"
                   />
                 </div>
@@ -125,7 +134,8 @@ const AuthPage: React.FC = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    className="input-field pl-12 pr-12"
+                    minLength={6}
+                    className="w-full pl-12 pr-12 py-3 bg-muted rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="••••••••"
                   />
                   <button
@@ -149,7 +159,8 @@ const AuthPage: React.FC = () => {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required={!isLogin}
-                      className="input-field pl-12"
+                      minLength={6}
+                      className="w-full pl-12 pr-4 py-3 bg-muted rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       placeholder="••••••••"
                     />
                   </div>
@@ -157,21 +168,19 @@ const AuthPage: React.FC = () => {
               )}
             </div>
 
-            {isLogin && (
-              <div className="flex justify-end mt-4">
-                <a href="#" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </a>
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={loading}
-              className="w-full btn-primary mt-6 flex items-center justify-center gap-2"
+              className="w-full btn-primary mt-6 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
-              <ArrowRight className="w-5 h-5" />
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
             </button>
           </form>
 
