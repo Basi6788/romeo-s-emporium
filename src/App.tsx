@@ -7,9 +7,12 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
+import { CompareProvider } from "@/contexts/CompareContext";
 import ScrollToTop from "@/components/ScrollToTop";
 import PageTransition from "@/components/PageTransition";
 import BottomNavigation from "@/components/BottomNavigation";
+import CompareBar from "@/components/CompareBar";
+import CompareModal from "@/components/CompareModal";
 
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
@@ -66,6 +69,8 @@ const AnimatedRoutes = () => {
         </Routes>
       </PageTransition>
       <BottomNavigation />
+      <CompareBar />
+      <CompareModal />
     </>
   );
 };
@@ -76,14 +81,16 @@ const App = () => (
       <AuthProvider>
         <CartProvider>
           <WishlistProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <ScrollToTop />
-                <AnimatedRoutes />
-              </BrowserRouter>
-            </TooltipProvider>
+            <CompareProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <ScrollToTop />
+                  <AnimatedRoutes />
+                </BrowserRouter>
+              </TooltipProvider>
+            </CompareProvider>
           </WishlistProvider>
         </CartProvider>
       </AuthProvider>
