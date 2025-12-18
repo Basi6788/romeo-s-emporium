@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
+import ScrollToTop from "@/components/ScrollToTop";
 
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
@@ -38,6 +39,7 @@ const App = () => (
               <Toaster />
               <Sonner />
               <BrowserRouter>
+                <ScrollToTop />
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/products" element={<ProductsPage />} />
