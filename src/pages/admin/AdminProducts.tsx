@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useProductsFromDb, useCreateProduct, useUpdateProduct, useDeleteProduct, uploadProductImage, Product, ProductInsert } from '@/hooks/useProducts';
 import { useAllHeroImages, useCreateHeroImage, useUpdateHeroImage, useDeleteHeroImage, uploadHeroImage, useUpdateHeroImagesOrder, HeroImage, HeroImageInsert } from '@/hooks/useHeroImages';
-import { useAllCategoriesFromDb, useUpdateCategory, Category } from '@/hooks/useCategories';
+import { useAllCategoriesFromDb, useUpdateCategory, uploadCategoryImage, Category } from '@/hooks/useCategories';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,8 +30,17 @@ const gradientOptions = [
 ];
 
 const emojiOptions = [
-  '📱', '💻', '📟', '🎧', '⌚', '🔌', '🎮', '📷', '🖥️', '🔋', '💾', '🖨️', 
-  '📀', '🎤', '🎵', '🎬', '📺', '📡', '🔊', '💡', '🔧', '⚡', '🛒', '🎁'
+  // Tech & Devices
+  '📱', '💻', '📟', '🎧', '⌚', '🔌', '🎮', '📷', '🖥️', '🔋', '💾', '🖨️',
+  '📀', '🎤', '🎵', '🎬', '📺', '📡', '🔊', '💡', '🔧', '⚡', '🛒', '🎁',
+  // Additional Electronics
+  '🖱️', '⌨️', '🔦', '📻', '📹', '🎥', '📽️', '🎞️', '📼', '💿', '📲', '☎️',
+  // Gaming & Entertainment  
+  '🕹️', '👾', '🃏', '🎲', '🎯', '🏆', '🎪', '🎨', '🎭', '🎸', '🎹', '🎺',
+  // Smart Home
+  '🏠', '💡', '🔒', '🚿', '❄️', '🌡️', '⏰', '📶', '🔔', '🛋️', '🪑', '🛏️',
+  // Objects
+  '🎒', '👜', '👓', '🕶️', '💎', '💍', '👑', '🎩', '📦', '🗃️', '✨', '🌟'
 ];
 
 const AdminProducts: React.FC = () => {
@@ -59,6 +68,10 @@ const AdminProducts: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [categoryIcon, setCategoryIcon] = useState('📦');
+  const [categoryImageFile, setCategoryImageFile] = useState<File | null>(null);
+  const [categoryImagePreview, setCategoryImagePreview] = useState<string | null>(null);
+  const [useImageIcon, setUseImageIcon] = useState(false);
+  const categoryFileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: products = [], isLoading } = useProductsFromDb();
   const createProduct = useCreateProduct();
@@ -210,7 +223,19 @@ const AdminProducts: React.FC = () => {
   const openEditCategoryDialog = (category: Category) => {
     setEditingCategory(category);
     setCategoryIcon(category.icon);
+    setCategoryImagePreview(category.image_url || null);
+    setUseImageIcon(!!category.image_url);
+    setCategoryImageFile(null);
     setIsCategoryDialogOpen(true);
+  };
+
+  const handleCategoryImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCategoryImageFile(file);
+      setCategoryImagePreview(URL.createObjectURL(file));
+      setUseImageIcon(true);
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -318,16 +343,34 @@ const AdminProducts: React.FC = () => {
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategory) return;
+    setIsUploading(true);
 
     try {
+      let imageUrl = categoryImagePreview;
+
+      if (categoryImageFile) {
+        const uploadedUrl = await uploadCategoryImage(categoryImageFile);
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        }
+      }
+
       await updateCategory.mutateAsync({ 
         id: editingCategory.id, 
-        updates: { icon: categoryIcon } 
+        updates: { 
+          icon: useImageIcon ? categoryIcon : categoryIcon,
+          image_url: useImageIcon ? imageUrl : null 
+        } 
       });
       setIsCategoryDialogOpen(false);
       setEditingCategory(null);
+      setCategoryImageFile(null);
+      setCategoryImagePreview(null);
+      setUseImageIcon(false);
     } catch (error) {
       console.error('Failed to update category:', error);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -412,18 +455,24 @@ const AdminProducts: React.FC = () => {
         </div>
 
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="w-full sm:w-auto bg-[#111111] border border-white/5 p-1 gap-1 flex-wrap">
-            <TabsTrigger value="products" className="flex-1 sm:flex-none data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
-              <Package className="w-4 h-4 mr-2" />
-              Products ({products.length})
+          <TabsList className="w-full bg-[#111111] border border-white/5 p-1 gap-1 grid grid-cols-3">
+            <TabsTrigger value="products" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400 text-xs sm:text-sm px-2 sm:px-4">
+              <Package className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Products</span>
+              <span className="sm:hidden">Prods</span>
+              <span className="ml-1">({products.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="heroes" className="flex-1 sm:flex-none data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
-              <Image className="w-4 h-4 mr-2" />
-              Hero Banners ({heroImages.length})
+            <TabsTrigger value="heroes" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400 text-xs sm:text-sm px-2 sm:px-4">
+              <Image className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Hero Banners</span>
+              <span className="sm:hidden">Heroes</span>
+              <span className="ml-1">({heroImages.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="categories" className="flex-1 sm:flex-none data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
-              <Tags className="w-4 h-4 mr-2" />
-              Categories ({categories.length})
+            <TabsTrigger value="categories" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400 text-xs sm:text-sm px-2 sm:px-4">
+              <Tags className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Categories</span>
+              <span className="sm:hidden">Cats</span>
+              <span className="ml-1">({categories.length})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -735,7 +784,13 @@ const AdminProducts: React.FC = () => {
                     onClick={() => openEditCategoryDialog(category)}
                     className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[#111111] border border-white/5 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all group"
                   >
-                    <span className="text-4xl group-hover:scale-110 transition-transform">{category.icon}</span>
+                    {category.image_url ? (
+                      <div className="w-12 h-12 rounded-xl overflow-hidden group-hover:scale-110 transition-transform">
+                        <img src={category.image_url} alt={category.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <span className="text-4xl group-hover:scale-110 transition-transform">{category.icon}</span>
+                    )}
                     <span className="text-sm font-medium text-white capitalize">{category.name}</span>
                     <span className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
                       Click to edit
@@ -1127,7 +1182,7 @@ const AdminProducts: React.FC = () => {
 
         {/* Edit Category Dialog */}
         <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-          <DialogContent className="w-[95vw] max-w-md bg-[#111111] border-white/10 p-4 sm:p-6">
+          <DialogContent className="w-[95vw] max-w-lg bg-[#111111] border-white/10 p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white text-lg sm:text-xl">
                 Edit Category Icon
@@ -1137,35 +1192,106 @@ const AdminProducts: React.FC = () => {
             <form onSubmit={handleCategorySubmit} className="space-y-6">
               <div className="text-center">
                 <p className="text-gray-400 mb-4 capitalize">Category: {editingCategory?.name}</p>
-                <div className="text-6xl mb-4">{categoryIcon}</div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-sm">Select Icon</Label>
-                <div className="grid grid-cols-6 gap-2 p-4 bg-[#1a1a1a] rounded-xl max-h-48 overflow-y-auto">
-                  {emojiOptions.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setCategoryIcon(emoji)}
-                      className={`text-2xl p-2 rounded-lg hover:bg-white/10 transition-colors ${categoryIcon === emoji ? 'bg-orange-500/20 ring-2 ring-orange-500' : ''}`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
+                {useImageIcon && categoryImagePreview ? (
+                  <div className="w-20 h-20 mx-auto rounded-xl overflow-hidden bg-[#1a1a1a] mb-4">
+                    <img src={categoryImagePreview} alt="Icon" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="text-6xl mb-4">{categoryIcon}</div>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="custom-icon" className="text-sm">Or enter custom emoji</Label>
-                <Input
-                  id="custom-icon"
-                  value={categoryIcon}
-                  onChange={(e) => setCategoryIcon(e.target.value)}
-                  className="bg-[#1a1a1a] border-white/10 text-center text-2xl"
-                  maxLength={2}
-                />
+              {/* Toggle between emoji and image */}
+              <div className="flex items-center justify-center gap-4 p-3 bg-[#1a1a1a] rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setUseImageIcon(false)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!useImageIcon ? 'bg-orange-500 text-white' : 'bg-white/5 text-gray-400 hover:text-white'}`}
+                >
+                  Use Emoji
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseImageIcon(true)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${useImageIcon ? 'bg-orange-500 text-white' : 'bg-white/5 text-gray-400 hover:text-white'}`}
+                >
+                  Use Image
+                </button>
               </div>
+
+              {!useImageIcon ? (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Select Emoji Icon</Label>
+                    <div className="grid grid-cols-8 gap-1.5 p-3 bg-[#1a1a1a] rounded-xl max-h-40 overflow-y-auto">
+                      {emojiOptions.map((emoji, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setCategoryIcon(emoji)}
+                          className={`text-xl p-1.5 rounded-lg hover:bg-white/10 transition-colors ${categoryIcon === emoji && !useImageIcon ? 'bg-orange-500/20 ring-2 ring-orange-500' : ''}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="custom-icon" className="text-sm">Or enter custom emoji</Label>
+                    <Input
+                      id="custom-icon"
+                      value={categoryIcon}
+                      onChange={(e) => setCategoryIcon(e.target.value)}
+                      className="bg-[#1a1a1a] border-white/10 text-center text-2xl"
+                      maxLength={4}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="text-sm">Upload Custom Icon Image</Label>
+                  <div className="flex flex-col items-center gap-4">
+                    <div 
+                      onClick={() => categoryFileInputRef.current?.click()}
+                      className="w-32 h-32 rounded-xl bg-[#1a1a1a] border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-colors overflow-hidden"
+                    >
+                      {categoryImagePreview ? (
+                        <img src={categoryImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-center">
+                          <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                          <p className="text-xs text-gray-500">Click to upload</p>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={categoryFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCategoryImageChange}
+                      className="hidden"
+                    />
+                    {categoryImagePreview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 text-xs"
+                        onClick={() => {
+                          setCategoryImageFile(null);
+                          setCategoryImagePreview(null);
+                        }}
+                      >
+                        <X className="w-4 h-4 mr-1" /> Remove Image
+                      </Button>
+                    )}
+                    <p className="text-xs text-gray-500 text-center">
+                      Recommended: Square image (128x128px or larger)
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-white/5">
                 <Button type="button" variant="ghost" onClick={() => setIsCategoryDialogOpen(false)} className="order-2 sm:order-1">
@@ -1173,10 +1299,10 @@ const AdminProducts: React.FC = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={updateCategory.isPending}
+                  disabled={isUploading || updateCategory.isPending}
                   className="bg-orange-500 hover:bg-orange-600 order-1 sm:order-2"
                 >
-                  {updateCategory.isPending && (
+                  {(isUploading || updateCategory.isPending) && (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   )}
                   Save Icon

@@ -511,13 +511,19 @@ const HomePage = () => {
           </div>
           
           <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
-            {categories.slice(0, 8).map((cat) => (
+            {categories.slice(0, 8).map((cat: any) => (
               <Link
                 key={cat.id}
                 to={`/products?category=${cat.id}`}
                 className="category-item flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
               >
-                <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{cat.icon}</span>
+                {cat.image_url ? (
+                  <div className="w-10 h-10 rounded-xl overflow-hidden group-hover:scale-110 transition-transform duration-300">
+                    <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{cat.icon}</span>
+                )}
                 <span className="text-xs font-medium text-center text-foreground">{cat.name}</span>
               </Link>
             ))}

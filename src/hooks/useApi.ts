@@ -98,6 +98,7 @@ export function useCategories() {
             id: cat.name,
             name: cat.name.charAt(0).toUpperCase() + cat.name.slice(1),
             icon: cat.icon,
+            image_url: cat.image_url,
             image: `/placeholder.svg`,
           }));
         }
@@ -116,6 +117,7 @@ export function useCategories() {
             id: cat,
             name: cat.charAt(0).toUpperCase() + cat.slice(1),
             icon: '📦',
+            image_url: null,
             image: `/placeholder.svg`,
           }));
         }
