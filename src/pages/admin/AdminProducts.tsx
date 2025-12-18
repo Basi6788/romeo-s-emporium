@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useProductsFromDb, useCreateProduct, useUpdateProduct, useDeleteProduct, uploadProductImage, Product, ProductInsert } from '@/hooks/useProducts';
 import { useAllHeroImages, useCreateHeroImage, useUpdateHeroImage, useDeleteHeroImage, uploadHeroImage, useUpdateHeroImagesOrder, HeroImage, HeroImageInsert } from '@/hooks/useHeroImages';
-import { useAllCategoriesFromDb, useUpdateCategory, uploadCategoryImage, Category } from '@/hooks/useCategories';
+import { useAllCategoriesFromDb, useCreateCategory, useUpdateCategory, useDeleteCategory, uploadCategoryImage, Category } from '@/hooks/useCategories';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +71,8 @@ const AdminProducts: React.FC = () => {
   const [categoryImageFile, setCategoryImageFile] = useState<File | null>(null);
   const [categoryImagePreview, setCategoryImagePreview] = useState<string | null>(null);
   const [useImageIcon, setUseImageIcon] = useState(false);
+  const [categoryName, setCategoryName] = useState('');
+  const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
   const categoryFileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: products = [], isLoading } = useProductsFromDb();
@@ -87,7 +89,9 @@ const AdminProducts: React.FC = () => {
 
   // Category hooks
   const { data: categories = [], isLoading: isLoadingCategories } = useAllCategoriesFromDb();
+  const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
+  const deleteCategory = useDeleteCategory();
 
   useEffect(() => {
     setHeroOrder(heroImages);
@@ -220,8 +224,19 @@ const AdminProducts: React.FC = () => {
     setIsHeroDialogOpen(true);
   };
 
+  const openCreateCategoryDialog = () => {
+    setEditingCategory(null);
+    setCategoryName('');
+    setCategoryIcon('📦');
+    setCategoryImagePreview(null);
+    setUseImageIcon(false);
+    setCategoryImageFile(null);
+    setIsCategoryDialogOpen(true);
+  };
+
   const openEditCategoryDialog = (category: Category) => {
     setEditingCategory(category);
+    setCategoryName(category.name);
     setCategoryIcon(category.icon);
     setCategoryImagePreview(category.image_url || null);
     setUseImageIcon(!!category.image_url);
@@ -342,35 +357,57 @@ const AdminProducts: React.FC = () => {
 
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCategory) return;
+    if (!categoryName.trim()) return;
     setIsUploading(true);
 
     try {
-      let imageUrl = categoryImagePreview;
+      let imageUrl: string | null = null;
 
       if (categoryImageFile) {
         const uploadedUrl = await uploadCategoryImage(categoryImageFile);
         if (uploadedUrl) {
           imageUrl = uploadedUrl;
         }
+      } else if (useImageIcon && categoryImagePreview) {
+        imageUrl = categoryImagePreview;
       }
 
-      await updateCategory.mutateAsync({ 
-        id: editingCategory.id, 
-        updates: { 
-          icon: useImageIcon ? categoryIcon : categoryIcon,
-          image_url: useImageIcon ? imageUrl : null 
-        } 
-      });
+      if (editingCategory) {
+        await updateCategory.mutateAsync({ 
+          id: editingCategory.id, 
+          updates: { 
+            name: categoryName,
+            icon: categoryIcon,
+            image_url: useImageIcon ? imageUrl : null 
+          } 
+        });
+      } else {
+        await createCategory.mutateAsync({
+          name: categoryName.toLowerCase(),
+          icon: categoryIcon,
+          image_url: useImageIcon ? imageUrl : null,
+          sort_order: categories.length,
+          is_active: true
+        });
+      }
+      
       setIsCategoryDialogOpen(false);
       setEditingCategory(null);
+      setCategoryName('');
       setCategoryImageFile(null);
       setCategoryImagePreview(null);
       setUseImageIcon(false);
     } catch (error) {
-      console.error('Failed to update category:', error);
+      console.error('Failed to save category:', error);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (deleteCategoryId) {
+      await deleteCategory.mutateAsync(deleteCategoryId);
+      setDeleteCategoryId(null);
     }
   };
 
@@ -762,8 +799,12 @@ const AdminProducts: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div>
                 <p className="text-gray-400 text-sm">Manage category icons displayed on homepage</p>
-                <p className="text-gray-500 text-xs mt-1">Click on a category to change its icon</p>
+                <p className="text-gray-500 text-xs mt-1">Click on a category to edit it</p>
               </div>
+              <Button onClick={openCreateCategoryDialog} className="bg-orange-500 hover:bg-orange-600">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Category
+              </Button>
             </div>
 
             {isLoadingCategories ? (
@@ -774,15 +815,18 @@ const AdminProducts: React.FC = () => {
               <div className="text-center py-20 bg-[#111111] rounded-2xl border border-white/5">
                 <Tags className="w-16 h-16 mx-auto text-gray-600 mb-4" />
                 <h3 className="text-xl font-medium text-white mb-2">No categories yet</h3>
-                <p className="text-gray-500">Categories will appear here once products are added</p>
+                <p className="text-gray-500 mb-4">Create your first category to get started</p>
+                <Button onClick={openCreateCategoryDialog} className="bg-orange-500 hover:bg-orange-600">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Category
+                </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
                 {categories.map((category) => (
-                  <button
+                  <div
                     key={category.id}
-                    onClick={() => openEditCategoryDialog(category)}
-                    className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[#111111] border border-white/5 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all group"
+                    className="relative flex flex-col items-center gap-3 p-6 rounded-2xl bg-[#111111] border border-white/5 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all group"
                   >
                     {category.image_url ? (
                       <div className="w-12 h-12 rounded-xl overflow-hidden group-hover:scale-110 transition-transform">
@@ -792,10 +836,21 @@ const AdminProducts: React.FC = () => {
                       <span className="text-4xl group-hover:scale-110 transition-transform">{category.icon}</span>
                     )}
                     <span className="text-sm font-medium text-white capitalize">{category.name}</span>
-                    <span className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Click to edit
-                    </span>
-                  </button>
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEditCategoryDialog(category)}
+                        className="p-1.5 bg-white/10 rounded-lg hover:bg-blue-500 transition-colors"
+                      >
+                        <Edit2 className="w-3 h-3 text-white" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteCategoryId(category.id)}
+                        className="p-1.5 bg-white/10 rounded-lg hover:bg-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3 text-white" />
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -1180,18 +1235,17 @@ const AdminProducts: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Edit Category Dialog */}
+        {/* Create/Edit Category Dialog */}
         <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
           <DialogContent className="w-[95vw] max-w-lg bg-[#111111] border-white/10 p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white text-lg sm:text-xl">
-                Edit Category Icon
+                {editingCategory ? 'Edit Category' : 'Create New Category'}
               </DialogTitle>
             </DialogHeader>
             
             <form onSubmit={handleCategorySubmit} className="space-y-6">
               <div className="text-center">
-                <p className="text-gray-400 mb-4 capitalize">Category: {editingCategory?.name}</p>
                 {useImageIcon && categoryImagePreview ? (
                   <div className="w-20 h-20 mx-auto rounded-xl overflow-hidden bg-[#1a1a1a] mb-4">
                     <img src={categoryImagePreview} alt="Icon" className="w-full h-full object-cover" />
@@ -1199,6 +1253,19 @@ const AdminProducts: React.FC = () => {
                 ) : (
                   <div className="text-6xl mb-4">{categoryIcon}</div>
                 )}
+              </div>
+
+              {/* Category Name */}
+              <div className="space-y-2">
+                <Label htmlFor="category-name" className="text-sm">Category Name *</Label>
+                <Input
+                  id="category-name"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  required
+                  className="bg-[#1a1a1a] border-white/10"
+                  placeholder="e.g. smartphones, laptops"
+                />
               </div>
 
               {/* Toggle between emoji and image */}
@@ -1299,13 +1366,13 @@ const AdminProducts: React.FC = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={isUploading || updateCategory.isPending}
+                  disabled={isUploading || createCategory.isPending || updateCategory.isPending || !categoryName.trim()}
                   className="bg-orange-500 hover:bg-orange-600 order-1 sm:order-2"
                 >
-                  {(isUploading || updateCategory.isPending) && (
+                  {(isUploading || createCategory.isPending || updateCategory.isPending) && (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   )}
-                  Save Icon
+                  {editingCategory ? 'Update' : 'Create'}
                 </Button>
               </div>
             </form>
@@ -1350,6 +1417,28 @@ const AdminProducts: React.FC = () => {
                 className="bg-red-500 hover:bg-red-600 w-full sm:w-auto"
               >
                 {deleteHeroImage.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Category Confirmation */}
+        <AlertDialog open={!!deleteCategoryId} onOpenChange={() => setDeleteCategoryId(null)}>
+          <AlertDialogContent className="w-[90vw] max-w-md bg-[#111111] border-white/10">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white text-lg">Delete Category</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
+                Are you sure you want to delete this category? Products using this category will not be affected.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5 w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteCategory}
+                className="bg-red-500 hover:bg-red-600 w-full sm:w-auto"
+              >
+                {deleteCategory.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
