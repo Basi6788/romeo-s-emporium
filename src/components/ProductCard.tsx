@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, Plus, Eye } from 'lucide-react';
+import { Heart, ShoppingCart, Star, Plus, Eye, GitCompare } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
+import { useCompare } from '@/contexts/CompareContext';
 import { toast } from 'sonner';
 import gsap from 'gsap';
 import QuickViewModal from './QuickViewModal';
@@ -28,6 +29,7 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { addToCompare, removeFromCompare, isInCompare, compareItems } = useCompare();
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -138,6 +140,40 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
+  const handleCompare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const button = e.currentTarget;
+    gsap.fromTo(button, 
+      { scale: 1 }, 
+      { scale: 1.2, duration: 0.15, yoyo: true, repeat: 1, ease: 'power2.inOut' }
+    );
+
+    if (isInCompare(product.id)) {
+      removeFromCompare(product.id);
+      toast.success('Removed from compare');
+    } else {
+      if (compareItems.length >= 4) {
+        toast.error('Compare list is full', {
+          description: 'Maximum 4 products can be compared'
+        });
+        return;
+      }
+      addToCompare({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        image: product.image,
+        category: product.category,
+        rating: product.rating,
+        description: product.description
+      });
+      toast.success('Added to compare!');
+    }
+  };
+
   const handleQuickView = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -190,6 +226,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 }`}
               >
                 <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
+              </button>
+              <button
+                onClick={handleCompare}
+                className={`p-2.5 rounded-xl backdrop-blur-md transition-all ${
+                  isInCompare(product.id)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background/80 text-foreground hover:bg-primary hover:text-primary-foreground'
+                }`}
+              >
+                <GitCompare className="w-4 h-4" />
               </button>
               <button
                 onClick={handleQuickView}
