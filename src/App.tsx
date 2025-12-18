@@ -28,6 +28,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminAI from "./pages/admin/AdminAI";
 import AdminSecurity from "./pages/admin/AdminSecurity";
 import AdminLoginControl from "./pages/admin/AdminLoginControl";
+import AdminInventory from "./pages/admin/AdminInventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const AnimatedRoutes = () => {
         <Route path="/admin/ai" element={<AdminAI />} />
         <Route path="/admin/security" element={<AdminSecurity />} />
         <Route path="/admin/login-control" element={<AdminLoginControl />} />
+        <Route path="/admin/inventory" element={<AdminInventory />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </PageTransition>

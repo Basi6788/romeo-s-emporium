@@ -77,6 +77,66 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          category: string
+          colors: string[] | null
+          created_at: string
+          description: string | null
+          featured: boolean | null
+          id: string
+          image: string | null
+          in_stock: boolean | null
+          low_stock_threshold: number
+          name: string
+          original_price: number | null
+          price: number
+          rating: number | null
+          reviews: number | null
+          sku: string | null
+          stock_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          colors?: string[] | null
+          created_at?: string
+          description?: string | null
+          featured?: boolean | null
+          id?: string
+          image?: string | null
+          in_stock?: boolean | null
+          low_stock_threshold?: number
+          name: string
+          original_price?: number | null
+          price?: number
+          rating?: number | null
+          reviews?: number | null
+          sku?: string | null
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          colors?: string[] | null
+          created_at?: string
+          description?: string | null
+          featured?: boolean | null
+          id?: string
+          image?: string | null
+          in_stock?: boolean | null
+          low_stock_threshold?: number
+          name?: string
+          original_price?: number | null
+          price?: number
+          rating?: number | null
+          reviews?: number | null
+          sku?: string | null
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
