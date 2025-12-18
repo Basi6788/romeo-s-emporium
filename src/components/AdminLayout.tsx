@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Package, Users, ShoppingCart, Shield, Bot, 
-  LogOut, Settings, Menu, X, Search, ChevronRight 
+  LogOut, Settings, Menu, X, Search, ChevronRight, Warehouse 
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminNotifications from './AdminNotifications';
@@ -32,6 +32,7 @@ const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => 
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
     { to: '/admin/products', label: 'Products', icon: Package },
+    { to: '/admin/inventory', label: 'Inventory', icon: Warehouse },
     { to: '/admin/users', label: 'Users', icon: Users },
     { to: '/admin/ai', label: 'AI Assistant', icon: Bot },
     { to: '/admin/security', label: 'Security', icon: Shield },
