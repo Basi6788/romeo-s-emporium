@@ -3,12 +3,12 @@ import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, Times
 
 // Firebase configuration - using demo config that works for development
 const firebaseConfig = {
-  apiKey: "AIzaSyDemo_placeholder_key_for_development",
-  authDomain: "basitshop-demo.firebaseapp.com",
-  projectId: "basitshop-demo",
-  storageBucket: "basitshop-demo.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
+  apiKey: "AIzaSyBINZfePaTc7CxQQdJHC8eXjlx-KdTlrxA",
+  authDomain:"romeo65-62d30.firebaseapp.com",
+  projectId: "romeo65-62d30",
+  storageBucket: "romeo65-62d30.firebasestorage.app",
+  messagingSenderId: "393595796284",
+  appId: "G-BFJ7QMDMPH"
 };
 
 // Initialize Firebase
