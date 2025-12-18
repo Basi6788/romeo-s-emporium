@@ -268,11 +268,7 @@ const Header: React.FC = () => {
           {/* Backdrop */}
           <div 
             ref={menuBackdropRef}
-            className={`fixed inset-0 z-40 ${
-              theme === 'dark' 
-                ? 'bg-gradient-to-br from-slate-950 via-violet-950 to-slate-950' 
-                : 'bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900'
-            }`}
+            className="fixed inset-0 z-40 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900"
             onClick={closeMenu}
           />
           
@@ -301,7 +297,7 @@ const Header: React.FC = () => {
           >
             <div 
               ref={menuContentRef}
-              className="h-full overflow-y-auto overscroll-contain scrollbar-hide"
+              className="h-full overflow-y-auto overscroll-contain"
               style={{ WebkitOverflowScrolling: 'touch' }}
             >
               <div className="container mx-auto px-4 py-8 pb-24">

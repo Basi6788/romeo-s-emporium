@@ -193,19 +193,19 @@ const BottomNavigation: React.FC = () => {
       }`}
     >
       {/* Glass liquid background with rounded corners */}
-      <div className="absolute inset-0 rounded-[28px] bg-background/60 dark:bg-background/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12),inset_0_0_0_1px_rgba(255,255,255,0.1)] overflow-hidden">
+      <div className="absolute inset-0 rounded-[28px] bg-card/80 backdrop-blur-2xl border border-border/50 shadow-[0_8px_32px_rgba(0,0,0,0.15)] overflow-hidden">
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
         
         {/* Animated liquid canvas */}
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 pointer-events-none opacity-50"
           style={{ width: '100%', height: '100%' }}
         />
         
         {/* Shine effect */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
       </div>
       
       {/* Active indicator - glowing pill */}
