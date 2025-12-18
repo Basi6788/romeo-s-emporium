@@ -185,15 +185,15 @@ const AdminOrders: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {stats.map(({ label, value, change, icon: Icon, gradient }) => (
-            <div key={label} className="bg-[#111111] rounded-2xl border border-white/5 p-5">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4`}>
-                <Icon className="w-6 h-6 text-white" />
+            <div key={label} className="bg-[#111111] rounded-xl sm:rounded-2xl border border-white/5 p-3 sm:p-5">
+              <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-2 sm:mb-4`}>
+                <Icon className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
               </div>
-              <p className="text-2xl font-bold text-white">{value}</p>
-              <p className="text-sm text-gray-500">{label}</p>
-              <p className="text-xs text-gray-400 mt-1">{change}</p>
+              <p className="text-lg sm:text-2xl font-bold text-white">{value}</p>
+              <p className="text-xs sm:text-sm text-gray-500">{label}</p>
+              <p className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">{change}</p>
             </div>
           ))}
         </div>
@@ -237,122 +237,174 @@ const AdminOrders: React.FC = () => {
           </DropdownMenu>
         </div>
 
-        {/* Orders Table */}
-        <div className="bg-[#111111] rounded-2xl border border-white/5 overflow-hidden">
+        {/* Orders - Mobile Cards / Desktop Table */}
+        <div className="bg-[#111111] rounded-xl sm:rounded-2xl border border-white/5 overflow-hidden">
           {filteredOrders.length === 0 ? (
-            <div className="p-12 text-center">
-              <Package className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-              <p className="text-gray-400">
+            <div className="p-8 sm:p-12 text-center">
+              <Package className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-600" />
+              <p className="text-gray-400 text-sm sm:text-base">
                 {allOrders.length === 0 ? 'No orders yet' : 'No orders match your search'}
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="text-left p-4 text-sm font-medium text-gray-500">Order ID</th>
-                    <th className="text-left p-4 text-sm font-medium text-gray-500">Customer</th>
-                    <th className="text-left p-4 text-sm font-medium text-gray-500 hidden md:table-cell">Date</th>
-                    <th className="text-left p-4 text-sm font-medium text-gray-500">Status</th>
-                    <th className="text-left p-4 text-sm font-medium text-gray-500">Total</th>
-                    <th className="text-left p-4 text-sm font-medium text-gray-500">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order) => {
-                    const status = statusConfig[order.status];
-                    const StatusIcon = status.icon;
-                    const isUpdating = updatingStatus === order.id;
-                    
-                    return (
-                      <tr key={order.id} className="order-row border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="p-3 sm:p-4">
-                          <span className="font-mono font-bold text-white text-xs sm:text-sm">{order.id?.slice(0, 8)}...</span>
-                        </td>
-                        <td className="p-4">
-                          <p className="font-medium text-white">{order.customerName}</p>
-                          <p className="text-sm text-gray-500">{order.email}</p>
-                        </td>
-                        <td className="p-4 text-gray-400 hidden md:table-cell">
-                          {formatDate(order.createdAt)}
-                        </td>
-                        <td className="p-4">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger 
-                              disabled={isUpdating}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${status.bg} ${status.color} hover:opacity-80 transition-opacity ${isUpdating ? 'opacity-50' : ''}`}
-                            >
-                              <StatusIcon className="w-4 h-4" />
-                              {isUpdating ? 'Updating...' : status.label}
-                              <ChevronDown className="w-3 h-3 ml-1" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="bg-[#1a1a1a] border-white/10">
-                              {Object.entries(statusConfig).map(([key, config]) => (
-                                <DropdownMenuItem 
-                                  key={key}
-                                  onClick={() => updateOrderStatus(order, key as OrderData['status'])}
-                                  disabled={order.status === key}
-                                  className={`text-gray-300 hover:text-white focus:text-white focus:bg-white/10 ${order.status === key ? 'opacity-50' : ''}`}
-                                >
-                                  <config.icon className={`w-4 h-4 mr-2 ${config.color}`} />
-                                  {config.label}
-                                  {order.status === key && <span className="ml-auto text-xs text-gray-500">Current</span>}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                        <td className="p-4">
-                          <span className="font-bold text-white">${order.total.toFixed(2)}</span>
-                          <p className="text-xs text-gray-500">{order.items.length} items</p>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
+            <>
+              {/* Mobile Card View */}
+              <div className="sm:hidden divide-y divide-white/5">
+                {filteredOrders.map((order) => {
+                  const status = statusConfig[order.status];
+                  const StatusIcon = status.icon;
+                  const isUpdating = updatingStatus === order.id;
+                  
+                  return (
+                    <div key={order.id} className="p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-white text-sm">{order.customerName}</p>
+                          <p className="text-xs text-gray-500">#{order.id?.slice(0, 8)}</p>
+                        </div>
+                        <span className="font-bold text-white">${order.total.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger 
+                            disabled={isUpdating}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${status.bg} ${status.color}`}
+                          >
+                            <StatusIcon className="w-3 h-3" />
+                            {isUpdating ? '...' : status.label}
+                            <ChevronDown className="w-3 h-3" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-[#1a1a1a] border-white/10">
+                            {Object.entries(statusConfig).map(([key, config]) => (
+                              <DropdownMenuItem 
+                                key={key}
+                                onClick={() => updateOrderStatus(order, key as OrderData['status'])}
+                                disabled={order.status === key}
+                                className="text-gray-300 text-sm"
+                              >
+                                <config.icon className={`w-3 h-3 mr-2 ${config.color}`} />
+                                {config.label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <button 
+                          onClick={() => setSelectedOrder(order)}
+                          className="p-2 bg-white/5 rounded-lg text-gray-400"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/5">
+                      <th className="text-left p-4 text-sm font-medium text-gray-500">Order ID</th>
+                      <th className="text-left p-4 text-sm font-medium text-gray-500">Customer</th>
+                      <th className="text-left p-4 text-sm font-medium text-gray-500 hidden md:table-cell">Date</th>
+                      <th className="text-left p-4 text-sm font-medium text-gray-500">Status</th>
+                      <th className="text-left p-4 text-sm font-medium text-gray-500">Total</th>
+                      <th className="text-left p-4 text-sm font-medium text-gray-500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order) => {
+                      const status = statusConfig[order.status];
+                      const StatusIcon = status.icon;
+                      const isUpdating = updatingStatus === order.id;
+                      
+                      return (
+                        <tr key={order.id} className="order-row border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4">
+                            <span className="font-mono font-bold text-white text-sm">{order.id?.slice(0, 8)}...</span>
+                          </td>
+                          <td className="p-4">
+                            <p className="font-medium text-white">{order.customerName}</p>
+                            <p className="text-sm text-gray-500">{order.email}</p>
+                          </td>
+                          <td className="p-4 text-gray-400 hidden md:table-cell">
+                            {formatDate(order.createdAt)}
+                          </td>
+                          <td className="p-4">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger 
+                                disabled={isUpdating}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${status.bg} ${status.color} hover:opacity-80 transition-opacity ${isUpdating ? 'opacity-50' : ''}`}
+                              >
+                                <StatusIcon className="w-4 h-4" />
+                                {isUpdating ? 'Updating...' : status.label}
+                                <ChevronDown className="w-3 h-3 ml-1" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="bg-[#1a1a1a] border-white/10">
+                                {Object.entries(statusConfig).map(([key, config]) => (
+                                  <DropdownMenuItem 
+                                    key={key}
+                                    onClick={() => updateOrderStatus(order, key as OrderData['status'])}
+                                    disabled={order.status === key}
+                                    className={`text-gray-300 hover:text-white focus:text-white focus:bg-white/10 ${order.status === key ? 'opacity-50' : ''}`}
+                                  >
+                                    <config.icon className={`w-4 h-4 mr-2 ${config.color}`} />
+                                    {config.label}
+                                    {order.status === key && <span className="ml-auto text-xs text-gray-500">Current</span>}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                          <td className="p-4">
+                            <span className="font-bold text-white">${order.total.toFixed(2)}</span>
+                            <p className="text-xs text-gray-500">{order.items.length} items</p>
+                          </td>
+                          <td className="p-4">
                             <button 
                               onClick={() => setSelectedOrder(order)}
                               className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
-                              title="View Details"
                             >
                               <Eye className="w-5 h-5" />
                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>
 
       {/* Order Details Dialog */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-        <DialogContent className="bg-[#111111] border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-[#111111] border-white/10 text-white p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-3">
+            <DialogTitle className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
               Order Details
-              <span className="font-mono text-sm text-gray-400">{selectedOrder?.id}</span>
+              <span className="font-mono text-xs sm:text-sm text-gray-400">#{selectedOrder?.id?.slice(0, 8)}</span>
             </DialogTitle>
           </DialogHeader>
           
           {selectedOrder && (
-            <div className="space-y-6 mt-4">
+            <div className="space-y-4 sm:space-y-6 mt-2 sm:mt-4">
               {/* Customer Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-sm text-gray-400 mb-1">Customer</p>
-                  <p className="font-medium">{selectedOrder.customerName}</p>
-                  <p className="text-sm text-gray-400">{selectedOrder.email}</p>
-                  <p className="text-sm text-gray-400">{selectedOrder.phone}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
+                  <p className="text-xs sm:text-sm text-gray-400 mb-1">Customer</p>
+                  <p className="font-medium text-sm sm:text-base">{selectedOrder.customerName}</p>
+                  <p className="text-xs sm:text-sm text-gray-400">{selectedOrder.email}</p>
+                  <p className="text-xs sm:text-sm text-gray-400">{selectedOrder.phone}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-sm text-gray-400 mb-1">Shipping Address</p>
-                  <p className="font-medium">{selectedOrder.address}</p>
-                  <p className="text-sm text-gray-400">{selectedOrder.city}, {selectedOrder.postalCode}</p>
-                  <p className="text-sm text-gray-400">{selectedOrder.country}</p>
+                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
+                  <p className="text-xs sm:text-sm text-gray-400 mb-1">Shipping Address</p>
+                  <p className="font-medium text-sm sm:text-base">{selectedOrder.address}</p>
+                  <p className="text-xs sm:text-sm text-gray-400">{selectedOrder.city}, {selectedOrder.postalCode}</p>
+                  <p className="text-xs sm:text-sm text-gray-400">{selectedOrder.country}</p>
                 </div>
               </div>
 

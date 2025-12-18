@@ -179,16 +179,16 @@ const AdminUsers: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {stats.map(({ label, value, icon: Icon, gradient }) => (
-            <div key={label} className="bg-[#111111] rounded-2xl border border-white/5 p-5">
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-                  <Icon className="w-6 h-6 text-white" />
+            <div key={label} className="bg-[#111111] rounded-xl sm:rounded-2xl border border-white/5 p-3 sm:p-5">
+              <div className="flex items-start justify-between mb-2 sm:mb-4">
+                <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center`}>
+                  <Icon className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-white">{value}</p>
-              <p className="text-sm text-gray-500">{label}</p>
+              <p className="text-lg sm:text-2xl font-bold text-white">{value}</p>
+              <p className="text-xs sm:text-sm text-gray-500">{label}</p>
             </div>
           ))}
         </div>
