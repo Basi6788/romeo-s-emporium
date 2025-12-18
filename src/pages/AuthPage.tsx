@@ -16,14 +16,19 @@ const AuthPage: React.FC = () => {
     confirmPassword: ''
   });
 
-  const { login, register, isAuthenticated, isAdmin } = useAuth();
+  const { login, register, isAuthenticated, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
+  // Only redirect if already authenticated (not after fresh login)
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(isAdmin ? '/admin' : '/');
+    if (isAuthenticated && !loading && !authLoading) {
+      // Small delay to ensure isAdmin is updated
+      const timer = setTimeout(() => {
+        navigate(isAdmin ? '/admin' : '/');
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, isAdmin, navigate, loading, authLoading]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -38,8 +43,11 @@ const AuthPage: React.FC = () => {
         const result = await login(formData.email, formData.password);
         if (result.success) {
           toast.success('Welcome back!');
+          // Navigate immediately using the returned admin status
+          navigate(result.isAdmin ? '/admin' : '/');
         } else {
           toast.error(result.error || 'Invalid credentials');
+          setLoading(false);
         }
       } else {
         if (formData.password !== formData.confirmPassword) {
@@ -58,10 +66,10 @@ const AuthPage: React.FC = () => {
         } else {
           toast.error(result.error || 'Registration failed');
         }
+        setLoading(false);
       }
     } catch (error: any) {
       toast.error(error.message || 'Something went wrong');
-    } finally {
       setLoading(false);
     }
   };
