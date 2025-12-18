@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminNotifications from './AdminNotifications';
+import AdminBottomNav from './AdminBottomNav';
 import gsap from 'gsap';
 
 const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -156,10 +157,13 @@ const AdminLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => 
         </header>
 
         {/* Page Content */}
-        <main ref={contentRef} className="p-4 lg:p-6">
+        <main ref={contentRef} className="p-4 lg:p-6 pb-20 lg:pb-6">
           {children || <Outlet />}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <AdminBottomNav />
 
       {/* Mobile Overlay */}
       {sidebarOpen && (
