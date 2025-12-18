@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { sendOrderNotification } from './orderNotifications';
 
 export interface DbOrder {
   id?: string;
@@ -57,33 +56,6 @@ export const createDbOrder = async (orderData: Omit<DbOrder, 'id' | 'created_at'
       throw error;
     }
 
-    // Send email notification for new order
-    const fullOrder = {
-      id: data.id,
-      ...orderData,
-      status: 'pending' as const,
-      createdAt: new Date()
-    };
-
-    sendOrderNotification({
-      id: fullOrder.id,
-      userId: fullOrder.user_id,
-      customerName: fullOrder.customer_name,
-      email: fullOrder.email,
-      phone: fullOrder.phone || '',
-      address: fullOrder.address || '',
-      city: fullOrder.city || '',
-      postalCode: fullOrder.postal_code || '',
-      country: fullOrder.country || '',
-      paymentMethod: fullOrder.payment_method || 'cod',
-      items: fullOrder.items,
-      subtotal: fullOrder.subtotal,
-      shipping: fullOrder.shipping,
-      tax: fullOrder.tax,
-      total: fullOrder.total,
-      status: 'pending',
-      createdAt: new Date()
-    }).catch(console.error);
 
     return data.id;
   } catch (error) {

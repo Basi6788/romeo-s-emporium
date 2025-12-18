@@ -33,7 +33,7 @@ const ConfirmationPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-primary" />
                 <span className="text-muted-foreground">
-                  A confirmation email has been sent to your email address.
+                  We'll email order updates to the address you provided.
                 </span>
               </div>
             </div>

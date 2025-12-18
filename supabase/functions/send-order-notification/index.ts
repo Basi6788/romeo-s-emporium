@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-
-
+const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") ?? "onboarding@resend.dev";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +61,13 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    if (!RESEND_API_KEY) {
+      return new Response(JSON.stringify({ success: false, error: 'Missing RESEND_API_KEY' }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const data: OrderNotificationRequest = await req.json();
     const { orderId, customerName, email, status, items, total, address, city, trackingNumber } = data;
 
@@ -209,7 +215,7 @@ const handler = async (req: Request): Promise<Response> => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: "Order Updates <onboarding@resend.dev>",
+        from: `Order Updates <${RESEND_FROM_EMAIL}>`,
         to: [email],
         subject: `${statusInfo.subject} #${orderId}`,
         html: emailHtml,
@@ -217,6 +223,17 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const emailData = await emailResponse.json();
+
+    if (!emailResponse.ok) {
+      console.error("Email provider error:", emailData);
+      return new Response(
+        JSON.stringify({ success: false, error: emailData?.message || 'Failed to send email', data: emailData }),
+        {
+          status: emailResponse.status,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
     console.log("Email sent successfully:", emailData);
 
