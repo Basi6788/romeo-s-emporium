@@ -361,23 +361,23 @@ const HomePage = () => {
                 <div className="grid md:grid-cols-2 gap-6 items-center min-h-[480px] md:min-h-[540px] py-10">
                   <div 
                     ref={el => contentRefs.current[index] = el}
-                    className="order-2 md:order-1 text-white"
+                    className="order-2 md:order-1"
                   >
-                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-xs font-medium mb-4 border border-white/20">
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-xs font-medium mb-4 border border-white/20 text-white">
                       <Sparkles className="w-3.5 h-3.5" />
                       {slide.badge}
                     </span>
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-3 tracking-tight leading-tight text-white">
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-3 tracking-tight leading-tight text-white drop-shadow-lg">
                       {slide.title}
                     </h1>
-                    <p className="text-base md:text-lg text-white/80 mb-6 max-w-sm">
+                    <p className="text-base md:text-lg text-white/90 mb-6 max-w-sm drop-shadow">
                       {slide.subtitle}
                     </p>
                     <div className="flex flex-wrap gap-3">
                       <Button 
                         asChild 
                         size="lg" 
-                        className="h-12 px-6 bg-white text-foreground hover:bg-white/90 rounded-xl font-semibold shadow-xl dark:text-foreground"
+                        className="h-12 px-6 bg-white text-gray-900 hover:bg-white/90 rounded-xl font-semibold shadow-xl"
                       >
                         <Link to="/products">
                           Shop Now <ArrowRight className="ml-2 w-4 h-4" />
@@ -404,6 +404,14 @@ const HomePage = () => {
                         className="relative w-full h-full object-contain drop-shadow-2xl"
                         loading={index === 0 ? 'eager' : 'lazy'}
                       />
+                      {/* Explore Button */}
+                      <Link
+                        to="/products"
+                        className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white text-sm font-medium border border-white/30 hover:bg-white/30 transition-all duration-300 group"
+                      >
+                        Explore
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </Link>
                     </div>
                   </div>
                 </div>
