@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { Package, Truck, CheckCircle, Clock, Search, Filter, ChevronDown, Mail, Eye } from 'lucide-react';
 import gsap from 'gsap';
-import { getDbOrders, updateDbOrderStatus, DbOrder } from '@/lib/dbOrders';
-import { getOrders, OrderData } from '@/lib/firebase';
+import { updateDbOrderStatus } from '@/lib/dbOrders';
 import { sendOrderStatusUpdate } from '@/lib/orderNotifications';
 import { useOrdersSubscription } from '@/hooks/useRealtimeOrders';
 import { toast } from 'sonner';
@@ -20,6 +19,33 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+interface OrderData {
+  id?: string;
+  userId?: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  paymentMethod: string;
+  items: Array<{
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+    image?: string;
+  }>;
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered';
+  createdAt: Date;
+  isDbOrder?: boolean;
+}
+
 const statusConfig: Record<string, { color: string; bg: string; icon: React.ElementType; label: string }> = {
   pending: { color: 'text-amber-400', bg: 'bg-amber-500/20', icon: Clock, label: 'Pending' },
   processing: { color: 'text-blue-400', bg: 'bg-blue-500/20', icon: Package, label: 'Processing' },
@@ -29,61 +55,41 @@ const statusConfig: Record<string, { color: string; bg: string; icon: React.Elem
 
 const AdminOrders: React.FC = () => {
   // Use realtime subscription for database orders
-  const { orders: realtimeOrders, loading: realtimeLoading } = useOrdersSubscription();
-  const [localOrders, setLocalOrders] = useState<OrderData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { orders: realtimeOrders, loading } = useOrdersSubscription();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
-  // Combine database orders and local storage orders
-  const allOrders = [
-    ...realtimeOrders.map(o => ({
-      id: o.id,
-      customerName: o.customer_name,
-      email: o.email,
-      phone: o.phone || '',
-      address: o.address || '',
-      city: o.city || '',
-      postalCode: o.postal_code || '',
-      country: o.country || '',
-      paymentMethod: o.payment_method || 'cod',
-      items: o.items as any[],
-      subtotal: Number(o.subtotal),
-      shipping: Number(o.shipping),
-      tax: Number(o.tax),
-      total: Number(o.total),
-      status: o.status as OrderData['status'],
-      createdAt: new Date(o.created_at),
-      isDbOrder: true
-    })),
-    ...localOrders.filter(lo => !realtimeOrders.some(ro => ro.id === lo.id))
-  ];
+  // Map database orders to the expected format
+  const allOrders: OrderData[] = realtimeOrders.map(o => ({
+    id: o.id,
+    customerName: o.customer_name,
+    email: o.email,
+    phone: o.phone || '',
+    address: o.address || '',
+    city: o.city || '',
+    postalCode: o.postal_code || '',
+    country: o.country || '',
+    paymentMethod: o.payment_method || 'cod',
+    items: o.items as any[],
+    subtotal: Number(o.subtotal),
+    shipping: Number(o.shipping),
+    tax: Number(o.tax),
+    total: Number(o.total),
+    status: o.status as OrderData['status'],
+    createdAt: new Date(o.created_at),
+    isDbOrder: true
+  }));
 
   useEffect(() => {
-    // Also fetch local storage orders
-    const fetchLocalOrders = async () => {
-      try {
-        const orders = await getOrders();
-        setLocalOrders(orders);
-      } catch (error) {
-        console.error('Failed to fetch local orders:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLocalOrders();
-  }, []);
-
-  useEffect(() => {
-    if (!loading && !realtimeLoading && allOrders.length > 0) {
+    if (!loading && allOrders.length > 0) {
       gsap.fromTo('.order-row', 
         { opacity: 0, x: -20 },
         { opacity: 1, x: 0, duration: 0.4, stagger: 0.05, ease: 'power2.out' }
       );
     }
-  }, [loading, realtimeLoading, allOrders.length]);
+  }, [loading, allOrders.length]);
 
   const updateOrderStatus = async (order: any, newStatus: OrderData['status']) => {
     if (!order.id) return;
@@ -91,22 +97,8 @@ const AdminOrders: React.FC = () => {
     setUpdatingStatus(order.id);
     
     try {
-      // Update in database if it's a DB order
-      if (order.isDbOrder) {
-        await updateDbOrderStatus(order.id, newStatus);
-      } else {
-        // Update order in localStorage
-        const existingOrders = JSON.parse(localStorage.getItem('basitshop_orders') || '[]');
-        const updatedOrders = existingOrders.map((o: OrderData) => 
-          o.id === order.id ? { ...o, status: newStatus } : o
-        );
-        localStorage.setItem('basitshop_orders', JSON.stringify(updatedOrders));
-        
-        // Update local state
-        setLocalOrders(prev => prev.map(o => 
-          o.id === order.id ? { ...o, status: newStatus } : o
-        ));
-      }
+      // Update in database
+      await updateDbOrderStatus(order.id, newStatus);
       // Send email notification
       const result = await sendOrderStatusUpdate({
         id: order.id,
