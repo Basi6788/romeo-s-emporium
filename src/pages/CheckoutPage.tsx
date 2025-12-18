@@ -5,7 +5,8 @@ import { gsap } from 'gsap';
 import Layout from '@/components/Layout';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { createOrder } from '@/lib/firebase';
+import { createOrder, OrderData } from '@/lib/firebase';
+import { sendOrderNotification } from '@/lib/orderNotifications';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +55,14 @@ const CheckoutPage: React.FC = () => {
     setLoading(true);
 
     try {
+      const orderItems = items.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image
+      }));
+
       const orderId = await createOrder({
         userId: user?.id,
         customerName: formData.name,
@@ -64,18 +73,36 @@ const CheckoutPage: React.FC = () => {
         postalCode: formData.postalCode,
         country: formData.country,
         paymentMethod: formData.paymentMethod,
-        items: items.map(item => ({
-          productId: item.productId,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image
-        })),
+        items: orderItems,
         subtotal: total,
         shipping,
         tax,
         total: grandTotal,
       });
+
+      // Send order confirmation email
+      const orderData: OrderData = {
+        id: orderId,
+        userId: user?.id,
+        customerName: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        postalCode: formData.postalCode,
+        country: formData.country,
+        paymentMethod: formData.paymentMethod,
+        items: orderItems,
+        subtotal: total,
+        shipping,
+        tax,
+        total: grandTotal,
+        status: 'pending',
+        createdAt: new Date(),
+      };
+
+      // Send email notification (non-blocking)
+      sendOrderNotification(orderData).catch(console.error);
 
       clearCart();
       navigate('/confirmation', { state: { orderId } });
