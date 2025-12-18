@@ -121,8 +121,15 @@ const CheckoutPage: React.FC = () => {
         createdAt: new Date(),
       };
 
-      // Send email notification (non-blocking)
-      sendOrderNotification(orderData).catch(console.error);
+      // Send order confirmation email (don't block order placement)
+      const emailResult = await sendOrderNotification(orderData);
+      if (!emailResult.success) {
+        toast.error('Order placed, but email was not delivered', {
+          description:
+            emailResult.error ||
+            'Email delivery is not configured yet. Please verify your sender domain.',
+        });
+      }
 
       clearCart();
       navigate('/confirmation', { state: { orderId } });
