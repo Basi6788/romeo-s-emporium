@@ -153,12 +153,12 @@ const AdminDashboard: React.FC = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Sales Dashboard</h1>
-            <p className="text-gray-500 mt-1 flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Sales Dashboard</h1>
+            <p className="text-gray-500 mt-1 flex items-center gap-2 text-sm">
               <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
-              Real-time data • Updated {lastUpdate.toLocaleTimeString()}
+              <span className="hidden sm:inline">Real-time data •</span> Updated {lastUpdate.toLocaleTimeString()}
             </p>
           </div>
           <Link 
@@ -188,7 +188,7 @@ const AdminDashboard: React.FC = () => {
                   <Icon className="w-6 h-6 text-white" />
                 </div>
               </div>
-              <p className="text-2xl lg:text-3xl font-bold text-white">{loading ? '...' : value}</p>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">{loading ? '...' : value}</p>
               <p className="text-sm text-gray-500 mt-1">{label}</p>
               <p className="text-xs text-emerald-400 mt-2">{change}</p>
             </div>
@@ -269,15 +269,15 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             {analytics.statusData.length > 0 ? (
-              <div className="flex items-center gap-8">
-                <ResponsiveContainer width="50%" height={180}>
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
+                <ResponsiveContainer width="100%" height={140} className="sm:!w-1/2 sm:!h-[180px]">
                   <PieChart>
                     <Pie
                       data={analytics.statusData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={70}
+                      innerRadius={40}
+                      outerRadius={55}
                       paddingAngle={5}
                       dataKey="value"
                     >
@@ -295,7 +295,7 @@ const AdminDashboard: React.FC = () => {
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="flex-1 space-y-3">
+                <div className="w-full sm:flex-1 grid grid-cols-2 sm:grid-cols-1 gap-2 sm:space-y-3">
                   {analytics.statusData.map((item, index) => (
                     <div key={item.name} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -303,9 +303,9 @@ const AdminDashboard: React.FC = () => {
                           className="w-3 h-3 rounded-full" 
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         />
-                        <span className="text-sm text-gray-400">{item.name}</span>
+                        <span className="text-xs sm:text-sm text-gray-400">{item.name}</span>
                       </div>
-                      <span className="text-sm font-bold text-white">{item.value}</span>
+                      <span className="text-xs sm:text-sm font-bold text-white">{item.value}</span>
                     </div>
                   ))}
                 </div>

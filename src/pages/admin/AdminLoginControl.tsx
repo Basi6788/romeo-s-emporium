@@ -20,7 +20,7 @@ const AdminLoginControl: React.FC = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div><h1 className="text-3xl font-bold text-white">Login Control</h1><p className="text-gray-500 mt-1">Manage authentication settings</p></div>
+        <div><h1 className="text-2xl sm:text-3xl font-bold text-white">Login Control</h1><p className="text-gray-500 mt-1 text-sm sm:text-base">Manage authentication settings</p></div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[{ label: 'Two-Factor', icon: Shield, color: 'violet', value: settings.twoFactor, key: 'twoFactor' },

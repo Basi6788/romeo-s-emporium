@@ -33,25 +33,25 @@ const AdminAI: React.FC = () => {
     <AdminLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-            <Bot className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+            <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">AI Assistant</h1>
-            <p className="text-gray-500">Powered by advanced AI</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">AI Assistant</h1>
+            <p className="text-gray-500 text-sm sm:text-base">Powered by advanced AI</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {[{ label: 'AI Queries', value: '47', icon: MessageCircle, gradient: 'from-violet-500 to-purple-500' },
             { label: 'Insights', value: '12', icon: Brain, gradient: 'from-orange-500 to-amber-500' },
             { label: 'Automations', value: '8', icon: Zap, gradient: 'from-emerald-500 to-teal-500' }].map(({ label, value, icon: Icon, gradient }) => (
-            <div key={label} className="ai-card bg-[#111111] rounded-2xl border border-white/5 p-5">
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-3`}>
-                <Icon className="w-5 h-5 text-white" />
+            <div key={label} className="ai-card bg-[#111111] rounded-2xl border border-white/5 p-3 sm:p-5">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-2 sm:mb-3`}>
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <p className="text-2xl font-bold text-white">{value}</p>
-              <p className="text-sm text-gray-500">{label}</p>
+              <p className="text-xl sm:text-2xl font-bold text-white">{value}</p>
+              <p className="text-xs sm:text-sm text-gray-500">{label}</p>
             </div>
           ))}
         </div>

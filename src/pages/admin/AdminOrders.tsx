@@ -164,12 +164,12 @@ const AdminOrders: React.FC = () => {
         <div className="space-y-6">
           <div className="animate-pulse">
             <div className="h-8 w-48 bg-white/10 rounded mb-4" />
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-32 bg-white/10 rounded-2xl" />
+                <div key={i} className="h-28 sm:h-32 bg-white/10 rounded-2xl" />
               ))}
             </div>
-            <div className="h-96 bg-white/10 rounded-2xl" />
+            <div className="h-64 sm:h-96 bg-white/10 rounded-2xl" />
           </div>
         </div>
       </AdminLayout>
@@ -179,11 +179,9 @@ const AdminOrders: React.FC = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Orders Management</h1>
-            <p className="text-gray-500 mt-1">Track and manage customer orders</p>
-          </div>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Orders Management</h1>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">Track and manage customer orders</p>
         </div>
 
         {/* Stats */}
@@ -269,8 +267,8 @@ const AdminOrders: React.FC = () => {
                     
                     return (
                       <tr key={order.id} className="order-row border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="p-4">
-                          <span className="font-mono font-bold text-white text-sm">{order.id}</span>
+                        <td className="p-3 sm:p-4">
+                          <span className="font-mono font-bold text-white text-xs sm:text-sm">{order.id?.slice(0, 8)}...</span>
                         </td>
                         <td className="p-4">
                           <p className="font-medium text-white">{order.customerName}</p>

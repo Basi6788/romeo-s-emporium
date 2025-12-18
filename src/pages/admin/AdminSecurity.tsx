@@ -21,7 +21,7 @@ const AdminSecurity: React.FC = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div><h1 className="text-3xl font-bold text-white">Web Security</h1><p className="text-gray-500 mt-1">Monitor and protect your platform</p></div>
+        <div><h1 className="text-2xl sm:text-3xl font-bold text-white">Web Security</h1><p className="text-gray-500 mt-1 text-sm sm:text-base">Monitor and protect your platform</p></div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[{ label: 'Security Score', value: '94%', icon: Shield, gradient: 'from-emerald-500 to-teal-500' },
