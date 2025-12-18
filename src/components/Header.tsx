@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, User, Menu, X, Sun, Moon, Home, Package, MapPin, LogIn, Settings } from 'lucide-react';
+import { Search, Heart, ShoppingCart, User, Menu, X, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -18,55 +18,166 @@ const Header: React.FC = () => {
   const location = useLocation();
   const menuRef = useRef<HTMLDivElement>(null);
   const menuItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
+  const menuBackdropRef = useRef<HTMLDivElement>(null);
+  const particlesRef = useRef<HTMLDivElement>(null);
+
+  // Lock body scroll when menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${window.scrollY}px`;
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      window.scrollTo(0, parseInt(scrollY || '0') * -1);
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
+    const handleScroll = () => {
+      // Don't update scroll state when menu is open to prevent flickering
+      if (!menuOpen) {
+        setScrolled(window.scrollY > 10);
+      }
+    };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [menuOpen]);
 
   useEffect(() => {
     setMenuOpen(false);
     setSearchOpen(false);
   }, [location.pathname]);
 
-  // Animate menu open/close
+  // Animate menu open/close with GSAP
   useEffect(() => {
-    if (menuOpen && menuRef.current) {
-      gsap.fromTo(menuRef.current,
-        { opacity: 0, y: -20 },
-        { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }
+    if (menuOpen && menuRef.current && menuBackdropRef.current) {
+      const tl = gsap.timeline();
+      
+      // Backdrop fade in
+      tl.fromTo(menuBackdropRef.current,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: 'power2.out' }
       );
-      gsap.fromTo(menuItemsRef.current.filter(Boolean),
-        { opacity: 0, x: -20 },
-        { opacity: 1, x: 0, duration: 0.3, stagger: 0.05, ease: 'back.out(1.7)', delay: 0.1 }
+      
+      // Menu slide in with scale
+      tl.fromTo(menuRef.current,
+        { opacity: 0, y: -30, scale: 0.95 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'back.out(1.7)' },
+        '-=0.2'
       );
+      
+      // Stagger menu items
+      tl.fromTo(menuItemsRef.current.filter(Boolean),
+        { opacity: 0, y: 30, scale: 0.9 },
+        { 
+          opacity: 1, 
+          y: 0, 
+          scale: 1, 
+          duration: 0.4, 
+          stagger: 0.05, 
+          ease: 'back.out(1.7)' 
+        },
+        '-=0.2'
+      );
+
+      // Animate floating particles
+      if (particlesRef.current) {
+        const particles = particlesRef.current.children;
+        gsap.fromTo(particles,
+          { scale: 0, opacity: 0 },
+          { 
+            scale: 1, 
+            opacity: 0.6, 
+            duration: 0.6, 
+            stagger: 0.1, 
+            ease: 'elastic.out(1, 0.5)',
+            delay: 0.2
+          }
+        );
+        
+        // Continuous floating animation
+        Array.from(particles).forEach((particle, i) => {
+          gsap.to(particle, {
+            y: `random(-30, 30)`,
+            x: `random(-20, 20)`,
+            rotation: `random(-10, 10)`,
+            duration: `random(3, 5)`,
+            repeat: -1,
+            yoyo: true,
+            ease: 'sine.inOut',
+            delay: i * 0.2
+          });
+        });
+      }
     }
   }, [menuOpen]);
 
+  const closeMenu = useCallback(() => {
+    if (menuRef.current && menuBackdropRef.current) {
+      const tl = gsap.timeline({
+        onComplete: () => setMenuOpen(false)
+      });
+      
+      tl.to(menuItemsRef.current.filter(Boolean).reverse(), {
+        opacity: 0,
+        y: -20,
+        duration: 0.2,
+        stagger: 0.03
+      });
+      
+      tl.to(menuRef.current, {
+        opacity: 0,
+        y: -20,
+        scale: 0.95,
+        duration: 0.3
+      }, '-=0.1');
+      
+      tl.to(menuBackdropRef.current, {
+        opacity: 0,
+        duration: 0.2
+      }, '-=0.2');
+    } else {
+      setMenuOpen(false);
+    }
+  }, []);
+
   const menuItems = [
-    { to: '/', label: 'Home', icon: Home },
-    { to: '/products', label: 'Shop', icon: Package },
-    { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount },
-    { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount },
-    { to: '/track-order', label: 'Track Order', icon: MapPin },
-    { to: isAuthenticated ? (isAdmin ? '/admin' : '/profile') : '/auth', label: isAuthenticated ? 'Account' : 'Sign In', icon: isAuthenticated ? Settings : LogIn },
+    { to: '/', label: 'Home', icon: Home, color: 'from-blue-500 to-cyan-500' },
+    { to: '/products', label: 'Shop', icon: Package, color: 'from-violet-500 to-purple-500' },
+    { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount, color: 'from-pink-500 to-rose-500' },
+    { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount, color: 'from-orange-500 to-amber-500' },
+    { to: '/track-order', label: 'Track Order', icon: MapPin, color: 'from-emerald-500 to-teal-500' },
+    { to: isAuthenticated ? (isAdmin ? '/admin' : '/profile') : '/auth', label: isAuthenticated ? 'Account' : 'Sign In', icon: isAuthenticated ? Settings : LogIn, color: 'from-indigo-500 to-blue-500' },
   ];
 
   return (
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled 
+        scrolled && !menuOpen
           ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' 
-          : 'bg-transparent'
+          : menuOpen 
+            ? 'bg-transparent'
+            : 'bg-transparent'
       }`}
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 relative z-[60]">
             <span className="text-xl font-bold">
-              <span className="text-foreground">BASIT</span>
+              <span className={menuOpen ? 'text-white' : 'text-foreground'}>BASIT</span>
               <span className="text-primary">SHOP</span>
             </span>
           </Link>
@@ -91,11 +202,13 @@ const Header: React.FC = () => {
           </nav>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative z-[60]">
             {/* Search */}
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="p-2.5 rounded-lg hover:bg-muted transition-colors"
+              className={`p-2.5 rounded-lg transition-colors ${
+                menuOpen ? 'text-white hover:bg-white/10' : 'hover:bg-muted'
+              }`}
             >
               <Search className="w-5 h-5" />
             </button>
@@ -103,26 +216,40 @@ const Header: React.FC = () => {
             {/* Theme */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-lg hover:bg-muted transition-colors"
+              className={`p-2.5 rounded-lg transition-colors ${
+                menuOpen ? 'text-white hover:bg-white/10' : 'hover:bg-muted'
+              }`}
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
             {/* Menu Button */}
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2.5 rounded-lg hover:bg-muted transition-colors relative"
+              onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)}
+              className={`p-2.5 rounded-lg transition-all relative ${
+                menuOpen ? 'text-white hover:bg-white/10' : 'hover:bg-muted'
+              }`}
             >
-              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <div className="relative w-5 h-5">
+                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${
+                  menuOpen ? 'top-1/2 -translate-y-1/2 rotate-45' : 'top-1'
+                }`} />
+                <span className={`absolute left-0 top-1/2 -translate-y-1/2 block w-5 h-0.5 bg-current transition-all duration-300 ${
+                  menuOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'
+                }`} />
+                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${
+                  menuOpen ? 'top-1/2 -translate-y-1/2 -rotate-45' : 'bottom-1'
+                }`} />
+              </div>
               {(itemCount > 0 || wishlistCount > 0) && !menuOpen && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
               )}
             </button>
           </div>
         </div>
 
         {/* Search Bar */}
-        {searchOpen && (
+        {searchOpen && !menuOpen && (
           <div className="pb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -139,65 +266,110 @@ const Header: React.FC = () => {
 
       {/* Full Menu Overlay */}
       {menuOpen && (
-        <div 
-          ref={menuRef}
-          className="fixed inset-x-0 top-16 bottom-0 bg-background/95 backdrop-blur-xl z-40 overflow-y-auto"
-        >
-          <div className="container mx-auto px-4 py-8">
-            {/* Menu Grid */}
-            <nav className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-              {menuItems.map((item, index) => {
-                const isActive = location.pathname === item.to;
-                return (
-                  <Link
-                    key={item.to}
-                    ref={el => menuItemsRef.current[index] = el}
-                    to={item.to}
-                    className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border transition-all duration-300 group ${
-                      isActive 
-                        ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' 
-                        : 'bg-card border-border hover:border-primary/50 hover:shadow-lg hover:-translate-y-1'
-                    }`}
-                  >
-                    <div className={`p-3 rounded-xl transition-colors ${
-                      isActive ? 'bg-white/20' : 'bg-muted group-hover:bg-primary/10'
-                    }`}>
-                      <item.icon className={`w-6 h-6 ${isActive ? '' : 'text-foreground group-hover:text-primary'}`} />
-                    </div>
-                    <span className={`font-medium text-sm ${isActive ? '' : 'text-foreground'}`}>
-                      {item.label}
-                    </span>
-                    {item.badge !== undefined && item.badge > 0 && (
-                      <span className={`absolute top-3 right-3 min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold flex items-center justify-center ${
-                        isActive ? 'bg-white text-primary' : 'bg-primary text-primary-foreground'
-                      }`}>
-                        {item.badge}
+        <>
+          {/* Backdrop */}
+          <div 
+            ref={menuBackdropRef}
+            className="fixed inset-0 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900 z-40"
+            onClick={closeMenu}
+          />
+          
+          {/* Floating particles */}
+          <div ref={particlesRef} className="fixed inset-0 z-40 pointer-events-none overflow-hidden">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute rounded-full bg-gradient-to-r from-primary/30 to-violet-500/30 blur-sm"
+                style={{
+                  width: `${Math.random() * 100 + 50}px`,
+                  height: `${Math.random() * 100 + 50}px`,
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                }}
+              />
+            ))}
+            <Sparkles className="absolute top-20 right-10 w-8 h-8 text-primary/40" />
+            <Sparkles className="absolute bottom-40 left-10 w-6 h-6 text-violet-400/40" />
+          </div>
+          
+          {/* Menu Content */}
+          <div 
+            ref={menuRef}
+            className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-y-auto"
+          >
+            <div className="container mx-auto px-4 py-8">
+              {/* Menu Grid */}
+              <nav className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                {menuItems.map((item, index) => {
+                  const isActive = location.pathname === item.to;
+                  return (
+                    <Link
+                      key={item.to}
+                      ref={el => menuItemsRef.current[index] = el}
+                      to={item.to}
+                      onClick={closeMenu}
+                      className={`relative flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 group overflow-hidden ${
+                        isActive 
+                          ? 'bg-white/10 border-white/20 shadow-2xl shadow-primary/20' 
+                          : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:-translate-y-1'
+                      }`}
+                    >
+                      {/* Gradient background on hover */}
+                      <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                      
+                      {/* Icon */}
+                      <div className={`relative p-4 rounded-2xl bg-gradient-to-br ${item.color} shadow-lg`}>
+                        <item.icon className="w-6 h-6 text-white" />
+                        
+                        {/* Glow effect */}
+                        <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.color} blur-xl opacity-50 -z-10`} />
+                      </div>
+                      
+                      {/* Label */}
+                      <span className="font-semibold text-white text-sm">
+                        {item.label}
                       </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
+                      
+                      {/* Badge */}
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className="absolute top-3 right-3 min-w-[24px] h-6 px-2 rounded-full bg-white text-slate-900 text-xs font-bold flex items-center justify-center shadow-lg">
+                          {item.badge}
+                        </span>
+                      )}
+                      
+                      {/* Active indicator */}
+                      {isActive && (
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-transparent via-white to-transparent rounded-full" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
 
-            {/* Quick Actions */}
-            <div className="mt-8 max-w-2xl mx-auto">
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 border border-border">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-foreground">Need Help?</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Contact our 24/7 support</p>
+              {/* Quick Actions */}
+              <div className="mt-8 max-w-2xl mx-auto">
+                <div className="p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-white flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        Need Help?
+                      </h3>
+                      <p className="text-sm text-white/60 mt-1">Contact our 24/7 support</p>
+                    </div>
+                    <Link 
+                      to="/track-order"
+                      onClick={closeMenu}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-violet-500 text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/30 transition-all hover:scale-105"
+                    >
+                      Track Order
+                    </Link>
                   </div>
-                  <Link 
-                    to="/track-order" 
-                    className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-                  >
-                    Track Order
-                  </Link>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );

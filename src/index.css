@@ -282,6 +282,11 @@
   animation: spin-slow 3s linear infinite;
 }
 
+/* Safe area for bottom navigation */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -334,4 +339,9 @@
   opacity: 0.03;
   pointer-events: none;
   z-index: 1;
+}
+
+/* Bottom nav spacing for pages */
+.has-bottom-nav {
+  padding-bottom: 80px;
 }
