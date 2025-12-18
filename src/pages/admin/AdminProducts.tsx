@@ -372,26 +372,26 @@ const AdminProducts: React.FC = () => {
 
         {/* Create/Edit Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#111111] border-white/10">
+          <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-[#111111] border-white/10 p-4 sm:p-6">
             <DialogHeader>
-              <DialogTitle className="text-white">
+              <DialogTitle className="text-white text-lg sm:text-xl">
                 {editingProduct ? 'Edit Product' : 'Create New Product'}
               </DialogTitle>
             </DialogHeader>
             
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Image Upload */}
               <div className="space-y-2">
-                <Label>Product Image</Label>
-                <div className="flex gap-4 items-start">
+                <Label className="text-sm">Product Image</Label>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center sm:items-start">
                   <div 
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-32 h-32 rounded-xl bg-[#1a1a1a] border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-colors overflow-hidden"
+                    className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl bg-[#1a1a1a] border-2 border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-orange-500/50 transition-colors overflow-hidden flex-shrink-0"
                   >
                     {imagePreview ? (
                       <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
                     ) : (
-                      <Upload className="w-8 h-8 text-gray-500" />
+                      <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500" />
                     )}
                   </div>
                   <input
@@ -401,48 +401,48 @@ const AdminProducts: React.FC = () => {
                     onChange={handleImageChange}
                     className="hidden"
                   />
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-400 mb-2">Click to upload or drag and drop</p>
-                    <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 5MB</p>
+                  <div className="flex-1 text-center sm:text-left">
+                    <p className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-2">Click to upload</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500">PNG, JPG, WEBP up to 5MB</p>
                     {imagePreview && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="mt-2 text-red-400"
+                        className="mt-2 text-red-400 text-xs"
                         onClick={() => {
                           setImageFile(null);
                           setImagePreview(null);
                           setFormData(prev => ({ ...prev, image: null }));
                         }}
                       >
-                        <X className="w-4 h-4 mr-1" /> Remove
+                        <X className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> Remove
                       </Button>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="name">Product Name *</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-2 col-span-1 sm:col-span-2">
+                  <Label htmlFor="name" className="text-sm">Product Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     required
-                    className="bg-[#1a1a1a] border-white/10"
+                    className="bg-[#1a1a1a] border-white/10 text-sm"
                     placeholder="iPhone 16 Pro Max"
                   />
                 </div>
 
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="description">Description</Label>
+                <div className="space-y-2 col-span-1 sm:col-span-2">
+                  <Label htmlFor="description" className="text-sm">Description</Label>
                   <Textarea
                     id="description"
                     value={formData.description || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    className="bg-[#1a1a1a] border-white/10 min-h-[100px]"
+                    className="bg-[#1a1a1a] border-white/10 min-h-[80px] sm:min-h-[100px] text-sm"
                     placeholder="Product description..."
                   />
                 </div>
@@ -527,10 +527,10 @@ const AdminProducts: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between col-span-2 p-4 bg-[#1a1a1a] rounded-xl">
+                <div className="flex items-center justify-between col-span-1 sm:col-span-2 p-3 sm:p-4 bg-[#1a1a1a] rounded-xl">
                   <div>
-                    <Label htmlFor="featured">Featured Product</Label>
-                    <p className="text-xs text-gray-500">Show on homepage</p>
+                    <Label htmlFor="featured" className="text-sm">Featured Product</Label>
+                    <p className="text-[10px] sm:text-xs text-gray-500">Show on homepage</p>
                   </div>
                   <Switch
                     id="featured"
@@ -540,19 +540,19 @@ const AdminProducts: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
-                <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-white/5">
+                <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)} className="order-2 sm:order-1">
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={isUploading || createProduct.isPending || updateProduct.isPending}
-                  className="bg-orange-500 hover:bg-orange-600"
+                  className="bg-orange-500 hover:bg-orange-600 order-1 sm:order-2"
                 >
                   {(isUploading || createProduct.isPending || updateProduct.isPending) && (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   )}
-                  {editingProduct ? 'Update Product' : 'Create Product'}
+                  {editingProduct ? 'Update' : 'Create'}
                 </Button>
               </div>
             </form>
@@ -561,18 +561,18 @@ const AdminProducts: React.FC = () => {
 
         {/* Delete Confirmation */}
         <AlertDialog open={!!deleteProductId} onOpenChange={() => setDeleteProductId(null)}>
-          <AlertDialogContent className="bg-[#111111] border-white/10">
+          <AlertDialogContent className="w-[90vw] max-w-md bg-[#111111] border-white/10">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-white">Delete Product</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-white text-lg">Delete Product</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
                 Are you sure you want to delete this product? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5">Cancel</AlertDialogCancel>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5 w-full sm:w-auto">Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={handleDelete}
-                className="bg-red-500 hover:bg-red-600"
+                className="bg-red-500 hover:bg-red-600 w-full sm:w-auto"
               >
                 {deleteProduct.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Delete

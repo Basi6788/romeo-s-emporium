@@ -171,26 +171,26 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Stats Grid */}
-        <div ref={cardsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div ref={cardsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {stats.map(({ label, value, icon: Icon, change, up, gradient, live }) => (
             <div 
               key={label} 
-              className="stat-card bg-[#111111] rounded-2xl border border-white/5 p-5 hover:border-white/10 transition-all group relative overflow-hidden"
+              className="stat-card bg-[#111111] rounded-xl sm:rounded-2xl border border-white/5 p-3 sm:p-5 hover:border-white/10 transition-all group relative overflow-hidden"
             >
               {live && (
-                <div className="absolute top-3 right-3 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-xs text-emerald-400">LIVE</span>
+                <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-400 rounded-full animate-pulse" />
+                  <span className="text-[10px] sm:text-xs text-emerald-400">LIVE</span>
                 </div>
               )}
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
-                  <Icon className="w-6 h-6 text-white" />
+              <div className="flex items-start justify-between mb-2 sm:mb-4">
+                <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
+                  <Icon className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
               </div>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">{loading ? '...' : value}</p>
-              <p className="text-sm text-gray-500 mt-1">{label}</p>
-              <p className="text-xs text-emerald-400 mt-2">{change}</p>
+              <p className="text-lg sm:text-xl lg:text-3xl font-bold text-white">{loading ? '...' : value}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">{label}</p>
+              <p className="text-[10px] sm:text-xs text-emerald-400 mt-1 sm:mt-2 hidden sm:block">{change}</p>
             </div>
           ))}
         </div>
@@ -319,86 +319,86 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Second Row */}
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Today's Activity */}
-          <div className="chart-card bg-[#111111] rounded-2xl border border-white/5 p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="chart-card bg-[#111111] rounded-xl sm:rounded-2xl border border-white/5 p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div>
-                <h3 className="text-lg font-bold text-white">Today's Activity</h3>
-                <p className="text-sm text-gray-500">Orders by hour</p>
+                <h3 className="text-sm sm:text-lg font-bold text-white">Today's Activity</h3>
+                <p className="text-xs sm:text-sm text-gray-500">Orders by hour</p>
               </div>
             </div>
             {analytics.hourlyData.length > 0 && analytics.hourlyData.some(d => d.orders > 0) ? (
-              <ResponsiveContainer width="100%" height={120}>
+              <ResponsiveContainer width="100%" height={100}>
                 <BarChart data={analytics.hourlyData.slice(-12)}>
                   <XAxis 
                     dataKey="hour" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fill: '#6b7280', fontSize: 10 }}
-                    interval={2}
+                    tick={{ fill: '#6b7280', fontSize: 9 }}
+                    interval={3}
                   />
                   <Tooltip 
                     contentStyle={{ 
                       background: '#1a1a1a', 
                       border: '1px solid rgba(255,255,255,0.1)', 
                       borderRadius: '8px',
-                      color: '#fff'
+                      color: '#fff',
+                      fontSize: '12px'
                     }}
                   />
                   <Bar dataKey="orders" fill="#f97316" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[120px] flex items-center justify-center text-gray-500 text-sm">
+              <div className="h-[100px] flex items-center justify-center text-gray-500 text-xs sm:text-sm">
                 No orders today yet
               </div>
             )}
           </div>
 
           {/* Recent Orders */}
-          <div className="chart-card lg:col-span-2 bg-[#111111] rounded-2xl border border-white/5 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-bold text-white">Recent Orders</h3>
+          <div className="chart-card lg:col-span-2 bg-[#111111] rounded-xl sm:rounded-2xl border border-white/5 p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <h3 className="text-sm sm:text-lg font-bold text-white">Recent Orders</h3>
                 {orders.length > 0 && (
-                  <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
-                    {orders.length} total
+                  <span className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px] sm:text-xs font-medium">
+                    {orders.length}
                   </span>
                 )}
               </div>
-              <Link to="/admin/orders" className="text-sm text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1">
-                View all <ArrowUpRight className="w-4 h-4" />
+              <Link to="/admin/orders" className="text-xs sm:text-sm text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1">
+                View all <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4" />
               </Link>
             </div>
             {recentOrders.length > 0 ? (
               <div className="space-y-2">
-                {recentOrders.map((order, i) => (
+                {recentOrders.slice(0, 3).map((order, i) => (
                   <div 
                     key={order.id} 
-                    className="order-item flex items-center gap-4 p-3 bg-[#1a1a1a] rounded-xl hover:bg-[#222] transition-colors cursor-pointer group"
+                    className="order-item flex items-center gap-2 sm:gap-4 p-2 sm:p-3 bg-[#1a1a1a] rounded-lg sm:rounded-xl hover:bg-[#222] transition-colors cursor-pointer group"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center">
-                      <ShoppingCart className="w-5 h-5 text-orange-400" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-white truncate">{order.customer}</p>
-                      <p className="text-xs text-gray-500">#{order.id} • {order.time}</p>
+                      <p className="font-medium text-white truncate text-xs sm:text-sm">{order.customer}</p>
+                      <p className="text-[10px] sm:text-xs text-gray-500">#{order.id}</p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${statusColors[order.status]}`}>
+                    <span className={`px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium capitalize ${statusColors[order.status]} hidden sm:inline-flex`}>
                       {order.status}
                     </span>
-                    <span className="font-bold text-white">${order.total.toFixed(2)}</span>
-                    <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-white transition-colors" />
+                    <span className="font-bold text-white text-xs sm:text-sm">${order.total.toFixed(2)}</span>
+                    <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 group-hover:text-white transition-colors hidden sm:block" />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-gray-500">
+              <div className="h-[120px] sm:h-[200px] flex items-center justify-center text-gray-500">
                 <div className="text-center">
-                  <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No orders yet</p>
-                  <p className="text-sm">Orders will appear here in real-time</p>
+                  <ShoppingCart className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-xs sm:text-sm">No orders yet</p>
                 </div>
               </div>
             )}
