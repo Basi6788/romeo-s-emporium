@@ -110,8 +110,8 @@ const AdminInventory: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Inventory Management</h1>
-            <p className="text-gray-500 mt-1">Track stock levels and manage inventory</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Inventory Management</h1>
+            <p className="text-gray-500 mt-1 text-sm sm:text-base">Track stock levels and manage inventory</p>
           </div>
           <Button
             onClick={refetch}

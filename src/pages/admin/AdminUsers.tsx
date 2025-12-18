@@ -174,8 +174,8 @@ const AdminUsers: React.FC = () => {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">User Management</h1>
-          <p className="text-gray-500 mt-1">Manage users and assign roles</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">User Management</h1>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">Manage users and assign roles</p>
         </div>
 
         {/* Stats */}

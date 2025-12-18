@@ -186,8 +186,8 @@ const AdminProducts: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Products Management</h1>
-            <p className="text-gray-500 mt-1">Manage your product catalog ({products.length} products)</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Products Management</h1>
+            <p className="text-gray-500 mt-1 text-sm sm:text-base">Manage your catalog ({products.length} products)</p>
           </div>
           <Button onClick={openCreateDialog} className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-lg hover:shadow-orange-500/25">
             <Plus className="w-5 h-5" />
