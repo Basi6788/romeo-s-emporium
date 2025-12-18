@@ -1,29 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
-import api, { ApiProduct, ApiCategory } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
 import { products as fallbackProducts, categories as fallbackCategories } from '@/data/products';
 
-// Transform API product to match our Product interface
-const transformProduct = (product: ApiProduct) => ({
-  id: product._id || product.id,
+// Transform Supabase product to match the expected Product interface
+const transformProduct = (product: any) => ({
+  id: product.id,
   name: product.name,
   price: product.price,
-  originalPrice: product.originalPrice,
-  image: product.image || product.images?.[0] || '/placeholder.svg',
+  originalPrice: product.original_price,
+  image: product.image || '/placeholder.svg',
   category: product.category,
   rating: product.rating || 4.5,
-  reviews: product.reviews || Math.floor(Math.random() * 200) + 10,
+  reviews: product.reviews || 0,
   description: product.description,
-  colors: product.colors,
-  inStock: product.inStock ?? true,
+  colors: product.colors || [],
+  inStock: product.in_stock ?? true,
   featured: product.featured,
-});
-
-// Transform API category
-const transformCategory = (category: ApiCategory) => ({
-  id: category._id || category.id,
-  name: category.name,
-  icon: category.icon || '📦',
-  image: category.image,
 });
 
 export function useProducts(category?: string) {
@@ -31,14 +23,23 @@ export function useProducts(category?: string) {
     queryKey: ['products', category],
     queryFn: async () => {
       try {
-        const data = category 
-          ? await api.getProductsByCategory(category)
-          : await api.getProducts();
+        let query = supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (category) {
+          query = query.eq('category', category);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) throw error;
         
         if (data && data.length > 0) {
           return data.map(transformProduct);
         }
-        // Fallback to local data
+        // Fallback to local data if no products in DB
         return category 
           ? fallbackProducts.filter(p => p.category === category)
           : fallbackProducts;
@@ -58,7 +59,14 @@ export function useProduct(id: string) {
     queryKey: ['product', id],
     queryFn: async () => {
       try {
-        const data = await api.getProductById(id);
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        
+        if (error) throw error;
+        
         if (data) {
           return transformProduct(data);
         }
@@ -78,9 +86,22 @@ export function useCategories() {
     queryKey: ['categories'],
     queryFn: async () => {
       try {
-        const data = await api.getCategories();
+        // Get unique categories from products table
+        const { data, error } = await supabase
+          .from('products')
+          .select('category')
+          .order('category');
+        
+        if (error) throw error;
+        
         if (data && data.length > 0) {
-          return data.map(transformCategory);
+          const uniqueCategories = [...new Set(data.map(p => p.category))];
+          return uniqueCategories.map((cat, index) => ({
+            id: String(index + 1),
+            name: cat,
+            icon: '📦',
+            image: `/placeholder.svg`,
+          }));
         }
         return fallbackCategories;
       } catch (error) {
