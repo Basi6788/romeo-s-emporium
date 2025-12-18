@@ -383,35 +383,45 @@ const HomePage = () => {
             <div
               key={slide.id}
               ref={el => slideRefs.current[index] = el}
-              className={`absolute inset-0 bg-gradient-to-br ${slide.gradient}`}
+              className="absolute inset-0 overflow-hidden"
               style={{ visibility: index === 0 ? 'visible' : 'hidden' }}
             >
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-10 right-10 w-80 h-80 bg-black/10 rounded-full blur-3xl" />
-              </div>
+              {/* Background Image */}
+              <img
+                ref={el => imageRefs.current[index] = el}
+                src={slide.image}
+                alt={slide.title}
+                className="absolute inset-0 w-full h-full object-cover"
+                loading={index === 0 ? 'eager' : 'lazy'}
+              />
+              
+              {/* Overlay Gradient */}
+              <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-70`} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
 
+              {/* Content */}
               <div className="container mx-auto px-4 h-full relative z-10">
-                <div className="grid md:grid-cols-2 gap-6 items-center min-h-[480px] md:min-h-[540px] py-10">
+                <div className="flex flex-col justify-between min-h-[480px] md:min-h-[540px] py-10">
+                  {/* Top Content */}
                   <div 
                     ref={el => contentRefs.current[index] = el}
-                    className="order-2 md:order-1"
+                    className="flex-1 flex flex-col justify-center max-w-lg"
                   >
-                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-xs font-medium mb-4 border border-white/20 text-white">
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/20 dark:bg-background/30 backdrop-blur-md text-xs font-medium mb-4 border border-foreground/20 text-foreground dark:text-foreground w-fit">
                       <Sparkles className="w-3.5 h-3.5" />
                       {slide.badge}
                     </span>
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-3 tracking-tight leading-tight text-white drop-shadow-lg">
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-3 tracking-tight leading-tight text-foreground dark:text-foreground drop-shadow-lg [text-shadow:_0_2px_10px_rgb(0_0_0_/_40%)]">
                       {slide.title}
                     </h1>
-                    <p className="text-base md:text-lg text-white/90 mb-6 max-w-sm drop-shadow">
+                    <p className="text-base md:text-lg text-foreground/90 dark:text-foreground/90 mb-6 max-w-sm drop-shadow [text-shadow:_0_1px_4px_rgb(0_0_0_/_30%)]">
                       {slide.subtitle}
                     </p>
                     <div className="flex flex-wrap gap-3">
                       <Button 
                         asChild 
                         size="lg" 
-                        className="h-12 px-6 bg-white text-gray-900 hover:bg-white/90 rounded-xl font-semibold shadow-xl"
+                        className="h-12 px-6 bg-background text-foreground hover:bg-background/90 rounded-xl font-semibold shadow-xl"
                       >
                         <Link to={slide.link || '/products'}>
                           Shop Now <ArrowRight className="ml-2 w-4 h-4" />
@@ -421,32 +431,22 @@ const HomePage = () => {
                         asChild 
                         variant="outline" 
                         size="lg" 
-                        className="h-12 px-6 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white rounded-xl backdrop-blur-sm"
+                        className="h-12 px-6 border-foreground/30 bg-foreground/10 text-foreground hover:bg-foreground/20 hover:text-foreground rounded-xl backdrop-blur-sm"
                       >
                         <Link to={slide.link || '/products'}>Learn More</Link>
                       </Button>
                     </div>
                   </div>
 
-                  <div className="relative order-1 md:order-2 flex justify-center items-center">
-                    <div className="relative w-full max-w-[280px] md:max-w-[360px] aspect-square">
-                      <div className="absolute inset-0 bg-white/20 rounded-full blur-3xl scale-75" />
-                      <img
-                        ref={el => imageRefs.current[index] = el}
-                        src={slide.image}
-                        alt={slide.title}
-                        className="relative w-full h-full object-contain drop-shadow-2xl"
-                        loading={index === 0 ? 'eager' : 'lazy'}
-                      />
-                      {/* Explore Button */}
-                      <Link
-                        to={slide.link || '/products'}
-                        className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white text-sm font-medium border border-white/30 hover:bg-white/30 transition-all duration-300 group"
-                      >
-                        Explore
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </Link>
-                    </div>
+                  {/* Bottom Explore Button */}
+                  <div className="flex justify-end pb-8">
+                    <Link
+                      to={slide.link || '/products'}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-background/20 dark:bg-background/30 backdrop-blur-md text-foreground dark:text-foreground text-sm font-semibold border border-foreground/30 hover:bg-background/30 dark:hover:bg-background/40 transition-all duration-300 group shadow-lg"
+                    >
+                      Explore Now
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
                   </div>
                 </div>
               </div>
