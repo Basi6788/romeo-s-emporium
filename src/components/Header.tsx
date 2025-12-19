@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom'; // useNavigate add kia
 import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,13 +14,28 @@ const Header: React.FC = () => {
   const { itemCount: wishlistCount } = useWishlist();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  
+  // Search State & Navigate
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(''); // New State
+  const navigate = useNavigate(); // Navigation hook
+
   const location = useLocation();
   const menuRef = useRef<HTMLDivElement>(null);
   const menuItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
   const menuBackdropRef = useRef<HTMLDivElement>(null);
   const menuContentRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement>(null);
+
+  // Search Function Logic
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault(); // Page refresh rokay
+    if (searchTerm.trim()) {
+      setSearchOpen(false); // Search bar band karein
+      navigate(`/products?search=${encodeURIComponent(searchTerm)}`); // Products page par bhejein
+      setSearchTerm(''); // Input clear karein
+    }
+  };
 
   // Lock body scroll when menu is open
   useEffect(() => {
@@ -246,18 +261,20 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar (Updated Logic Here) */}
         {searchOpen && !menuOpen && (
-          <div className="pb-4">
-            <div className="relative">
+          <div className="pb-4 animate-in slide-in-from-top-2 duration-200">
+            <form onSubmit={handleSearchSubmit} className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search products..."
                 autoFocus
+                value={searchTerm} // Controlled Input
+                onChange={(e) => setSearchTerm(e.target.value)} // Update State
                 className="w-full pl-10 pr-4 py-3 bg-muted rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
               />
-            </div>
+            </form>
           </div>
         )}
       </div>
