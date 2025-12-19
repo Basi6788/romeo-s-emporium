@@ -29,17 +29,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!u) return null;
     return { ...u, name: u.user_metadata?.full_name || u.email?.split('@')[0] };
   };
+
+  // UPDATED: Ab ye seedha Romeo table check karega jahan aapne UID update ki thi
   const checkAdminRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase.rpc('has_role', {
-        _user_id: userId,
-        _role: 'admin'
-      });
+      const { data, error } = await supabase
+        .from('Romeo')
+        .select('is_admin')
+        .eq('id', userId)
+        .maybeSingle(); // Single row fetch karega
+
       if (error) {
         console.error('Error checking admin role:', error);
         return false;
       }
-      return data === true;
+      return data?.is_admin === true; // Agar TRUE hai toh admin status mil jayega
     } catch (err) {
       console.error('Failed to check admin role:', err);
       return false;
@@ -47,13 +51,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(extendUser(session?.user ?? null));
         
-        // Defer admin check to avoid deadlock
         if (session?.user) {
           setTimeout(() => {
             checkAdminRole(session.user.id).then(setIsAdmin);
@@ -64,7 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(extendUser(session?.user ?? null));
