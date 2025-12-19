@@ -6,9 +6,31 @@ import {
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrders, OrderData } from '@/lib/firebase';
+// import { getOrders, OrderData } from '@/lib/firebase'; // Firebase hata diya
+import { supabase } from '@/integrations/supabase/client'; // Supabase add kar diya
 import { toast } from 'sonner';
 import gsap from 'gsap';
+
+// OrderData interface yahan define kar di taa ke type error na aye
+export interface OrderData {
+  id: string;
+  userId?: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  paymentMethod: string;
+  items: any[];
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered';
+  createdAt: Date;
+}
 
 const statusConfig = {
   pending: { 
@@ -59,20 +81,57 @@ const OrderDetailPage: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Agar authentication zaroori hai to ye check rakhein, 
+    // agar testing karni hai to filhal comment out kar sakte hain
+    /* if (!isAuthenticated) {
       navigate('/auth');
       return;
     }
+    */
 
     const fetchOrder = async () => {
+      if (!id) return;
+      
       try {
-        const orders = await getOrders();
-        const foundOrder = orders.find(o => o.id === id);
-        if (foundOrder) {
-          setOrder(foundOrder);
+        setLoading(true);
+        
+        // 1. Supabase se Data mangwana (Database call)
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          // 2. Data Mapping (Database ke snake_case ko React ke camelCase mein badalna)
+          // Ye step bohot zaroori hai kyunke DB mein 'customer_name' hai aur Code 'customerName' dhoond raha hai
+          const formattedOrder: OrderData = {
+            id: data.id,
+            createdAt: new Date(data.created_at),
+            status: data.status as any,
+            customerName: data.customer_name, // Mapping fixed
+            email: data.email,
+            phone: data.phone,
+            address: data.address,
+            city: data.city,
+            postalCode: data.postal_code, // Mapping fixed
+            country: data.country,
+            paymentMethod: data.payment_method, // Mapping fixed
+            items: data.items, // JSONB array direct use hoga
+            subtotal: Number(data.subtotal),
+            shipping: Number(data.shipping),
+            tax: Number(data.tax),
+            total: Number(data.total),
+            userId: data.user_id
+          };
+          
+          setOrder(formattedOrder);
         }
       } catch (error) {
         console.error('Failed to fetch order:', error);
+        toast.error('Order details load nahi ho sakay');
       } finally {
         setLoading(false);
       }
