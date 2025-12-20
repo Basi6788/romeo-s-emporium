@@ -3,7 +3,7 @@ import { products as fallbackProducts, categories as fallbackCategories } from '
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X } from 'lucide-react';
+import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -23,7 +23,7 @@ const Header: React.FC = () => {
   // Search States
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [suggestions, setSuggestions] = useState<any[]>([]); // Suggestions store karne ke liye
+  const [suggestions, setSuggestions] = useState<any[]>([]); 
   const [isSearching, setIsSearching] = useState(false);
   
   const navigate = useNavigate();
@@ -36,7 +36,7 @@ const Header: React.FC = () => {
   const menuContentRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement>(null);
 
-  // --- 1. Supabase Search Logic (Real-time Suggestions) ---
+  // --- 1. Supabase Search Logic (Updated for better results) ---
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (!searchTerm.trim()) {
@@ -46,17 +46,24 @@ const Header: React.FC = () => {
 
       setIsSearching(true);
       try {
-        // Supabase query: Name mein search term dhoondega
+        // Supabase query update: ilike se match dhoond raha hai
         const { data, error } = await supabase
           .from('products')
           .select('id, name, slug, price, images, category')
           .ilike('name', `%${searchTerm}%`)
-          .limit(5); // Sirf top 5 results
+          .limit(5);
 
         if (error) throw error;
         
-        if (data) {
+        // Agar data aya tu set karo, warna fallback use karo
+        if (data && data.length > 0) {
           setSuggestions(data);
+        } else {
+            // Agar supabase me nahi mila tu fallback check karo
+             const fallback = fallbackProducts.filter(p => 
+              p.name.toLowerCase().includes(searchTerm.toLowerCase())
+            ).slice(0, 5);
+            setSuggestions(fallback);
         }
       } catch (error) {
         console.error('Search error:', error);
@@ -70,7 +77,6 @@ const Header: React.FC = () => {
       }
     };
 
-    // Debounce: User ke rukne ke 300ms baad search karega taake database load na ho
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
@@ -85,10 +91,9 @@ const Header: React.FC = () => {
     }
   };
 
-  // --- 2. Fix for Menu Scrolling (Removed 'position: fixed') ---
+  // --- 2. Fix for Menu Scrolling ---
   useEffect(() => {
     if (menuOpen) {
-      // Sirf overflow hidden karein, position fixed se mobile scroll atak jata hai
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -113,10 +118,10 @@ const Header: React.FC = () => {
   useEffect(() => {
     setMenuOpen(false);
     setSearchOpen(false);
-    setSuggestions([]); // Clear suggestions
+    setSuggestions([]); 
   }, [location.pathname]);
 
-  // GSAP Animation Logic (Same as before)
+  // GSAP Animation Logic
   useEffect(() => {
     if (menuOpen && menuRef.current && menuBackdropRef.current) {
       const tl = gsap.timeline();
@@ -207,6 +212,7 @@ const Header: React.FC = () => {
   const menuItems = [
     { to: '/', label: 'Home', icon: Home, color: 'from-blue-500 to-cyan-500' },
     { to: '/products', label: 'Products', icon: Package, color: 'from-violet-500 to-purple-500' },
+    { to: '/mepco-bill', label: 'Check Bill', icon: Zap, color: 'from-yellow-400 to-orange-500' }, // New Mepco Option Added
     { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount, color: 'from-pink-500 to-rose-500' },
     { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount, color: 'from-orange-500 to-amber-500' },
     { to: '/track-order', label: 'Track Order', icon: MapPin, color: 'from-emerald-500 to-teal-500' },
@@ -248,6 +254,15 @@ const Header: React.FC = () => {
                 </Link>
               );
             })}
+             {/* Desktop Mepco Link (Optional for Desktop, but useful) */}
+             <Link
+                to="/mepco-bill"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === '/mepco-bill' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                Bill Checker
+              </Link>
           </nav>
 
           {/* Right Actions */}
@@ -265,10 +280,10 @@ const Header: React.FC = () => {
               {searchOpen && !menuOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
             </button>
 
-            {/* Theme Toggle - Fixed: Ensures click works even with overlays */}
+            {/* Theme Toggle - Fixed Z-index and cursor */}
             <button
               onClick={toggleTheme}
-              className={`p-2.5 rounded-lg transition-colors cursor-pointer ${
+              className={`p-2.5 rounded-lg transition-colors cursor-pointer relative z-[60] ${
                 menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'
               }`}
               aria-label="Toggle Theme"
@@ -279,7 +294,7 @@ const Header: React.FC = () => {
             {/* Menu Button */}
             <button
               onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)}
-              className={`p-2.5 rounded-lg transition-all relative ${
+              className={`p-2.5 rounded-lg transition-all relative z-[60] ${
                 menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'
               }`}
             >
@@ -390,14 +405,16 @@ const Header: React.FC = () => {
             <Sparkles className="absolute bottom-40 left-10 w-6 h-6 text-violet-400/40" />
           </div>
           
-          {/* Menu Content - FIXED SCROLLING */}
+          {/* Menu Content - FIXED SCROLLING and POINTER EVENTS */}
           <div 
             ref={menuRef}
-            className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-hidden flex flex-col pointer-events-none"
+            // Fix: pointer-events-auto here allows interaction with the scroll container
+            className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-hidden flex flex-col pointer-events-auto"
           >
             <div 
               ref={menuContentRef}
-              className="flex-1 overflow-y-auto overscroll-contain pointer-events-auto"
+              // Fix: Added h-full to ensure it takes space to scroll
+              className="flex-1 h-full overflow-y-auto overscroll-contain"
               style={{ 
                 WebkitOverflowScrolling: 'touch',
                 scrollbarWidth: 'none', 
