@@ -1,9 +1,9 @@
-// File: /api/bill.js
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import https from 'https';
 
 export default async function handler(req, res) {
-  // CORS Permissions
+  // 1. CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
@@ -19,14 +19,18 @@ export default async function handler(req, res) {
 
   const { refNo } = req.query;
 
-  if (!refNo) {
-    return res.status(400).json({ error: 'Reference Number zaroori hai' });
-  }
+  if (!refNo) return res.status(400).json({ error: 'Reference Number missing' });
 
   try {
-    // Timeout 8 seconds taake Vercel function timeout na ho
-    const response = await axios.get(`https://bill.pitc.com.pk/mepcobill/general?refno=${refNo}`, {
-      timeout: 8000,
+    // 2. SSL Bypass Agent (Ye "Server Error" fix karega)
+    const agent = new https.Agent({  
+      rejectUnauthorized: false 
+    });
+
+    // 3. Request to PITC
+    const url = `https://bill.pitc.com.pk/mepcobill/general?refno=${refNo}`;
+    const response = await axios.get(url, {
+      httpsAgent: agent, // Important fix
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
@@ -35,35 +39,84 @@ export default async function handler(req, res) {
     const html = response.data;
     const $ = cheerio.load(html);
 
-    if ($('body').text().includes('Record not found') || $('body').text().includes('Invalid Reference')) {
-      return res.status(404).json({ error: 'Record nahi mila. Reference Number check karein.' });
+    if ($('body').text().includes('Record not found')) {
+      return res.status(404).json({ error: 'Invalid Reference Number' });
     }
 
-    // Helper to find data
-    const findValue = (label) => {
-      let el = $(`td:contains("${label}")`).first().next();
-      if (!el.text().trim()) el = el.next();
-      return el.text().trim() || 'N/A';
+    // 4. Advanced Scraping Logic (A to Z Details)
+    // Hum text ko safai se nikalne ke liye helper function use karenge
+    const getText = (label) => {
+      // Label dhoondo aur uska agla cell uthao
+      let el = $(`td:contains("${label}")`).first();
+      // Kabhi value next element me hoti hai, kabhi next sibling me
+      let val = el.next('td').text().trim();
+      if (!val) val = el.siblings().last().text().trim();
+      return val;
     };
 
-    const name = findValue('Name');
-    const month = findValue('Bill Month');
-    const dueDate = findValue('Due Date');
-    const payable = $(`td:contains("Payable Within Due Date")`).next().text().trim();
-    const afterDue = $(`td:contains("Payable After Due Date")`).next().text().trim();
+    // Specific layouts ke liye direct selectors
+    const name = $('td:contains("NAME & ADDRESS")').closest('tr').next().find('td').first().text().trim();
+    // Address usually name ke niche hota hai, thora trick laga rahe hain
+    const rawAddress = $('td:contains("NAME & ADDRESS")').closest('tr').next().text().trim();
+    const cleanAddress = rawAddress.replace(name, '').trim();
 
-    // Success response
+    const units = $('td:contains("UNITS CONSUMED")').next().text().trim();
+    const meterNo = getText('METER NO');
+    const tariff = getText('TARIFF');
+    const load = getText('LOAD');
+    
+    // Dates
+    const issueDate = getText('ISSUE DATE');
+    const dueDate = getText('DUE DATE');
+    const billMonth = getText('BILL MONTH');
+
+    // Readings
+    const prevReading = $('td:contains("PREVIOUS")').closest('table').find('tr').eq(2).find('td').eq(0).text().trim();
+    const presReading = $('td:contains("PRESENT")').closest('table').find('tr').eq(2).find('td').eq(1).text().trim();
+
+    // Charges Breakdown
+    const electricityCost = getText('COST OF ELECTRICITY');
+    const gst = getText('GST');
+    const tvFee = getText('TV FEE');
+    const fpa = getText('F.C SURCHARGE') || '0';
+    
+    // Totals
+    const payable = $('td:contains("PAYABLE WITHIN DUE DATE")').next().text().trim();
+    const afterDue = $('td:contains("PAYABLE AFTER DUE DATE")').next().text().trim();
+    
+    // Status check (simple logic based on date, real status PITC usually hide karta hai)
+    const status = "Unpaid"; 
+
     res.status(200).json({
-      consumerName: name,
-      billMonth: month,
-      dueDate: dueDate,
-      payableAmount: payable || '0',
-      payableAfterDueDate: afterDue || '0',
-      refNo: refNo
+      success: true,
+      info: {
+        name: name || "Consumer",
+        address: cleanAddress || "N/A",
+        refNo: refNo,
+        meterNo: meterNo || "N/A",
+        tariff: tariff || "N/A",
+        load: load || "N/A"
+      },
+      billing: {
+        month: billMonth,
+        issueDate: issueDate,
+        dueDate: dueDate,
+        units: units || "0",
+        prevReading: prevReading || "0",
+        presReading: presReading || "0"
+      },
+      charges: {
+        cost: electricityCost || "0",
+        gst: gst || "0",
+        tvFee: tvFee || "0",
+        fpa: fpa,
+        totalPayable: payable,
+        totalAfterDue: afterDue
+      }
     });
 
   } catch (error) {
-    console.error("API Error:", error.message);
-    res.status(500).json({ error: 'Server busy. Please try direct link.' });
+    console.error('Scrape Error:', error.message);
+    res.status(500).json({ error: 'Connection Error. Please try again.' });
   }
 }
