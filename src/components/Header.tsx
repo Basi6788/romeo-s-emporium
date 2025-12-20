@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import { products as fallbackProducts, categories as fallbackCategories } from '@/data/products';
+// Fallback products ko hata diya ya unused chor diya kyunke user ko real data chahiye
+import { products as fallbackProducts } from '@/data/products'; 
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -36,7 +37,7 @@ const Header: React.FC = () => {
   const menuContentRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement>(null);
 
-  // --- 1. Supabase Search Logic (Updated for better results) ---
+  // --- 1. Supabase Search Logic (Fixed: Only Real Data) ---
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (!searchTerm.trim()) {
@@ -46,32 +47,24 @@ const Header: React.FC = () => {
 
       setIsSearching(true);
       try {
-        // Supabase query update: ilike se match dhoond raha hai
+        // Updated Query: Name ke sath sath Description aur Category me bhi search karega
+        // Taake real data miss na ho
         const { data, error } = await supabase
           .from('products')
-          .select('id, name, slug, price, images, category')
-          .ilike('name', `%${searchTerm}%`)
+          .select('id, name, slug, price, images, category, description')
+          .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
           .limit(5);
 
         if (error) throw error;
         
-        // Agar data aya tu set karo, warna fallback use karo
-        if (data && data.length > 0) {
+        // Sirf real data set karega. Agar khali hai tu khali hi rahega.
+        if (data) {
           setSuggestions(data);
-        } else {
-            // Agar supabase me nahi mila tu fallback check karo
-             const fallback = fallbackProducts.filter(p => 
-              p.name.toLowerCase().includes(searchTerm.toLowerCase())
-            ).slice(0, 5);
-            setSuggestions(fallback);
         }
       } catch (error) {
         console.error('Search error:', error);
-        // Fallback agar Supabase fail ho jaye
-        const fallback = fallbackProducts.filter(p => 
-          p.name.toLowerCase().includes(searchTerm.toLowerCase())
-        ).slice(0, 5);
-        setSuggestions(fallback);
+        // Error par bhi ab mock data nahi dikhayega, taake confusion na ho
+        setSuggestions([]);
       } finally {
         setIsSearching(false);
       }
@@ -212,7 +205,7 @@ const Header: React.FC = () => {
   const menuItems = [
     { to: '/', label: 'Home', icon: Home, color: 'from-blue-500 to-cyan-500' },
     { to: '/products', label: 'Products', icon: Package, color: 'from-violet-500 to-purple-500' },
-    { to: '/mepco-bill', label: 'Check Bill', icon: Zap, color: 'from-yellow-400 to-orange-500' }, // New Mepco Option Added
+    { to: '/mepco-bill', label: 'Check Bill', icon: Zap, color: 'from-yellow-400 to-orange-500' },
     { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount, color: 'from-pink-500 to-rose-500' },
     { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount, color: 'from-orange-500 to-amber-500' },
     { to: '/track-order', label: 'Track Order', icon: MapPin, color: 'from-emerald-500 to-teal-500' },
@@ -254,7 +247,7 @@ const Header: React.FC = () => {
                 </Link>
               );
             })}
-             {/* Desktop Mepco Link (Optional for Desktop, but useful) */}
+             {/* Desktop Mepco Link */}
              <Link
                 to="/mepco-bill"
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -280,7 +273,7 @@ const Header: React.FC = () => {
               {searchOpen && !menuOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
             </button>
 
-            {/* Theme Toggle - Fixed Z-index and cursor */}
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className={`p-2.5 rounded-lg transition-colors cursor-pointer relative z-[60] ${
@@ -408,12 +401,10 @@ const Header: React.FC = () => {
           {/* Menu Content - FIXED SCROLLING and POINTER EVENTS */}
           <div 
             ref={menuRef}
-            // Fix: pointer-events-auto here allows interaction with the scroll container
             className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-hidden flex flex-col pointer-events-auto"
           >
             <div 
               ref={menuContentRef}
-              // Fix: Added h-full to ensure it takes space to scroll
               className="flex-1 h-full overflow-y-auto overscroll-contain"
               style={{ 
                 WebkitOverflowScrolling: 'touch',
