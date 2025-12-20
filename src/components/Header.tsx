@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-// Fallback products ko hata diya ya unused chor diya kyunke user ko real data chahiye
-import { products as fallbackProducts } from '@/data/products'; 
+// Note: Fallback/Mock data completely removed. Real data only.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -37,9 +36,10 @@ const Header: React.FC = () => {
   const menuContentRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement>(null);
 
-  // --- 1. Supabase Search Logic (Fixed: Only Real Data) ---
+  // --- 1. Supabase Search Logic (STRICT REAL DATA ONLY) ---
   useEffect(() => {
     const fetchSuggestions = async () => {
+      // Agar search empty hai tu clear kar do
       if (!searchTerm.trim()) {
         setSuggestions([]);
         return;
@@ -47,8 +47,8 @@ const Header: React.FC = () => {
 
       setIsSearching(true);
       try {
-        // Updated Query: Name ke sath sath Description aur Category me bhi search karega
-        // Taake real data miss na ho
+        // Query updated to match your new SQL columns
+        // Searches in Name OR Description OR Category
         const { data, error } = await supabase
           .from('products')
           .select('id, name, slug, price, images, category, description')
@@ -57,19 +57,19 @@ const Header: React.FC = () => {
 
         if (error) throw error;
         
-        // Sirf real data set karega. Agar khali hai tu khali hi rahega.
-        if (data) {
-          setSuggestions(data);
-        }
+        // Agar data mila tu set karo, warna empty array (No Fake Data)
+        setSuggestions(data || []);
+        
       } catch (error) {
         console.error('Search error:', error);
-        // Error par bhi ab mock data nahi dikhayega, taake confusion na ho
+        // Error par bhi empty array, mock data nahi
         setSuggestions([]);
       } finally {
         setIsSearching(false);
       }
     };
 
+    // Debounce to prevent too many requests
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
@@ -328,11 +328,12 @@ const Header: React.FC = () => {
             {/* Live Suggestions Dropdown */}
             {searchTerm.trim() && (suggestions.length > 0 || isSearching) && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
-                {isSearching && suggestions.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    Searching...
+                {isSearching ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                    Searching database...
                   </div>
-                ) : (
+                ) : suggestions.length > 0 ? (
                   <div className="max-h-[60vh] overflow-y-auto">
                     {suggestions.map((product) => (
                       <Link
@@ -362,6 +363,11 @@ const Header: React.FC = () => {
                         </div>
                       </Link>
                     ))}
+                  </div>
+                ) : (
+                  // No results state
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    No results found for "{searchTerm}"
                   </div>
                 )}
               </div>
