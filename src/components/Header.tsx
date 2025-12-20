@@ -34,7 +34,7 @@ const Header: React.FC = () => {
   const menuContentRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement>(null);
 
-  // --- 1. Supabase Search Logic (FIXED: mapped to your real schema) ---
+  // --- 1. Supabase Search Logic (FIXED) ---
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (!searchTerm.trim()) {
@@ -44,12 +44,13 @@ const Header: React.FC = () => {
 
       setIsSearching(true);
       try {
-        console.log("Searching for:", searchTerm);
+        // console.log("Searching for:", searchTerm);
 
-        // CHANGE 1: 'images' ki jagah 'image' select kiya (Schema ke mutabiq)
+        // FIXED: 'slug' remove kar diya hai kyun ke wo DB me nahi hai
+        // Sirf wo columns select kiye hain jo screenshot me hain
         const { data, error } = await supabase
           .from('products')
-          .select('id, name, slug, price, image, category, description') 
+          .select('id, name, price, image, category, description') 
           .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
           .limit(10);
 
@@ -58,7 +59,7 @@ const Header: React.FC = () => {
           throw error;
         }
         
-        console.log("Results found:", data);
+        // console.log("Results found:", data);
         setSuggestions(data || []);
         
       } catch (error) {
@@ -201,11 +202,11 @@ const Header: React.FC = () => {
                     {suggestions.map((product) => (
                       <Link
                         key={product.id}
+                        // Fallback to ID if slug is missing
                         to={`/products/${product.slug || product.id}`}
                         onClick={() => { setSearchOpen(false); setSearchTerm(''); }}
                         className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
                       >
-                        {/* CHANGE 2: Image Logic Update (Direct 'image' string use) */}
                         {product.image ? (
                           <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                              <img src={product.image} alt="" className="w-full h-full object-cover" />
