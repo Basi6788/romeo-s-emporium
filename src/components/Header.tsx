@@ -1,9 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
-// Note: Fallback/Mock data completely removed. Real data only.
+// No fallback data import needed
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap } from 'lucide-react';
+import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap, AlertCircle } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -36,10 +36,9 @@ const Header: React.FC = () => {
   const menuContentRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement>(null);
 
-  // --- 1. Supabase Search Logic (STRICT REAL DATA ONLY) ---
+  // --- 1. Supabase Search Logic ---
   useEffect(() => {
     const fetchSuggestions = async () => {
-      // Agar search empty hai tu clear kar do
       if (!searchTerm.trim()) {
         setSuggestions([]);
         return;
@@ -47,29 +46,30 @@ const Header: React.FC = () => {
 
       setIsSearching(true);
       try {
-        // Query updated to match your new SQL columns
-        // Searches in Name OR Description OR Category
+        console.log("Searching for:", searchTerm); // Debugging ke liye
+
         const { data, error } = await supabase
           .from('products')
           .select('id, name, slug, price, images, category, description')
           .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
           .limit(5);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase Error:", error);
+          throw error;
+        }
         
-        // Agar data mila tu set karo, warna empty array (No Fake Data)
+        console.log("Data Found:", data); // Console me check karna agar data aya
+
         setSuggestions(data || []);
-        
       } catch (error) {
-        console.error('Search error:', error);
-        // Error par bhi empty array, mock data nahi
+        console.error('Search crash:', error);
         setSuggestions([]);
       } finally {
         setIsSearching(false);
       }
     };
 
-    // Debounce to prevent too many requests
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
@@ -96,7 +96,7 @@ const Header: React.FC = () => {
     };
   }, [menuOpen]);
 
-  // Scroll Effect for Header Background
+  // Scroll Effect
   useEffect(() => {
     const handleScroll = () => {
       if (!menuOpen) {
@@ -107,7 +107,7 @@ const Header: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [menuOpen]);
 
-  // Reset functionality on route change
+  // Reset functionality
   useEffect(() => {
     setMenuOpen(false);
     setSearchOpen(false);
@@ -119,84 +119,18 @@ const Header: React.FC = () => {
     if (menuOpen && menuRef.current && menuBackdropRef.current) {
       const tl = gsap.timeline();
       
-      tl.fromTo(menuBackdropRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.3, ease: 'power2.out' }
-      );
-      
-      tl.fromTo(menuRef.current,
-        { opacity: 0, y: -30, scale: 0.95 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'back.out(1.7)' },
-        '-=0.2'
-      );
-      
-      tl.fromTo(menuItemsRef.current.filter(Boolean),
-        { opacity: 0, y: 30, scale: 0.9 },
-        { 
-          opacity: 1, 
-          y: 0, 
-          scale: 1, 
-          duration: 0.4, 
-          stagger: 0.05, 
-          ease: 'back.out(1.7)' 
-        },
-        '-=0.2'
-      );
-
-      if (particlesRef.current) {
-        const particles = particlesRef.current.children;
-        gsap.fromTo(particles,
-          { scale: 0, opacity: 0 },
-          { 
-            scale: 1, 
-            opacity: 0.6, 
-            duration: 0.6, 
-            stagger: 0.1, 
-            ease: 'elastic.out(1, 0.5)',
-            delay: 0.2
-          }
-        );
-        
-        Array.from(particles).forEach((particle, i) => {
-          gsap.to(particle, {
-            y: `random(-30, 30)`,
-            x: `random(-20, 20)`,
-            rotation: `random(-10, 10)`,
-            duration: `random(3, 5)`,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
-            delay: i * 0.2
-          });
-        });
-      }
+      tl.fromTo(menuBackdropRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out' });
+      tl.fromTo(menuRef.current, { opacity: 0, y: -30, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'back.out(1.7)' }, '-=0.2');
+      tl.fromTo(menuItemsRef.current.filter(Boolean), { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, stagger: 0.05, ease: 'back.out(1.7)' }, '-=0.2');
     }
   }, [menuOpen]);
 
   const closeMenu = useCallback(() => {
     if (menuRef.current && menuBackdropRef.current) {
-      const tl = gsap.timeline({
-        onComplete: () => setMenuOpen(false)
-      });
-      
-      tl.to(menuItemsRef.current.filter(Boolean).reverse(), {
-        opacity: 0,
-        y: -20,
-        duration: 0.2,
-        stagger: 0.03
-      });
-      
-      tl.to(menuRef.current, {
-        opacity: 0,
-        y: -20,
-        scale: 0.95,
-        duration: 0.3
-      }, '-=0.1');
-      
-      tl.to(menuBackdropRef.current, {
-        opacity: 0,
-        duration: 0.2
-      }, '-=0.2');
+      const tl = gsap.timeline({ onComplete: () => setMenuOpen(false) });
+      tl.to(menuItemsRef.current.filter(Boolean).reverse(), { opacity: 0, y: -20, duration: 0.2, stagger: 0.03 });
+      tl.to(menuRef.current, { opacity: 0, y: -20, scale: 0.95, duration: 0.3 }, '-=0.1');
+      tl.to(menuBackdropRef.current, { opacity: 0, duration: 0.2 }, '-=0.2');
     } else {
       setMenuOpen(false);
     }
@@ -213,16 +147,9 @@ const Header: React.FC = () => {
   ];
 
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled && !menuOpen
-          ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' 
-          : 'bg-transparent'
-      }`}
-    >
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled && !menuOpen ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' : 'bg-transparent'}`}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-2 relative z-[60]">
             <span className="text-xl font-bold">
               <span className={menuOpen ? 'text-white' : 'text-foreground'}>BASIT</span>
@@ -230,86 +157,39 @@ const Header: React.FC = () => {
             </span>
           </Link>
 
-          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
             {['/', '/products'].map((path) => {
-              const label = path === '/' ? 'Home' : 'Products';
               const isActive = location.pathname === path || (path === '/products' && location.pathname.startsWith('/products/'));
               return (
-                <Link
-                  key={path}
-                  to={path}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
-                >
-                  {label}
+                <Link key={path} to={path} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                  {path === '/' ? 'Home' : 'Products'}
                 </Link>
               );
             })}
-             {/* Desktop Mepco Link */}
-             <Link
-                to="/mepco-bill"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  location.pathname === '/mepco-bill' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
+             <Link to="/mepco-bill" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/mepco-bill' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
                 Bill Checker
               </Link>
           </nav>
 
-          {/* Right Actions */}
           <div className="flex items-center gap-2 relative z-[60]">
-            {/* Search Toggle */}
-            <button
-              onClick={() => {
-                setSearchOpen(!searchOpen);
-                if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100);
-              }}
-              className={`p-2.5 rounded-lg transition-colors ${
-                menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'
-              }`}
-            >
+            <button onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100); }} className={`p-2.5 rounded-lg transition-colors ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
               {searchOpen && !menuOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
             </button>
-
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className={`p-2.5 rounded-lg transition-colors cursor-pointer relative z-[60] ${
-                menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'
-              }`}
-              aria-label="Toggle Theme"
-            >
+            <button onClick={toggleTheme} className={`p-2.5 rounded-lg transition-colors cursor-pointer relative z-[60] ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-
-            {/* Menu Button */}
-            <button
-              onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)}
-              className={`p-2.5 rounded-lg transition-all relative z-[60] ${
-                menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'
-              }`}
-            >
+            <button onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)} className={`p-2.5 rounded-lg transition-all relative z-[60] ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
               <div className="relative w-5 h-5">
-                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${
-                  menuOpen ? 'top-1/2 -translate-y-1/2 rotate-45' : 'top-1'
-                }`} />
-                <span className={`absolute left-0 top-1/2 -translate-y-1/2 block w-5 h-0.5 bg-current transition-all duration-300 ${
-                  menuOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'
-                }`} />
-                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${
-                  menuOpen ? 'top-1/2 -translate-y-1/2 -rotate-45' : 'bottom-1'
-                }`} />
+                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'top-1/2 -translate-y-1/2 rotate-45' : 'top-1'}`} />
+                <span className={`absolute left-0 top-1/2 -translate-y-1/2 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`} />
+                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'top-1/2 -translate-y-1/2 -rotate-45' : 'bottom-1'}`} />
               </div>
-              {(itemCount > 0 || wishlistCount > 0) && !menuOpen && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
-              )}
+              {(itemCount > 0 || wishlistCount > 0) && !menuOpen && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />}
             </button>
           </div>
         </div>
 
-        {/* --- Search Bar & Suggestions UI --- */}
+        {/* --- Search Bar UI Updated --- */}
         {searchOpen && !menuOpen && (
           <div className="pb-4 animate-in slide-in-from-top-2 duration-200 relative">
             <form onSubmit={handleSearchSubmit} className="relative">
@@ -325,13 +205,13 @@ const Header: React.FC = () => {
               />
             </form>
 
-            {/* Live Suggestions Dropdown */}
-            {searchTerm.trim() && (suggestions.length > 0 || isSearching) && (
+            {/* Condition Changed: Ab ye div band nahi hoga jab tak search term hai */}
+            {searchTerm.trim() && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
                 {isSearching ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
-                    Searching database...
+                  <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
+                    <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+                    <span>Finding best matches...</span>
                   </div>
                 ) : suggestions.length > 0 ? (
                   <div className="max-h-[60vh] overflow-y-auto">
@@ -339,13 +219,9 @@ const Header: React.FC = () => {
                       <Link
                         key={product.id}
                         to={`/products/${product.slug || product.id}`}
-                        onClick={() => {
-                          setSearchOpen(false);
-                          setSearchTerm('');
-                        }}
+                        onClick={() => { setSearchOpen(false); setSearchTerm(''); }}
                         className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
                       >
-                        {/* Image Preview if available */}
                         {product.images?.[0] ? (
                           <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                              <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
@@ -357,17 +233,17 @@ const Header: React.FC = () => {
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {product.category || 'Product'} • Rs. {product.price?.toLocaleString()}
-                          </p>
+                          <p className="text-xs text-muted-foreground truncate">{product.category || 'Product'} • Rs. {product.price?.toLocaleString()}</p>
                         </div>
                       </Link>
                     ))}
                   </div>
                 ) : (
-                  // No results state
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    No results found for "{searchTerm}"
+                  // Ab ye part zaroor show hoga agar result 0 ayein
+                  <div className="p-8 text-center flex flex-col items-center gap-2 text-muted-foreground">
+                    <AlertCircle className="w-8 h-8 opacity-20" />
+                    <p className="font-medium text-foreground">No products found</p>
+                    <p className="text-xs">Try searching for "{searchTerm}" in a different way</p>
                   </div>
                 )}
               </div>
@@ -376,113 +252,37 @@ const Header: React.FC = () => {
         )}
       </div>
 
-      {/* Full Menu Overlay */}
       {menuOpen && (
         <>
-          {/* Backdrop */}
-          <div 
-            ref={menuBackdropRef}
-            className="fixed inset-0 z-40 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900"
-            onClick={closeMenu}
-          />
-          
-          {/* Floating particles */}
-          <div ref={particlesRef} className="fixed inset-0 z-40 pointer-events-none overflow-hidden">
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute rounded-full bg-gradient-to-r from-primary/30 to-violet-500/30 blur-sm"
-                style={{
-                  width: `${Math.random() * 100 + 50}px`,
-                  height: `${Math.random() * 100 + 50}px`,
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                }}
-              />
-            ))}
-            <Sparkles className="absolute top-20 right-10 w-8 h-8 text-primary/40" />
-            <Sparkles className="absolute bottom-40 left-10 w-6 h-6 text-violet-400/40" />
-          </div>
-          
-          {/* Menu Content - FIXED SCROLLING and POINTER EVENTS */}
-          <div 
-            ref={menuRef}
-            className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-hidden flex flex-col pointer-events-auto"
-          >
-            <div 
-              ref={menuContentRef}
-              className="flex-1 h-full overflow-y-auto overscroll-contain"
-              style={{ 
-                WebkitOverflowScrolling: 'touch',
-                scrollbarWidth: 'none', 
-                msOverflowStyle: 'none'
-              }}
-            >
+          <div ref={menuBackdropRef} className="fixed inset-0 z-40 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900" onClick={closeMenu} />
+          <div ref={menuRef} className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-hidden flex flex-col pointer-events-auto">
+            <div ref={menuContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <div className="container mx-auto px-4 py-8 pb-24">
-                {/* Menu Grid */}
                 <nav className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
                   {menuItems.map((item, index) => {
                     const isActive = location.pathname === item.to;
                     return (
-                      <Link
-                        key={item.to}
-                        ref={el => menuItemsRef.current[index] = el}
-                        to={item.to}
-                        onClick={closeMenu}
-                        className={`relative flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 group overflow-hidden ${
-                          isActive 
-                            ? 'bg-white/10 border-white/20 shadow-2xl shadow-primary/20' 
-                            : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:-translate-y-1'
-                        }`}
-                      >
-                        {/* Gradient background on hover */}
+                      <Link key={item.to} ref={el => menuItemsRef.current[index] = el} to={item.to} onClick={closeMenu} className={`relative flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 group overflow-hidden ${isActive ? 'bg-white/10 border-white/20 shadow-2xl shadow-primary/20' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:-translate-y-1'}`}>
                         <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                        
-                        {/* Icon */}
                         <div className={`relative p-4 rounded-2xl bg-gradient-to-br ${item.color} shadow-lg`}>
                           <item.icon className="w-6 h-6 text-white" />
                           <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.color} blur-xl opacity-50 -z-10`} />
                         </div>
-                        
-                        {/* Label */}
-                        <span className="font-semibold text-white text-sm">
-                          {item.label}
-                        </span>
-                        
-                        {/* Badge */}
-                        {item.badge !== undefined && item.badge > 0 && (
-                          <span className="absolute top-3 right-3 min-w-[24px] h-6 px-2 rounded-full bg-white text-slate-900 text-xs font-bold flex items-center justify-center shadow-lg">
-                            {item.badge}
-                          </span>
-                        )}
-                        
-                        {/* Active indicator */}
-                        {isActive && (
-                          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-transparent via-white to-transparent rounded-full" />
-                        )}
+                        <span className="font-semibold text-white text-sm">{item.label}</span>
+                        {item.badge !== undefined && item.badge > 0 && <span className="absolute top-3 right-3 min-w-[24px] h-6 px-2 rounded-full bg-white text-slate-900 text-xs font-bold flex items-center justify-center shadow-lg">{item.badge}</span>}
+                        {isActive && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-transparent via-white to-transparent rounded-full" />}
                       </Link>
                     );
                   })}
                 </nav>
-
-                {/* Quick Actions */}
                 <div className="mt-8 max-w-2xl mx-auto">
                   <div className="p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm">
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <h3 className="font-semibold text-white flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-primary" />
-                          Need Help?
-                        </h3>
+                        <h3 className="font-semibold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Need Help?</h3>
                         <p className="text-sm text-white/60 mt-1">Contact our 24/7 support</p>
                       </div>
-                      <Link 
-                        to="/track-order"
-                        onClick={closeMenu}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-violet-500 text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/30 transition-all hover:scale-105"
-                      >
-                        Track Order
-                      </Link>
+                      <Link to="/track-order" onClick={closeMenu} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-violet-500 text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/30 transition-all hover:scale-105">Track Order</Link>
                     </div>
                   </div>
                 </div>
