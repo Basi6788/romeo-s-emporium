@@ -26,6 +26,8 @@ import ProfilePage from "./pages/ProfilePage";
 import OrdersPage from "./pages/OrdersPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
+import MepcoBill from "./pages/MepcoBill"; // 👈 YE NEW IMPORT HAI
+
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -58,6 +60,10 @@ const AnimatedRoutes = () => {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/track-order" element={<TrackOrderPage />} />
+          
+          {/* 👇 YE NEW ROUTE HAI */}
+          <Route path="/mepco-bill" element={<MepcoBill />} />
+
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/products" element={<AdminProducts />} />
           <Route path="/admin/orders" element={<AdminOrders />} />
@@ -100,3 +106,4 @@ const App = () => (
 );
 
 export default App;
+
