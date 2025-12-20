@@ -1,8 +1,8 @@
-// File Path: src/pages/MepcoBill.tsx
+// File: src/pages/MepcoBill.tsx
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
-import { Search, User, Calendar, AlertTriangle } from 'lucide-react';
+import { Search, User, Calendar, AlertTriangle, ExternalLink } from 'lucide-react';
 
 const MepcoBill = () => {
   const [refNo, setRefNo] = useState('');
@@ -15,7 +15,6 @@ const MepcoBill = () => {
     setError('');
     setBill(null);
 
-    // Validation
     if (refNo.length !== 14) {
       setError('Please enter a valid 14-digit Reference Number.');
       return;
@@ -24,19 +23,14 @@ const MepcoBill = () => {
     setLoading(true);
 
     try {
-      // API Call
       const response = await fetch(`/api/bill?refNo=${refNo}`);
-      
-      // Pehle text format main lo taake crash na ho
       const textData = await response.text();
       
       let data;
       try {
         data = JSON.parse(textData);
       } catch (e) {
-        // Agar JSON parse fail hua, matlab Server ne HTML error phenka hai
-        console.error("Server returned HTML instead of JSON:", textData);
-        throw new Error("Server Error. Please try again later.");
+        throw new Error("Server Error");
       }
 
       if (!response.ok) {
@@ -45,7 +39,8 @@ const MepcoBill = () => {
 
       setBill(data);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      setError('Automatic fetch failed.');
     } finally {
       setLoading(false);
     }
@@ -56,8 +51,6 @@ const MepcoBill = () => {
       <Header />
 
       <div className="container mx-auto px-4 py-8 max-w-lg">
-        
-        {/* Title */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
             MEPCO Online Bill
@@ -65,7 +58,6 @@ const MepcoBill = () => {
           <p className="text-gray-500 mt-2">Enter 14-digit reference number</p>
         </div>
 
-        {/* Search Box */}
         <div className="bg-white dark:bg-[#1e293b] p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
           <form onSubmit={checkBill}>
             <input
@@ -84,18 +76,31 @@ const MepcoBill = () => {
             </button>
           </form>
 
+          {/* FALLBACK BUTTON AGAR ERROR AYE */}
           {error && (
-            <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-300 rounded-lg text-sm flex items-center gap-2">
-              <AlertTriangle size={16}/> {error}
+            <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-2">
+                <AlertTriangle size={18} />
+                <span className="font-semibold text-sm">Server Busy</span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mb-3">
+                Official server slow hai. Aap direct link se check kar sakte hain:
+              </p>
+              <a 
+                href={`https://bill.pitc.com.pk/mepcobill/general?refno=${refNo}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2 px-4 bg-red-100 hover:bg-red-200 dark:bg-red-800 dark:hover:bg-red-700 text-red-700 dark:text-white rounded-lg transition-colors text-sm font-medium"
+              >
+                Open Official Website <ExternalLink size={14}/>
+              </a>
             </div>
           )}
         </div>
 
-        {/* Bill Result Card */}
         {bill && (
           <div className="mt-8 animate-fade-in-up">
             <div className="bg-white dark:bg-[#1e293b] rounded-3xl overflow-hidden shadow-2xl border border-purple-500/30">
-              
               <div className="bg-gradient-to-r from-purple-700 to-indigo-700 p-6 text-white">
                 <p className="text-purple-200 text-xs font-bold uppercase tracking-wider">Payable Amount</p>
                 <h2 className="text-4xl font-bold mt-1">{bill.payableAmount}</h2>
@@ -109,7 +114,7 @@ const MepcoBill = () => {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Consumer Name</p>
-                    <p className="font-semibold text-lg">{bill.consumerName}</p>
+                    <p className="font-semibold text-lg capitalize">{bill.consumerName}</p>
                   </div>
                 </div>
 
