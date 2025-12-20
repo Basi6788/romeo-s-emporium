@@ -1,6 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-// No fallback imports needed
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap, AlertCircle } from 'lucide-react';
@@ -36,10 +34,9 @@ const Header: React.FC = () => {
   const menuContentRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement>(null);
 
-  // --- 1. Supabase Search Logic (Updated) ---
+  // --- 1. Supabase Search Logic (FIXED: mapped to your real schema) ---
   useEffect(() => {
     const fetchSuggestions = async () => {
-      // 1. Agar search box khali hai, to suggestions clear kar do
       if (!searchTerm.trim()) {
         setSuggestions([]);
         return;
@@ -47,32 +44,31 @@ const Header: React.FC = () => {
 
       setIsSearching(true);
       try {
-        console.log("Searching for:", searchTerm); // Debugging
+        console.log("Searching for:", searchTerm);
 
-        // 2. Database Query: Name, Description ya Category mein match dhoondo
+        // CHANGE 1: 'images' ki jagah 'image' select kiya (Schema ke mutabiq)
         const { data, error } = await supabase
           .from('products')
-          .select('id, name, slug, price, images, category, description')
+          .select('id, name, slug, price, image, category, description') 
           .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
           .limit(10);
 
         if (error) {
-          console.error("Supabase Search Error:", error.message);
+          console.error("Supabase Error:", error.message);
           throw error;
         }
         
-        console.log("Products Found:", data); // Console mein check karein result
+        console.log("Results found:", data);
         setSuggestions(data || []);
         
       } catch (error) {
-        console.error('Search failed:', error);
-        setSuggestions([]); // Error par empty list
+        console.error('Search Code Crash:', error);
+        setSuggestions([]);
       } finally {
         setIsSearching(false);
       }
     };
 
-    // Debounce: User ke rukne ke 300ms baad search karega
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
@@ -87,41 +83,27 @@ const Header: React.FC = () => {
     }
   };
 
-  // --- 2. Fix for Menu Scrolling ---
+  // --- UI Effects ---
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    if (menuOpen) { document.body.style.overflow = 'hidden'; } 
+    else { document.body.style.overflow = ''; }
+    return () => { document.body.style.overflow = ''; };
   }, [menuOpen]);
 
-  // Scroll Effect
   useEffect(() => {
-    const handleScroll = () => {
-      if (!menuOpen) {
-        setScrolled(window.scrollY > 10);
-      }
-    };
+    const handleScroll = () => { if (!menuOpen) setScrolled(window.scrollY > 10); };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [menuOpen]);
 
-  // Reset functionality on route change
   useEffect(() => {
-    setMenuOpen(false);
-    setSearchOpen(false);
-    setSuggestions([]); 
+    setMenuOpen(false); setSearchOpen(false); setSuggestions([]); 
   }, [location.pathname]);
 
-  // GSAP Animation Logic
+  // Animation
   useEffect(() => {
     if (menuOpen && menuRef.current && menuBackdropRef.current) {
       const tl = gsap.timeline();
-      
       tl.fromTo(menuBackdropRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out' });
       tl.fromTo(menuRef.current, { opacity: 0, y: -30, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'back.out(1.7)' }, '-=0.2');
       tl.fromTo(menuItemsRef.current.filter(Boolean), { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, stagger: 0.05, ease: 'back.out(1.7)' }, '-=0.2');
@@ -153,7 +135,6 @@ const Header: React.FC = () => {
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled && !menuOpen ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' : 'bg-transparent'}`}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-2 relative z-[60]">
             <span className="text-xl font-bold">
               <span className={menuOpen ? 'text-white' : 'text-foreground'}>BASIT</span>
@@ -161,7 +142,6 @@ const Header: React.FC = () => {
             </span>
           </Link>
 
-          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
             {['/', '/products'].map((path) => {
               const isActive = location.pathname === path || (path === '/products' && location.pathname.startsWith('/products/'));
@@ -176,7 +156,6 @@ const Header: React.FC = () => {
               </Link>
           </nav>
 
-          {/* Right Actions */}
           <div className="flex items-center gap-2 relative z-[60]">
             <button onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100); }} className={`p-2.5 rounded-lg transition-colors ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
               {searchOpen && !menuOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
@@ -195,7 +174,6 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* --- Search Bar UI --- */}
         {searchOpen && !menuOpen && (
           <div className="pb-4 animate-in slide-in-from-top-2 duration-200 relative">
             <form onSubmit={handleSearchSubmit} className="relative">
@@ -211,7 +189,6 @@ const Header: React.FC = () => {
               />
             </form>
 
-            {/* Suggestions & Results */}
             {searchTerm.trim() && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
                 {isSearching ? (
@@ -228,17 +205,16 @@ const Header: React.FC = () => {
                         onClick={() => { setSearchOpen(false); setSearchTerm(''); }}
                         className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
                       >
-                        {/* Image */}
-                        {product.images?.[0] ? (
+                        {/* CHANGE 2: Image Logic Update (Direct 'image' string use) */}
+                        {product.image ? (
                           <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                             <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
+                             <img src={product.image} alt="" className="w-full h-full object-cover" />
                           </div>
                         ) : (
                           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                             <Package className="w-5 h-5 text-muted-foreground" />
                           </div>
                         )}
-                        {/* Details */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{product.category || 'Product'} • Rs. {product.price?.toLocaleString()}</p>
@@ -247,7 +223,6 @@ const Header: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  // No Results found
                   <div className="p-8 text-center flex flex-col items-center gap-2 text-muted-foreground">
                     <AlertCircle className="w-8 h-8 opacity-20" />
                     <p className="font-medium text-foreground">No products found</p>
@@ -260,7 +235,6 @@ const Header: React.FC = () => {
         )}
       </div>
 
-      {/* Menu Overlay */}
       {menuOpen && (
         <>
           <div ref={menuBackdropRef} className="fixed inset-0 z-40 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900" onClick={closeMenu} />
