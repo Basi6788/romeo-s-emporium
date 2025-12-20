@@ -1,8 +1,8 @@
-// src/pages/MepcoBill.tsx
+// File Path: src/pages/MepcoBill.tsx
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
-import { Search, Zap, Calendar, User, AlertTriangle } from 'lucide-react';
+import { Search, User, Calendar, AlertTriangle } from 'lucide-react';
 
 const MepcoBill = () => {
   const [refNo, setRefNo] = useState('');
@@ -15,22 +15,32 @@ const MepcoBill = () => {
     setError('');
     setBill(null);
 
-    // Basic check: 14 numbers hone chahiye
+    // Validation
     if (refNo.length !== 14) {
-      setError('Bhai 14 number ka reference code daalo.');
+      setError('Please enter a valid 14-digit Reference Number.');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Ye tumhari apni API ko call karega jo humne Step 1 me banayi
-      // Note: '/api/bill' Vercel par automatic chalega
+      // API Call
       const response = await fetch(`/api/bill?refNo=${refNo}`);
-      const data = await response.json();
+      
+      // Pehle text format main lo taake crash na ho
+      const textData = await response.text();
+      
+      let data;
+      try {
+        data = JSON.parse(textData);
+      } catch (e) {
+        // Agar JSON parse fail hua, matlab Server ne HTML error phenka hai
+        console.error("Server returned HTML instead of JSON:", textData);
+        throw new Error("Server Error. Please try again later.");
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Kuch masla ho gaya hai.');
+        throw new Error(data.error || 'Failed to fetch bill.');
       }
 
       setBill(data);
@@ -50,12 +60,12 @@ const MepcoBill = () => {
         {/* Title */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
-            MEPCO Bill Check
+            MEPCO Online Bill
           </h1>
-          <p className="text-gray-500 mt-2">Reference number likh kar bill dekhein</p>
+          <p className="text-gray-500 mt-2">Enter 14-digit reference number</p>
         </div>
 
-        {/* Input Form */}
+        {/* Search Box */}
         <div className="bg-white dark:bg-[#1e293b] p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
           <form onSubmit={checkBill}>
             <input
@@ -63,7 +73,7 @@ const MepcoBill = () => {
               value={refNo}
               onChange={(e) => setRefNo(e.target.value)}
               placeholder="Ex: 15123456789012"
-              className="w-full bg-gray-100 dark:bg-[#0f172a] p-4 rounded-xl text-center text-lg tracking-widest font-mono border border-transparent focus:border-purple-500 focus:outline-none"
+              className="w-full bg-gray-100 dark:bg-[#0f172a] p-4 rounded-xl text-center text-lg tracking-widest font-mono border border-transparent focus:border-purple-500 focus:outline-none dark:text-white"
             />
             
             <button
@@ -84,23 +94,21 @@ const MepcoBill = () => {
         {/* Bill Result Card */}
         {bill && (
           <div className="mt-8 animate-fade-in-up">
-            <div className="relative bg-white dark:bg-[#1e293b] rounded-3xl overflow-hidden shadow-2xl border border-purple-500/30">
+            <div className="bg-white dark:bg-[#1e293b] rounded-3xl overflow-hidden shadow-2xl border border-purple-500/30">
               
-              {/* Header */}
               <div className="bg-gradient-to-r from-purple-700 to-indigo-700 p-6 text-white">
                 <p className="text-purple-200 text-xs font-bold uppercase tracking-wider">Payable Amount</p>
                 <h2 className="text-4xl font-bold mt-1">{bill.payableAmount}</h2>
                 <p className="text-sm mt-2 opacity-80">Due Date: {bill.dueDate}</p>
               </div>
 
-              {/* Details */}
               <div className="p-6 space-y-4">
                 <div className="flex items-center gap-4 border-b dark:border-gray-700 pb-4">
                   <div className="bg-purple-100 dark:bg-gray-800 p-3 rounded-full">
                     <User className="text-purple-600" size={24} />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Name</p>
+                    <p className="text-xs text-gray-500">Consumer Name</p>
                     <p className="font-semibold text-lg">{bill.consumerName}</p>
                   </div>
                 </div>
@@ -110,7 +118,7 @@ const MepcoBill = () => {
                     <Calendar className="text-blue-600" size={24} />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Month</p>
+                    <p className="text-xs text-gray-500">Bill Month</p>
                     <p className="font-semibold text-lg">{bill.billMonth}</p>
                   </div>
                 </div>
@@ -120,7 +128,6 @@ const MepcoBill = () => {
                   <span className="font-bold text-red-500 text-lg">{bill.payableAfterDueDate}</span>
                 </div>
               </div>
-
             </div>
           </div>
         )}
@@ -132,4 +139,3 @@ const MepcoBill = () => {
 };
 
 export default MepcoBill;
-
