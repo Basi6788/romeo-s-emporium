@@ -19,16 +19,13 @@ const AuthPage: React.FC = () => {
   const { login, register, isAuthenticated, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Only redirect if already authenticated (not after fresh login)
+  // Ye effect tab chalega jab user pehle se login ho (Session Persistence)
   useEffect(() => {
-    if (isAuthenticated && !loading && !authLoading) {
-      // Small delay to ensure isAdmin is updated
-      const timer = setTimeout(() => {
-        navigate(isAdmin ? '/admin' : '/');
-      }, 100);
-      return () => clearTimeout(timer);
+    if (isAuthenticated && !authLoading) {
+      // Agar banda already login hai to direct bhej do
+      navigate(isAdmin ? '/admin' : '/');
     }
-  }, [isAuthenticated, isAdmin, navigate, loading, authLoading]);
+  }, [isAuthenticated, isAdmin, authLoading, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -36,20 +33,23 @@ const AuthPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLoading(true); // Loading shuru
 
     try {
       if (isLogin) {
         const result = await login(formData.email, formData.password);
+        
         if (result.success) {
           toast.success('Welcome back!');
-          // Navigate immediately using the returned admin status
+          setLoading(false); // FIXED: Loading band karna zaroori hai
+          // Result ke base pe navigate karein
           navigate(result.isAdmin ? '/admin' : '/');
         } else {
           toast.error(result.error || 'Invalid credentials');
-          setLoading(false);
+          setLoading(false); // Error aye tab bhi loading band karein
         }
       } else {
+        // Registration Logic
         if (formData.password !== formData.confirmPassword) {
           toast.error('Passwords do not match');
           setLoading(false);
@@ -60,15 +60,18 @@ const AuthPage: React.FC = () => {
           setLoading(false);
           return;
         }
+
         const result = await register(formData.name, formData.email, formData.password);
         if (result.success) {
           toast.success('Account created! Check your email to verify.');
+          setIsLogin(true); // Register ke baad login form dikha dein
         } else {
           toast.error(result.error || 'Registration failed');
         }
         setLoading(false);
       }
     } catch (error: any) {
+      console.error(error);
       toast.error(error.message || 'Something went wrong');
       setLoading(false);
     }
