@@ -2,9 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { CompareProvider } from "@/contexts/CompareContext";
@@ -14,6 +14,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import CompareBar from "@/components/CompareBar";
 import CompareModal from "@/components/CompareModal";
 
+// Pages
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -26,8 +27,9 @@ import ProfilePage from "./pages/ProfilePage";
 import OrdersPage from "./pages/OrdersPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
-import MepcoBill from "./pages/MepcoBill"; // 👈 YE NEW IMPORT HAI
+import MepcoBill from "./pages/MepcoBill";
 
+// Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -38,8 +40,31 @@ import AdminLoginControl from "./pages/admin/AdminLoginControl";
 import AdminInventory from "./pages/admin/AdminInventory";
 import NotFound from "./pages/NotFound";
 
-// Query client for data fetching
 const queryClient = new QueryClient();
+
+// --- 🔐 ADMIN PROTECTION GUARD ---
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAdmin, loading, isAuthenticated } = useAuth();
+
+  // Agar context abhi fetch kar raha hai, to screen ghoomegi nahi, spinner dikhega
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[#0a0a0a]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-400 animate-pulse">Verifying Admin Access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Agar login nahi hai ya admin nahi hai, to wapas bhej do
+  if (!isAuthenticated || !isAdmin) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -48,36 +73,45 @@ const AnimatedRoutes = () => {
     <>
       <PageTransition key={location.pathname}>
         <Routes location={location}>
+          {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/mepco-bill" element={<MepcoBill />} />
+          
+          {/* Protected Customer Routes */}
           <Route path="/cart" element={<CartPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/confirmation" element={<ConfirmationPage />} />
-          <Route path="/auth" element={<AuthPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/track-order" element={<TrackOrderPage />} />
-          
-          {/* 👇 YE NEW ROUTE HAI */}
-          <Route path="/mepco-bill" element={<MepcoBill />} />
 
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/products" element={<AdminProducts />} />
-          <Route path="/admin/orders" element={<AdminOrders />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/ai" element={<AdminAI />} />
-          <Route path="/admin/security" element={<AdminSecurity />} />
-          <Route path="/admin/login-control" element={<AdminLoginControl />} />
-          <Route path="/admin/inventory" element={<AdminInventory />} />
+          {/* 🔐 Protected Admin Routes */}
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
+          <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+          <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+          <Route path="/admin/ai" element={<AdminRoute><AdminAI /></AdminRoute>} />
+          <Route path="/admin/security" element={<AdminRoute><AdminSecurity /></AdminRoute>} />
+          <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
+          <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </PageTransition>
-      <BottomNavigation />
-      <CompareBar />
-      <CompareModal />
+      
+      {/* Footer/Nav Components (Admin par hide karne ke liye logic add kar sakte hain) */}
+      {!location.pathname.startsWith('/admin') && (
+        <>
+          <BottomNavigation />
+          <CompareBar />
+          <CompareModal />
+        </>
+      )}
     </>
   );
 };
@@ -106,4 +140,3 @@ const App = () => (
 );
 
 export default App;
-
