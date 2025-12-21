@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 const AuthPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false); // Local state for button
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -19,11 +19,11 @@ const AuthPage: React.FC = () => {
   const { login, register, isAuthenticated, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Ye effect tab chalega jab user pehle se login ho (Session Persistence)
+  // Optimized Navigation: Sirf tabhi chale jab page load ho ya auth state change ho
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      // Agar banda already login hai to direct bhej do
-      navigate(isAdmin ? '/admin' : '/');
+    if (!authLoading && isAuthenticated) {
+      const target = isAdmin ? '/admin' : '/';
+      navigate(target, { replace: true });
     }
   }, [isAuthenticated, isAdmin, authLoading, navigate]);
 
@@ -33,7 +33,9 @@ const AuthPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); // Loading shuru
+    if (formLoading) return; // Prevent double clicks
+    
+    setFormLoading(true);
 
     try {
       if (isLogin) {
@@ -41,41 +43,43 @@ const AuthPage: React.FC = () => {
         
         if (result.success) {
           toast.success('Welcome back!');
-          setLoading(false); // FIXED: Loading band karna zaroori hai
-          // Result ke base pe navigate karein
-          navigate(result.isAdmin ? '/admin' : '/');
+          // Navigation useEffect khud handle kar lega
         } else {
           toast.error(result.error || 'Invalid credentials');
-          setLoading(false); // Error aye tab bhi loading band karein
+          setFormLoading(false);
         }
       } else {
         // Registration Logic
         if (formData.password !== formData.confirmPassword) {
           toast.error('Passwords do not match');
-          setLoading(false);
-          return;
-        }
-        if (formData.password.length < 6) {
-          toast.error('Password must be at least 6 characters');
-          setLoading(false);
+          setFormLoading(false);
           return;
         }
 
         const result = await register(formData.name, formData.email, formData.password);
         if (result.success) {
-          toast.success('Account created! Check your email to verify.');
-          setIsLogin(true); // Register ke baad login form dikha dein
+          toast.success('Account created successfully!');
+          // Email confirm band hai to user directly login ho chuka hoga
+          // Isliye navigate automatically ho jayega AuthContext ki wajah se
         } else {
           toast.error(result.error || 'Registration failed');
+          setFormLoading(false);
         }
-        setLoading(false);
       }
     } catch (error: any) {
-      console.error(error);
       toast.error(error.message || 'Something went wrong');
-      setLoading(false);
+      setFormLoading(false);
     }
   };
+
+  // Agar loading chal rahi hai to blank screen ki bajaye spinner dikhayen
+  if (authLoading && !isAuthenticated) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <Layout showFooter={false}>
@@ -92,14 +96,12 @@ const AuthPage: React.FC = () => {
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h1>
             <p className="text-muted-foreground">
-              {isLogin
-                ? 'Sign in to continue to BasitShop'
-                : 'Join BasitShop and start shopping'}
+              {isLogin ? 'Sign in to continue to BasitShop' : 'Join BasitShop and start shopping'}
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="bg-card rounded-2xl border border-border/50 p-8">
+          <form onSubmit={handleSubmit} className="bg-card rounded-2xl border border-border/50 p-8 shadow-sm">
             <div className="space-y-4">
               {!isLogin && (
                 <div>
@@ -181,10 +183,10 @@ const AuthPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full btn-primary mt-6 flex items-center justify-center gap-2 disabled:opacity-50"
+              disabled={formLoading}
+              className="w-full bg-primary text-primary-foreground py-3 rounded-xl mt-6 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {loading ? (
+              {formLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
@@ -199,7 +201,10 @@ const AuthPage: React.FC = () => {
           <p className="text-center mt-6 text-muted-foreground">
             {isLogin ? "Don't have an account?" : 'Already have an account?'}
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+              }}
               className="text-primary hover:underline ml-2 font-medium"
             >
               {isLogin ? 'Sign Up' : 'Sign In'}
