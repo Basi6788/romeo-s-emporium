@@ -30,54 +30,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { ...u, name: u.user_metadata?.full_name || u.email?.split('@')[0] };
   };
 
+  // Fixed: Admin check ko safe banaya hai taake ye crash na kare
   const checkAdminRole = async (userId: string) => {
     try {
       if (!userId) return false;
+      
       const { data, error } = await supabase
         .from('Romeo')
         .select('is_admin')
         .eq('id', userId)
         .maybeSingle(); 
 
-      if (error) return false;
+      if (error) {
+        console.log('Admin check skipped/failed:', error.message);
+        return false;
+      }
       return data?.is_admin === true; 
     } catch (err) {
+      console.error('Failed to check admin role:', err);
       return false;
     }
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    // Initial Session Check
-    const initSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (mounted) {
-          setSession(session);
-          setUser(extendUser(session?.user ?? null));
-          if (session?.user) {
-            const adminStatus = await checkAdminRole(session.user.id);
-            setIsAdmin(adminStatus);
-          }
-        }
-      } catch (error) {
-        console.error("Session check failed", error);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initSession();
-
-    // Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
-        
         setSession(session);
         setUser(extendUser(session?.user ?? null));
         
+        // Fixed: SetTimeout hata diya, direct check lagaya hai
         if (session?.user) {
           const adminStatus = await checkAdminRole(session.user.id);
           setIsAdmin(adminStatus);
@@ -88,10 +69,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    // Initial session check
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session);
+      setUser(extendUser(session?.user ?? null));
+      
+      if (session?.user) {
+        const adminStatus = await checkAdminRole(session.user.id);
+        setIsAdmin(adminStatus);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; isAdmin?: boolean }> => {
@@ -102,19 +92,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
-        // Agar email confirm nahi hai to user ko batayein
-        if (error.message.includes("Email not confirmed")) {
-          return { success: false, error: "Please verify your email or create a new account (Email confirmation is now disabled)." };
-        }
         return { success: false, error: error.message };
       }
 
       let adminStatus = false;
       if (data.user) {
+        // Yahan ensure kiya hai ke agar check fail bhi ho toh login na ruke
         try {
           adminStatus = await checkAdminRole(data.user.id);
         } catch (e) {
-          console.warn("Admin check failed, logging in as user");
+          console.warn("Admin check failed during login, proceeding as user");
         }
         setIsAdmin(adminStatus);
         return { success: true, isAdmin: adminStatus };
@@ -128,11 +115,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Redirect URL hata diya hai taake simple registration ho
+      const redirectUrl = `${window.location.origin}/`;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: redirectUrl,
           data: {
             full_name: name,
           }
@@ -143,19 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: error.message };
       }
 
-      // AGAR "Confirm Email" setting OFF hai, to session foran mil jayega
-      // Aur user auto-login ho jayega
-      if (data.session) {
-        setSession(data.session);
-        setUser(extendUser(data.user));
-        // Admin role check karne ki zarurat nahi kyunki naya user hamesha user hota hai
-        setIsAdmin(false);
-        return { success: true };
-      }
-
-      // Agar session nahi mila, iska matlab email confirmation abhi bhi ON hai
-      return { success: true, error: "Please check Supabase settings to disable email confirmation for instant login." };
-
+      return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message || 'Registration failed' };
     }
