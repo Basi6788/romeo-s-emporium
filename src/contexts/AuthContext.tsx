@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -30,56 +30,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { ...u, name: u.user_metadata?.full_name || u.email?.split('@')[0] };
   };
 
-  const checkAdminRole = async (userId: string) => {
+  // Memoized Admin Check for performance
+  const checkAdminRole = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase.rpc('has_role', {
         _user_id: userId,
         _role: 'admin'
       });
-      if (error) return false;
-      return data === true;
-    } catch (err) {
+      return !error && data === true;
+    } catch {
       return false;
     }
-  };
-
-  useEffect(() => {
-    // Initial Session Check
-    const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setSession(session);
-        setUser(extendUser(session.user));
-        const adminStatus = await checkAdminRole(session.user.id);
-        setIsAdmin(adminStatus);
-      }
-      setLoading(false); // Stop loading after first check
-    };
-
-    initAuth();
-
-    // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setSession(currentSession);
-      setUser(extendUser(currentSession?.user ?? null));
-      
-      if (currentSession?.user) {
-        const adminStatus = await checkAdminRole(currentSession.user.id);
-        setIsAdmin(adminStatus);
-      } else {
-        setIsAdmin(false);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const initialize = async () => {
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      
+      if (mounted) {
+        if (initialSession) {
+          setSession(initialSession);
+          setUser(extendUser(initialSession.user));
+          const adminStatus = await checkAdminRole(initialSession.user.id);
+          setIsAdmin(adminStatus);
+        }
+        setLoading(false);
+      }
+    };
+
+    initialize();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (mounted) {
+        setSession(currentSession);
+        setUser(extendUser(currentSession?.user ?? null));
+        
+        if (currentSession?.user) {
+          const adminStatus = await checkAdminRole(currentSession.user.id);
+          setIsAdmin(adminStatus);
+        } else {
+          setIsAdmin(false);
+        }
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [checkAdminRole]);
+
   const login = async (email: string, password: string) => {
-    setLoading(true); // Start loading on click
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
       if (error) throw error;
 
       if (data.user) {
@@ -90,35 +96,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, isAdmin: false };
     } catch (err: any) {
       return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
     }
   };
 
   const register = async (name: string, email: string, password: string) => {
-    setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          // Email confirm band hai to user foran login ho jayega
-          data: { full_name: name }
+          data: { full_name: name },
+          // Email confirmation disabled means auto-login happens here
         }
       });
 
       if (error) throw error;
-      
-      // Agar auto-login ho jaye registration ke baad
-      if (data.user) {
-        setUser(extendUser(data.user));
-      }
-
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
     }
   };
 
