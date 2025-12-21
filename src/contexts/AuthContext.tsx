@@ -31,154 +31,91 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const checkAdminRole = async (userId: string) => {
+    // 3 second ka timeout taake login na phase
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+    
     try {
-      if (!userId) return false;
-      const { data, error } = await supabase
+      const fetchRole = supabase
         .from('Romeo')
         .select('is_admin')
         .eq('id', userId)
-        .maybeSingle(); 
+        .maybeSingle();
 
-      if (error) return false;
-      return data?.is_admin === true; 
+      const response: any = await Promise.race([fetchRole, timeout]);
+      return response.data?.is_admin === true;
     } catch (err) {
-      return false;
+      console.error('Admin check skipped due to error or timeout');
+      return false; // Default to user if DB is slow
     }
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    // Initial Session Check
-    const initSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (mounted) {
-          setSession(session);
-          setUser(extendUser(session?.user ?? null));
-          if (session?.user) {
-            const adminStatus = await checkAdminRole(session.user.id);
-            setIsAdmin(adminStatus);
-          }
-        }
-      } catch (error) {
-        console.error("Session check failed", error);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initSession();
-
-    // Auth State Listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
         setSession(session);
-        setUser(extendUser(session?.user ?? null));
-        
-        if (session?.user) {
-          const adminStatus = await checkAdminRole(session.user.id);
-          setIsAdmin(adminStatus);
-        } else {
-          setIsAdmin(false);
-        }
-        setLoading(false);
+        setUser(extendUser(session.user));
+        const adminStatus = await checkAdminRole(session.user.id);
+        setIsAdmin(adminStatus);
       }
-    );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
+      setLoading(false);
     };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      setSession(currentSession);
+      setUser(extendUser(currentSession?.user ?? null));
+      if (currentSession?.user) {
+        const adminStatus = await checkAdminRole(currentSession.user.id);
+        setIsAdmin(adminStatus);
+      } else {
+        setIsAdmin(false);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; isAdmin?: boolean }> => {
+  const login = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { success: false, error: error.message };
 
-      if (error) {
-        // Agar email confirm nahi hai to user ko batayein
-        if (error.message.includes("Email not confirmed")) {
-          return { success: false, error: "Please verify your email or create a new account (Email confirmation is now disabled)." };
-        }
-        return { success: false, error: error.message };
-      }
-
-      let adminStatus = false;
       if (data.user) {
-        try {
-          adminStatus = await checkAdminRole(data.user.id);
-        } catch (e) {
-          console.warn("Admin check failed, logging in as user");
-        }
+        const adminStatus = await checkAdminRole(data.user.id);
         setIsAdmin(adminStatus);
         return { success: true, isAdmin: adminStatus };
       }
-
       return { success: true, isAdmin: false };
     } catch (err: any) {
-      return { success: false, error: err.message || 'Login failed' };
+      return { success: false, error: err.message };
     }
   };
 
-  const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const register = async (name: string, email: string, password: string) => {
     try {
-      // Redirect URL hata diya hai taake simple registration ho
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-          }
-        }
+        email, password,
+        options: { data: { full_name: name } }
       });
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      // AGAR "Confirm Email" setting OFF hai, to session foran mil jayega
-      // Aur user auto-login ho jayega
-      if (data.session) {
-        setSession(data.session);
-        setUser(extendUser(data.user));
-        // Admin role check karne ki zarurat nahi kyunki naya user hamesha user hota hai
-        setIsAdmin(false);
-        return { success: true };
-      }
-
-      // Agar session nahi mila, iska matlab email confirmation abhi bhi ON hai
-      return { success: true, error: "Please check Supabase settings to disable email confirmation for instant login." };
-
+      if (error) return { success: false, error: error.message };
+      return { success: true };
     } catch (err: any) {
-      return { success: false, error: err.message || 'Registration failed' };
+      return { success: false, error: err.message };
     }
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    setSession(null);
     setIsAdmin(false);
+    setSession(null);
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      isAuthenticated: !!user,
-      isAdmin,
-      login,
-      register,
-      logout,
-      loading
-    }}>
+    <AuthContext.Provider value={{ user, session, isAuthenticated: !!user, isAdmin, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
