@@ -19,6 +19,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ⚠️ APNA ADMIN EMAIL YAHAN LIKHEIN (Backup ke liye)
+const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com, '@Romeo786']; 
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -30,30 +33,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { ...u, name: u.user_metadata?.full_name || u.email?.split('@')[0] };
   };
 
-  // Memoized Admin Check for performance
-  const checkAdminRole = useCallback(async (userId: string) => {
+  const checkAdminRole = useCallback(async (u: User | null) => {
+    if (!u) return false;
+    
+    // Step 1: Backup check via Email (Hamesha kaam karega)
+    if (u.email && ADMIN_EMAILS.includes(u.email)) {
+      return true;
+    }
+
+    // Step 2: Database RPC check
     try {
       const { data, error } = await supabase.rpc('has_role', {
-        _user_id: userId,
+        _user_id: u.id,
         _role: 'admin'
       });
-      return !error && data === true;
+      if (!error && data === true) return true;
+      
+      // Step 3: Metadata check (Agar metadata mein is_admin: true set kiya ho)
+      if (u.user_metadata?.is_admin === true || u.user_metadata?.role === 'admin') {
+        return true;
+      }
     } catch {
       return false;
     }
+    return false;
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
     const initialize = async () => {
+      setLoading(true);
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       
       if (mounted) {
         if (initialSession) {
           setSession(initialSession);
           setUser(extendUser(initialSession.user));
-          const adminStatus = await checkAdminRole(initialSession.user.id);
+          const adminStatus = await checkAdminRole(initialSession.user);
           setIsAdmin(adminStatus);
         }
         setLoading(false);
@@ -64,11 +81,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       if (mounted) {
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setIsAdmin(false);
+          setLoading(false);
+          return;
+        }
+
         setSession(currentSession);
-        setUser(extendUser(currentSession?.user ?? null));
+        const currentUser = currentSession?.user ?? null;
+        setUser(extendUser(currentUser));
         
-        if (currentSession?.user) {
-          const adminStatus = await checkAdminRole(currentSession.user.id);
+        if (currentUser) {
+          const adminStatus = await checkAdminRole(currentUser);
           setIsAdmin(adminStatus);
         } else {
           setIsAdmin(false);
@@ -89,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
 
       if (data.user) {
-        const adminStatus = await checkAdminRole(data.user.id);
+        const adminStatus = await checkAdminRole(data.user);
         setIsAdmin(adminStatus);
         return { success: true, isAdmin: adminStatus };
       }
@@ -106,10 +132,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
         options: {
           data: { full_name: name },
-          // Email confirmation disabled means auto-login happens here
         }
       });
-
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -120,9 +144,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setLoading(true);
     await supabase.auth.signOut();
+    setIsAdmin(false);
     setUser(null);
     setSession(null);
-    setIsAdmin(false);
     setLoading(false);
   };
 
