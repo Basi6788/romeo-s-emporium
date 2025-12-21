@@ -19,8 +19,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ⚠️ APNA ADMIN EMAIL YAHAN LIKHEIN (Backup ke liye)
-const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com, '@Romeo786']; 
+// ✅ FIX: Quotes aur syntax theek kar di hai
+const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com', 'Romeo786']; 
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<ExtendedUser | null>(null);
@@ -36,23 +36,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkAdminRole = useCallback(async (u: User | null) => {
     if (!u) return false;
     
-    // Step 1: Backup check via Email (Hamesha kaam karega)
+    // 1. Priority Check: Metadata (Jo SQL se success ho gaya hai)
+    if (u.user_metadata?.is_admin === true || u.user_metadata?.role === 'admin') {
+      return true;
+    }
+
+    // 2. Backup: Email Check
     if (u.email && ADMIN_EMAILS.includes(u.email)) {
       return true;
     }
 
-    // Step 2: Database RPC check
+    // 3. Database RPC Check
     try {
       const { data, error } = await supabase.rpc('has_role', {
         _user_id: u.id,
         _role: 'admin'
       });
       if (!error && data === true) return true;
-      
-      // Step 3: Metadata check (Agar metadata mein is_admin: true set kiya ho)
-      if (u.user_metadata?.is_admin === true || u.user_metadata?.role === 'admin') {
-        return true;
-      }
     } catch {
       return false;
     }
