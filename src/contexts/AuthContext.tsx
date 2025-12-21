@@ -30,20 +30,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { ...u, name: u.user_metadata?.full_name || u.email?.split('@')[0] };
   };
 
-  // UPDATED: Ab ye seedha Romeo table check karega jahan aapne UID update ki thi
+  // Fixed: Admin check ko safe banaya hai taake ye crash na kare
   const checkAdminRole = async (userId: string) => {
     try {
+      if (!userId) return false;
+      
       const { data, error } = await supabase
         .from('Romeo')
         .select('is_admin')
         .eq('id', userId)
-        .maybeSingle(); // Single row fetch karega
+        .maybeSingle(); 
 
       if (error) {
-        console.error('Error checking admin role:', error);
+        console.log('Admin check skipped/failed:', error.message);
         return false;
       }
-      return data?.is_admin === true; // Agar TRUE hai toh admin status mil jayega
+      return data?.is_admin === true; 
     } catch (err) {
       console.error('Failed to check admin role:', err);
       return false;
@@ -52,26 +54,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(extendUser(session?.user ?? null));
         
+        // Fixed: SetTimeout hata diya, direct check lagaya hai
         if (session?.user) {
-          setTimeout(() => {
-            checkAdminRole(session.user.id).then(setIsAdmin);
-          }, 0);
+          const adminStatus = await checkAdminRole(session.user.id);
+          setIsAdmin(adminStatus);
         } else {
           setIsAdmin(false);
         }
+        setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Initial session check
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(extendUser(session?.user ?? null));
       
       if (session?.user) {
-        checkAdminRole(session.user.id).then(setIsAdmin);
+        const adminStatus = await checkAdminRole(session.user.id);
+        setIsAdmin(adminStatus);
       }
       setLoading(false);
     });
@@ -90,8 +95,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: error.message };
       }
 
+      let adminStatus = false;
       if (data.user) {
-        const adminStatus = await checkAdminRole(data.user.id);
+        // Yahan ensure kiya hai ke agar check fail bhi ho toh login na ruke
+        try {
+          adminStatus = await checkAdminRole(data.user.id);
+        } catch (e) {
+          console.warn("Admin check failed during login, proceeding as user");
+        }
         setIsAdmin(adminStatus);
         return { success: true, isAdmin: adminStatus };
       }
