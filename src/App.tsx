@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { ReactLenis } from "lenis/react"; // 👈 IMPORT ADDED
+import { ReactLenis } from "lenis/react";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -67,51 +67,61 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AnimatedRoutes = () => {
   const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
   
   return (
-    <>
-      <PageTransition key={location.pathname}>
-        <Routes location={location}>
-          {/* Public Routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/products/:id" element={<ProductDetailPage />} />
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/mepco-bill" element={<MepcoBill />} />
-          
-          {/* Protected Customer Routes */}
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/confirmation" element={<ConfirmationPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/orders/:id" element={<OrderDetailPage />} />
-          <Route path="/track-order" element={<TrackOrderPage />} />
+    // 🔥 FIX: Main Wrapper to kill Side Scroll & Gaps
+    // min-h-[100dvh]: Ensures it fits mobile screen exactly (no extra bottom gap)
+    // overflow-x-hidden: Strictly kills side scroll
+    <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background">
+      
+      {/* Main Content Area - Expands to push footer down properly */}
+      <main className="flex-1 w-full">
+        <PageTransition key={location.pathname}>
+          <Routes location={location}>
+            {/* Public Routes */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/products/:id" element={<ProductDetailPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/mepco-bill" element={<MepcoBill />} />
+            
+            {/* Protected Customer Routes */}
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/wishlist" element={<WishlistPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/confirmation" element={<ConfirmationPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/orders/:id" element={<OrderDetailPage />} />
+            <Route path="/track-order" element={<TrackOrderPage />} />
 
-          {/* 🔐 Protected Admin Routes */}
-          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-          <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
-          <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
-          <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-          <Route path="/admin/ai" element={<AdminRoute><AdminAI /></AdminRoute>} />
-          <Route path="/admin/security" element={<AdminRoute><AdminSecurity /></AdminRoute>} />
-          <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
-          <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
+            {/* 🔐 Protected Admin Routes */}
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
+            <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+            <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+            <Route path="/admin/ai" element={<AdminRoute><AdminAI /></AdminRoute>} />
+            <Route path="/admin/security" element={<AdminRoute><AdminSecurity /></AdminRoute>} />
+            <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
+            <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </PageTransition>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </PageTransition>
+      </main>
       
       {/* Footer/Nav Components */}
-      {!location.pathname.startsWith('/admin') && (
+      {!isAdminRoute && (
         <>
           <BottomNavigation />
           <CompareBar />
           <CompareModal />
+          {/* OPTIONAL: Invisible spacer agar content footer ke peeche chhup raha ho */}
+          <div className="h-[80px] w-full md:hidden" aria-hidden="true" />
         </>
       )}
-    </>
+    </div>
   );
 };
 
@@ -126,15 +136,23 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 
-                {/* 🔥 LUXURY SCROLL WRAPPER STARTS HERE 🔥 */}
-                {/* 'root' prop zaroori hai taa ke ye puri html/body ko control kare */}
-                <ReactLenis root options={{ lerp: 0.1, duration: 1.5, smoothWheel: true }}>
+                {/* 🔥 LUXURY SCROLL WRAPPER 🔥 */}
+                {/* Fixed settings for smoother mobile experience */}
+                <ReactLenis 
+                  root 
+                  options={{ 
+                    lerp: 0.1, 
+                    duration: 1.2, 
+                    smoothWheel: true,
+                    touchMultiplier: 2, // Better touch response
+                    infinite: false // Prevents infinite scroll loops
+                  }}
+                >
                   <BrowserRouter>
                     <ScrollToTop />
                     <AnimatedRoutes />
                   </BrowserRouter>
                 </ReactLenis>
-                {/* 🔥 WRAPPER ENDS 🔥 */}
 
               </TooltipProvider>
             </CompareProvider>
