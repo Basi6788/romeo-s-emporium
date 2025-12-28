@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { 
   Facebook, Twitter, Instagram, Youtube, 
   Mail, Phone, MapPin, MessageCircle, 
-  Home, Box, Tag, FileText, HelpCircle, Truck, RefreshCw, AlertCircle, Check
+  Home, Box, Tag, FileText, HelpCircle, Truck, RefreshCw, AlertCircle, X, Check
 } from 'lucide-react';
 import gsap from 'gsap';
 
-// --- Styles ---
+// --- Styles (Updated) ---
 const styles = `
+  /* Gradient Text Fix */
   .mirae-gradient-text {
     background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
     -webkit-background-clip: text;
@@ -19,18 +20,17 @@ const styles = `
     display: inline-block;
   }
 
+  /* Glass Updates */
   .glass-panel {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     transition: all 0.3s ease;
   }
-  
   .dark .glass-panel {
     background: rgba(20, 20, 20, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
   }
-  
   .light .glass-panel, .glass-panel { 
     background: rgba(255, 255, 255, 0.65);
     border: 1px solid rgba(0, 0, 0, 0.15);
@@ -43,17 +43,16 @@ const styles = `
     position: relative;
     overflow: hidden;
   }
-  
   .dark .glass-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.15);
   }
-  
   .light .glass-btn, .glass-btn {
     background: rgba(0, 0, 0, 0.05);
     border: 1px solid rgba(0, 0, 0, 0.1);
   }
 
+  /* Shine Animation */
   .glass-btn::before {
     content: '';
     position: absolute;
@@ -71,16 +70,13 @@ const styles = `
     to { background-position: 200% center; }
   }
   
-  /* Modal Overlay - FIXED position zaroori hai */
-  .modal-overlay-fixed {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0,0,0,0.7); /* Thora dark background focus ke liye */
+  /* Modal Overlay - Fixed Positioning Fix */
+  .modal-overlay {
+    background: rgba(0,0,0,0.7);
     backdrop-filter: blur(8px);
-    z-index: 99999; /* Sabse oopar */
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 10000; /* Highest Z-Index to stay on top */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -90,21 +86,23 @@ const styles = `
 const Footer: React.FC = () => {
   const logoTextRef = useRef<HTMLHeadingElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null); // Ref for scrolling
   
+  // State for Redirect Logic
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingLink, setPendingLink] = useState<{url: string, name: string} | null>(null);
 
-  // --- Scroll Lock Logic (Jab Modal open ho to peeche scroll na ho) ---
+  // --- Auto Scroll Logic Fix ---
   useEffect(() => {
-    if (modalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
+    if (modalOpen && modalRef.current) {
+      // Jab modal open ho, thora sa wait kar ke scroll karo ta ke wo view me aa jaye
+      setTimeout(() => {
+        modalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
     }
-    return () => { document.body.style.overflow = 'unset'; };
   }, [modalOpen]);
 
-  // --- Animation Logic ---
+  // --- 1. Animation Logic ---
   const handleLogoHover = () => {
     if (logoTextRef.current) {
       gsap.to(logoTextRef.current, {
@@ -154,7 +152,7 @@ const Footer: React.FC = () => {
     });
   };
 
-  // --- Redirect Logic ---
+  // --- 2. Redirect & Modal Logic ---
   const initiateRedirect = (e: React.MouseEvent, url: string, name: string) => {
     e.preventDefault();
     setPendingLink({ url, name });
@@ -164,7 +162,7 @@ const Footer: React.FC = () => {
   const confirmRedirect = () => {
     setModalOpen(false);
     
-    // Outro Animation
+    // Outro Animation (Screen Wipe)
     if (overlayRef.current) {
       gsap.to(overlayRef.current, {
         y: "0%", 
@@ -188,6 +186,7 @@ const Footer: React.FC = () => {
     setPendingLink(null);
   };
 
+  // Data Objects
   const socialLinks = [
     { icon: Instagram, href: "https://www.instagram.com/_mirae01", color: "#E1306C", name: "Instagram" },
     { icon: Youtube, href: "https://m.youtube.com/@mirae0001", color: "#FF0000", name: "YouTube" },
@@ -210,21 +209,23 @@ const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="footer-container relative bg-gray-50 dark:bg-[#050505] text-gray-800 dark:text-gray-200 mt-auto pt-16 pb-8 transition-colors duration-300 overflow-hidden">
+    // Updated: Removed 'overflow-hidden' from main footer to allow Modal to be Fixed correctly
+    // Added 'relative' to keep structure
+    <footer className="footer-container relative bg-gray-50 dark:bg-[#050505] text-gray-800 dark:text-gray-200 mt-auto transition-colors duration-300">
       <style>{styles}</style>
 
-      {/* --- OUTRO ANIMATION OVERLAY (Fixed on Screen) --- */}
+      {/* --- OUTRO ANIMATION OVERLAY --- */}
       <div 
         ref={overlayRef} 
-        className="fixed inset-0 bg-black z-[100000] pointer-events-none opacity-0 translate-y-full flex items-center justify-center"
+        className="fixed inset-0 bg-black z-[99999] pointer-events-none opacity-0 translate-y-full flex items-center justify-center"
       >
         <span className="text-gold-gradient text-4xl font-bold animate-pulse">MIRAE</span>
       </div>
 
-      {/* --- REDIRECT MODAL (FIXED POSITION) --- */}
+      {/* --- REDIRECT MODAL (Placed outside overflow-hidden wrapper) --- */}
       {modalOpen && (
-        <div className="modal-overlay-fixed animate-in fade-in duration-200">
-          <div className="glass-panel p-8 rounded-2xl max-w-sm w-[90%] text-center transform transition-all scale-100 animate-in zoom-in-95 duration-300 shadow-2xl">
+        <div ref={modalRef} className="modal-overlay p-4">
+          <div className="glass-panel p-8 rounded-2xl max-w-sm w-full text-center transform transition-all scale-100 animate-in fade-in zoom-in duration-300 shadow-2xl">
             <div className="mx-auto w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mb-4">
               <AlertCircle className="w-8 h-8 text-yellow-500" />
             </div>
@@ -250,155 +251,163 @@ const Footer: React.FC = () => {
         </div>
       )}
 
-      {/* Ambient Background Glows */}
-      <div className="absolute top-0 left-1/4 w-80 h-80 bg-yellow-500/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-purple-900/10 rounded-full blur-[100px] pointer-events-none" />
-
-      <div className="container mx-auto px-4 relative z-10">
+      {/* --- Main Content Wrapper (Overflow Hidden applied here) --- */}
+      {/* Ye wrapper extra scroll issue solve karega */}
+      <div className="overflow-hidden relative pt-16 pb-8">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 mb-12">
+        {/* Ambient Background Glows */}
+        <div className="absolute top-0 left-1/4 w-80 h-80 bg-yellow-500/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-purple-900/10 rounded-full blur-[100px] pointer-events-none" />
+
+        <div className="container mx-auto px-4 relative z-10">
           
-          {/* BRAND LOGO SECTION */}
-          <div className="lg:col-span-4 space-y-6">
-            <Link 
-              to="/" 
-              className="group inline-flex items-center gap-4 select-none"
-              onMouseEnter={handleLogoHover}
-              onMouseLeave={handleLogoLeave}
-            >
-              <div className="w-16 h-16 glass-btn rounded-xl p-0 flex items-center justify-center transform perspective-1000 group-hover:scale-110 transition-transform">
-                <img 
-                    src="/logo-m.png" 
-                    alt="M Logo" 
-                    className="w-full h-full object-contain p-2 drop-shadow-xl" 
-                />
-              </div>
-
-              <h2 
-                ref={logoTextRef} 
-                className="text-4xl font-extrabold tracking-widest uppercase transition-all duration-300 mirae-gradient-text"
-                style={{ fontFamily: "'Orbitron', sans-serif" }} 
-              >
-                MIRAE
-              </h2>
-            </Link>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 mb-12">
             
-            <p className="text-sm opacity-80 max-w-xs leading-relaxed glass-panel p-4 rounded-xl">
-              Luxury meets Technology. Elevating your lifestyle with premium gear and seamless delivery.
-            </p>
+            {/* BRAND LOGO SECTION */}
+            <div className="lg:col-span-4 space-y-6">
+              <Link 
+                to="/" 
+                className="group inline-flex items-center gap-4 select-none"
+                onMouseEnter={handleLogoHover}
+                onMouseLeave={handleLogoLeave}
+              >
+                {/* IMAGE LOGO */}
+                <div className="w-16 h-16 glass-btn rounded-xl p-0 flex items-center justify-center transform perspective-1000 group-hover:scale-110 transition-transform">
+                  <img 
+                      src="/logo-m.png" 
+                      alt="M Logo" 
+                      className="w-full h-full object-contain p-2 drop-shadow-xl" 
+                  />
+                </div>
 
-            <div className="flex gap-3">
-              {socialLinks.map((item, i) => (
-                <a
-                  key={i}
-                  href={item.href}
-                  onClick={(e) => initiateRedirect(e, item.href, item.name)}
-                  className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300"
-                  onMouseMove={(e) => handleTilt(e, item.color)}
-                  onMouseLeave={handleReset}
+                {/* Text Animation */}
+                <h2 
+                  ref={logoTextRef} 
+                  className="text-4xl font-extrabold tracking-widest uppercase transition-all duration-300 mirae-gradient-text"
+                  style={{ fontFamily: "'Orbitron', sans-serif" }} 
                 >
-                  <item.icon className="w-5 h-5" />
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* QUICK LINKS */}
-          <div className="lg:col-span-2">
-            <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Quick Links</h4>
-            <ul className="space-y-3">
-              {quickLinks.map((link) => (
-                <li key={link.name}>
-                  <Link to="#" className="flex items-center gap-3 group">
-                    <div 
-                      className="w-8 h-8 glass-btn rounded-lg flex items-center justify-center text-gray-500 group-hover:text-yellow-500 transition-colors"
-                      onMouseMove={(e) => handleTilt(e, '#FFD700')}
-                      onMouseLeave={handleReset}
-                    >
-                      <link.icon className="w-4 h-4" />
-                    </div>
-                    <span className="text-sm hover:text-yellow-600 dark:hover:text-yellow-500 transition-colors">{link.name}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* SUPPORT */}
-          <div className="lg:col-span-2">
-            <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Support</h4>
-            <ul className="space-y-3">
-              {supportLinks.map((link) => (
-                <li key={link.name}>
-                   <Link to="#" className="flex items-center gap-3 group">
-                    <div 
-                      className="w-8 h-8 glass-btn rounded-lg flex items-center justify-center text-gray-500 group-hover:text-yellow-500 transition-colors"
-                      onMouseMove={(e) => handleTilt(e, '#FFD700')}
-                      onMouseLeave={handleReset}
-                    >
-                      <link.icon className="w-4 h-4" />
-                    </div>
-                    <span className="text-sm hover:text-yellow-600 dark:hover:text-yellow-500 transition-colors">{link.name}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* CONTACT INFO */}
-          <div className="lg:col-span-4">
-            <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Contact Us</h4>
-            <div className="glass-panel rounded-2xl p-5 space-y-4">
+                  MIRAE
+                </h2>
+              </Link>
               
-              {/* Gmail */}
-              <div className="flex items-center gap-4 group">
-                <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-red-500">
-                  <Mail className="w-5 h-5" />
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Email us</p>
-                  <a href="mailto:MiraeSupport01@gmail.com" className="text-sm font-medium hover:text-yellow-500 transition-colors truncate block">
-                    MiraeSupport01@gmail.com
+              <p className="text-sm opacity-80 max-w-xs leading-relaxed glass-panel p-4 rounded-xl">
+                Luxury meets Technology. Elevating your lifestyle with premium gear and seamless delivery.
+              </p>
+
+              {/* Social Icons */}
+              <div className="flex gap-3">
+                {socialLinks.map((item, i) => (
+                  <a
+                    key={i}
+                    href={item.href}
+                    onClick={(e) => initiateRedirect(e, item.href, item.name)}
+                    className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300"
+                    onMouseMove={(e) => handleTilt(e, item.color)}
+                    onMouseLeave={handleReset}
+                  >
+                    <item.icon className="w-5 h-5" />
                   </a>
-                </div>
+                ))}
               </div>
-
-              {/* Phone / WhatsApp */}
-              <div className="flex items-center gap-4 group">
-                <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-green-500">
-                  <MessageCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">WhatsApp / Call</p>
-                  <a href="https://wa.me/923047299447" className="text-sm font-medium hover:text-yellow-500 transition-colors">
-                    +92 304 729 9447
-                  </a>
-                </div>
-              </div>
-
-              {/* Location */}
-              <div className="flex items-center gap-4 group">
-                <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-blue-500">
-                  <MapPin className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Location</p>
-                  <span className="text-sm font-medium">Rohillanwali, Punjab, Pakistan</span>
-                </div>
-              </div>
-
             </div>
+
+            {/* QUICK LINKS */}
+            <div className="lg:col-span-2">
+              <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Quick Links</h4>
+              <ul className="space-y-3">
+                {quickLinks.map((link) => (
+                  <li key={link.name}>
+                    <Link to="#" className="flex items-center gap-3 group">
+                      <div 
+                        className="w-8 h-8 glass-btn rounded-lg flex items-center justify-center text-gray-500 group-hover:text-yellow-500 transition-colors"
+                        onMouseMove={(e) => handleTilt(e, '#FFD700')}
+                        onMouseLeave={handleReset}
+                      >
+                        <link.icon className="w-4 h-4" />
+                      </div>
+                      <span className="text-sm hover:text-yellow-600 dark:hover:text-yellow-500 transition-colors">{link.name}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* SUPPORT */}
+            <div className="lg:col-span-2">
+              <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Support</h4>
+              <ul className="space-y-3">
+                {supportLinks.map((link) => (
+                  <li key={link.name}>
+                    <Link to="#" className="flex items-center gap-3 group">
+                      <div 
+                        className="w-8 h-8 glass-btn rounded-lg flex items-center justify-center text-gray-500 group-hover:text-yellow-500 transition-colors"
+                        onMouseMove={(e) => handleTilt(e, '#FFD700')}
+                        onMouseLeave={handleReset}
+                      >
+                        <link.icon className="w-4 h-4" />
+                      </div>
+                      <span className="text-sm hover:text-yellow-600 dark:hover:text-yellow-500 transition-colors">{link.name}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* CONTACT INFO */}
+            <div className="lg:col-span-4">
+              <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Contact Us</h4>
+              <div className="glass-panel rounded-2xl p-5 space-y-4">
+                
+                {/* Gmail */}
+                <div className="flex items-center gap-4 group">
+                  <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-red-500">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Email us</p>
+                    <a href="mailto:MiraeSupport01@gmail.com" className="text-sm font-medium hover:text-yellow-500 transition-colors truncate block">
+                      MiraeSupport01@gmail.com
+                    </a>
+                  </div>
+                </div>
+
+                {/* Phone / WhatsApp */}
+                <div className="flex items-center gap-4 group">
+                  <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-green-500">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">WhatsApp / Call</p>
+                    <a href="https://wa.me/923047299447" className="text-sm font-medium hover:text-yellow-500 transition-colors">
+                      +92 304 729 9447
+                    </a>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="flex items-center gap-4 group">
+                  <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-blue-500">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Location</p>
+                    <span className="text-sm font-medium">Rohillanwali, Punjab, Pakistan</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          {/* COPYRIGHT */}
+          <div className="border-t border-gray-300 dark:border-white/10 pt-6 text-center">
+            <p className="text-xs text-gray-500">
+              &copy; 2025 <span className="text-yellow-600 dark:text-yellow-500 font-bold">MIRAE</span>. Created by Romeo. 
+            </p>
           </div>
 
         </div>
-
-        {/* COPYRIGHT */}
-        <div className="border-t border-gray-300 dark:border-white/10 pt-6 text-center">
-          <p className="text-xs text-gray-500">
-            &copy; 2025 <span className="text-yellow-600 dark:text-yellow-500 font-bold">MIRAE</span>. Created by Romeo. 
-          </p>
-        </div>
-
       </div>
     </footer>
   );
