@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { ReactLenis } from "lenis/react"; // 👈 IMPORT ADDED
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -46,7 +47,6 @@ const queryClient = new QueryClient();
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading, isAuthenticated } = useAuth();
 
-  // Agar context abhi fetch kar raha hai, to screen ghoomegi nahi, spinner dikhega
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#0a0a0a]">
@@ -58,7 +58,6 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // Agar login nahi hai ya admin nahi hai, to wapas bhej do
   if (!isAuthenticated || !isAdmin) {
     return <Navigate to="/auth" replace />;
   }
@@ -104,7 +103,7 @@ const AnimatedRoutes = () => {
         </Routes>
       </PageTransition>
       
-      {/* Footer/Nav Components (Admin par hide karne ke liye logic add kar sakte hain) */}
+      {/* Footer/Nav Components */}
       {!location.pathname.startsWith('/admin') && (
         <>
           <BottomNavigation />
@@ -126,10 +125,17 @@ const App = () => (
               <TooltipProvider>
                 <Toaster />
                 <Sonner />
-                <BrowserRouter>
-                  <ScrollToTop />
-                  <AnimatedRoutes />
-                </BrowserRouter>
+                
+                {/* 🔥 LUXURY SCROLL WRAPPER STARTS HERE 🔥 */}
+                {/* 'root' prop zaroori hai taa ke ye puri html/body ko control kare */}
+                <ReactLenis root options={{ lerp: 0.1, duration: 1.5, smoothWheel: true }}>
+                  <BrowserRouter>
+                    <ScrollToTop />
+                    <AnimatedRoutes />
+                  </BrowserRouter>
+                </ReactLenis>
+                {/* 🔥 WRAPPER ENDS 🔥 */}
+
               </TooltipProvider>
             </CompareProvider>
           </WishlistProvider>
