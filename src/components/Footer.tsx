@@ -1,15 +1,14 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Facebook, Twitter, Instagram, Youtube, 
   Mail, Phone, MapPin, MessageCircle, 
-  Home, Box, Tag, FileText, HelpCircle, Truck, RefreshCw, AlertCircle, X, Check
+  Home, Box, Tag, FileText, HelpCircle, Truck, RefreshCw, AlertCircle, Check
 } from 'lucide-react';
 import gsap from 'gsap';
 
-// --- Styles (Updated for Better Light Mode & Gradient) ---
+// --- Styles ---
 const styles = `
-  /* Gradient Text Fix - Force Render */
   .mirae-gradient-text {
     background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
     -webkit-background-clip: text;
@@ -20,24 +19,21 @@ const styles = `
     display: inline-block;
   }
 
-  /* Glass Updates for Visibility */
   .glass-panel {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     transition: all 0.3s ease;
   }
   
-  /* Dark Mode Glass */
   .dark .glass-panel {
-    background: rgba(20, 20, 20, 0.6); /* Thora dark for contrast */
+    background: rgba(20, 20, 20, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
   }
   
-  /* Light Mode Glass - More Visible Borders */
   .light .glass-panel, .glass-panel { 
     background: rgba(255, 255, 255, 0.65);
-    border: 1px solid rgba(0, 0, 0, 0.15); /* Darker border for light mode */
+    border: 1px solid rgba(0, 0, 0, 0.15);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   }
 
@@ -48,19 +44,16 @@ const styles = `
     overflow: hidden;
   }
   
-  /* Dark Mode Buttons */
   .dark .glass-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.15);
   }
   
-  /* Light Mode Buttons - Thora Gray */
   .light .glass-btn, .glass-btn {
     background: rgba(0, 0, 0, 0.05);
     border: 1px solid rgba(0, 0, 0, 0.1);
   }
 
-  /* Shine Animation */
   .glass-btn::before {
     content: '';
     position: absolute;
@@ -78,10 +71,19 @@ const styles = `
     to { background-position: 200% center; }
   }
   
-  /* Modal Overlay */
-  .modal-overlay {
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(5px);
+  /* Modal Overlay - FIXED position zaroori hai */
+  .modal-overlay-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.7); /* Thora dark background focus ke liye */
+    backdrop-filter: blur(8px);
+    z-index: 99999; /* Sabse oopar */
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 `;
 
@@ -89,11 +91,20 @@ const Footer: React.FC = () => {
   const logoTextRef = useRef<HTMLHeadingElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   
-  // State for Redirect Logic
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingLink, setPendingLink] = useState<{url: string, name: string} | null>(null);
 
-  // --- 1. Animation Logic ---
+  // --- Scroll Lock Logic (Jab Modal open ho to peeche scroll na ho) ---
+  useEffect(() => {
+    if (modalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [modalOpen]);
+
+  // --- Animation Logic ---
   const handleLogoHover = () => {
     if (logoTextRef.current) {
       gsap.to(logoTextRef.current, {
@@ -143,7 +154,7 @@ const Footer: React.FC = () => {
     });
   };
 
-  // --- 2. Redirect & Modal Logic ---
+  // --- Redirect Logic ---
   const initiateRedirect = (e: React.MouseEvent, url: string, name: string) => {
     e.preventDefault();
     setPendingLink({ url, name });
@@ -153,19 +164,17 @@ const Footer: React.FC = () => {
   const confirmRedirect = () => {
     setModalOpen(false);
     
-    // Outro Animation (Screen Wipe)
+    // Outro Animation
     if (overlayRef.current) {
       gsap.to(overlayRef.current, {
-        y: "0%", // Slide up/down to cover screen
+        y: "0%", 
         opacity: 1,
         duration: 0.8,
         ease: "power4.inOut",
         onComplete: () => {
-            // Animation complete hone ke baad redirect
             if (pendingLink) {
-                window.location.href = pendingLink.url; // Use window.open(pendingLink.url, '_blank') for new tab
+                window.location.href = pendingLink.url; 
             }
-            // Reset overlay after delay (optional, if user comes back)
             setTimeout(() => {
                 gsap.set(overlayRef.current, { y: "100%", opacity: 0 });
             }, 2000);
@@ -179,7 +188,6 @@ const Footer: React.FC = () => {
     setPendingLink(null);
   };
 
-  // Data Objects
   const socialLinks = [
     { icon: Instagram, href: "https://www.instagram.com/_mirae01", color: "#E1306C", name: "Instagram" },
     { icon: Youtube, href: "https://m.youtube.com/@mirae0001", color: "#FF0000", name: "YouTube" },
@@ -202,22 +210,21 @@ const Footer: React.FC = () => {
   ];
 
   return (
-    // Note: Parent component should have 'dark' class for dark mode testing.
-    <footer className="footer-container relative bg-gray-50 dark:bg-[#050505] text-gray-800 dark:text-gray-200 overflow-hidden mt-auto pt-16 pb-8 transition-colors duration-300">
+    <footer className="footer-container relative bg-gray-50 dark:bg-[#050505] text-gray-800 dark:text-gray-200 mt-auto pt-16 pb-8 transition-colors duration-300 overflow-hidden">
       <style>{styles}</style>
 
-      {/* --- OUTRO ANIMATION OVERLAY --- */}
+      {/* --- OUTRO ANIMATION OVERLAY (Fixed on Screen) --- */}
       <div 
         ref={overlayRef} 
-        className="fixed inset-0 bg-black z-[9999] pointer-events-none opacity-0 translate-y-full flex items-center justify-center"
+        className="fixed inset-0 bg-black z-[100000] pointer-events-none opacity-0 translate-y-full flex items-center justify-center"
       >
         <span className="text-gold-gradient text-4xl font-bold animate-pulse">MIRAE</span>
       </div>
 
-      {/* --- REDIRECT MODAL --- */}
+      {/* --- REDIRECT MODAL (FIXED POSITION) --- */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
-          <div className="glass-panel p-8 rounded-2xl max-w-sm w-full text-center transform transition-all scale-100 animate-in fade-in zoom-in duration-300">
+        <div className="modal-overlay-fixed animate-in fade-in duration-200">
+          <div className="glass-panel p-8 rounded-2xl max-w-sm w-[90%] text-center transform transition-all scale-100 animate-in zoom-in-95 duration-300 shadow-2xl">
             <div className="mx-auto w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mb-4">
               <AlertCircle className="w-8 h-8 text-yellow-500" />
             </div>
@@ -259,7 +266,6 @@ const Footer: React.FC = () => {
               onMouseEnter={handleLogoHover}
               onMouseLeave={handleLogoLeave}
             >
-              {/* IMAGE LOGO: Ensure logo-m.png is in your public folder */}
               <div className="w-16 h-16 glass-btn rounded-xl p-0 flex items-center justify-center transform perspective-1000 group-hover:scale-110 transition-transform">
                 <img 
                     src="/logo-m.png" 
@@ -268,7 +274,6 @@ const Footer: React.FC = () => {
                 />
               </div>
 
-              {/* Text Animation with Forced Gradient Class */}
               <h2 
                 ref={logoTextRef} 
                 className="text-4xl font-extrabold tracking-widest uppercase transition-all duration-300 mirae-gradient-text"
@@ -282,7 +287,6 @@ const Footer: React.FC = () => {
               Luxury meets Technology. Elevating your lifestyle with premium gear and seamless delivery.
             </p>
 
-            {/* Social Icons with Redirect Logic */}
             <div className="flex gap-3">
               {socialLinks.map((item, i) => (
                 <a
