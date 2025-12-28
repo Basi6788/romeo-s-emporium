@@ -10,27 +10,40 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
   return (
     <>
-      {/* Global Style to KILL Horizontal Scroll & Bottom Gap */}
       <style>{`
+        /* Global Reset */
         html, body {
-          overflow-x: hidden;
           width: 100%;
           margin: 0;
           padding: 0;
-          position: relative;
+          overflow-x: hidden; /* Side scrolling band */
+          overscroll-behavior: none; /* Footer ke neeche bounce/gap band */
         }
-        /* Mobile Scroll Bar Hide (Optional) */
+
+        /* Hide Scrollbar for Chrome, Safari and Opera */
         ::-webkit-scrollbar {
+          display: none;
           width: 0px;
           background: transparent;
         }
+
+        /* Hide Scrollbar for Firefox */
+        html {
+          scrollbar-width: none;
+        }
+
+        /* Hide Scrollbar for IE, Edge */
+        body {
+          -ms-overflow-style: none;
+        }
       `}</style>
 
-      <div className="flex flex-col min-h-screen w-full relative bg-gray-50 dark:bg-[#050505] overflow-x-hidden">
+      {/* Main Wrapper */}
+      <div className="flex flex-col min-h-screen w-full relative bg-gray-50 dark:bg-[#050505]">
         <Header />
         
-        {/* Main Content: pb-0 kar diya hai taa ke gap na aye */}
-        <main className="flex-1 w-full pt-16 md:pt-20 pb-0 relative z-0">
+        {/* Main Content */}
+        <main className="flex-grow w-full pt-16 md:pt-20 relative z-0">
           {children}
         </main>
 
