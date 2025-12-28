@@ -16,7 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
           width: 100%;
           margin: 0;
           padding: 0;
-          overflow-x: hidden; /* Side scrolling band */
+          overflow-x: hidden;
           overscroll-behavior: none; /* Footer ke neeche bounce/gap band */
         }
 
@@ -38,12 +38,12 @@ const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
         }
       `}</style>
 
-      {/* Main Wrapper */}
-      <div className="flex flex-col min-h-screen w-full relative bg-gray-50 dark:bg-[#050505]">
+      {/* Main Wrapper - Fixed height, no overflow */}
+      <div className="flex flex-col h-screen w-full relative bg-gray-50 dark:bg-[#050505] overflow-hidden">
         <Header />
         
-        {/* Main Content */}
-        <main className="flex-grow w-full pt-16 md:pt-20 relative z-0">
+        {/* Main Content - Will scroll internally if needed */}
+        <main className="flex-1 w-full pt-16 md:pt-20 overflow-y-auto">
           {children}
         </main>
 
