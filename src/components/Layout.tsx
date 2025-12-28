@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Header from './Header';
 import Footer from './Footer';
 
@@ -8,21 +8,37 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
+  const mainContentRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const handleScroll = () => {
-      // Calculate maximum scroll position
-      const documentHeight = document.documentElement.scrollHeight;
-      const windowHeight = window.innerHeight;
-      const maxScroll = documentHeight - windowHeight;
+    const preventExtraScroll = (e: WheelEvent) => {
+      if (!mainContentRef.current) return;
       
-      // If trying to scroll beyond footer, prevent it
-      if (window.scrollY > maxScroll) {
-        window.scrollTo(0, maxScroll);
+      const mainContent = mainContentRef.current;
+      const isAtBottom = 
+        mainContent.scrollHeight - mainContent.scrollTop <= mainContent.clientHeight + 1;
+      
+      // If at bottom and trying to scroll down further, prevent it
+      if (isAtBottom && e.deltaY > 0) {
+        e.preventDefault();
+      }
+      
+      // If at top and trying to scroll up further, prevent it
+      if (mainContent.scrollTop === 0 && e.deltaY < 0) {
+        e.preventDefault();
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const mainContent = mainContentRef.current;
+    if (mainContent) {
+      mainContent.addEventListener('wheel', preventExtraScroll, { passive: false });
+    }
+
+    return () => {
+      if (mainContent) {
+        mainContent.removeEventListener('wheel', preventExtraScroll);
+      }
+    };
   }, []);
 
   return (
@@ -31,52 +47,52 @@ const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
         /* Global Reset */
         html, body {
           width: 100%;
+          height: 100%;
           margin: 0;
           padding: 0;
-          overflow-x: hidden;
-          overscroll-behavior: none;
-          position: relative;
+          overflow: hidden; /* Body se scroll band */
         }
 
-        /* Main container */
-        .main-container {
+        .layout-wrapper {
           display: flex;
           flex-direction: column;
-          min-height: 100vh;
+          height: 100vh;
           width: 100%;
-          position: relative;
+          overflow: hidden;
         }
 
-        /* Hide Scrollbar for Chrome, Safari and Opera */
-        ::-webkit-scrollbar {
+        .main-content-wrapper {
+          flex: 1;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* Hide Scrollbar */
+        .main-content-wrapper::-webkit-scrollbar {
           display: none;
-          width: 0px;
-          background: transparent;
         }
-
-        /* Hide Scrollbar for Firefox */
-        html {
-          scrollbar-width: none;
-        }
-
-        /* Hide Scrollbar for IE, Edge */
-        body {
+        
+        .main-content-wrapper {
           -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
 
-      {/* Main Wrapper */}
-      <div className="main-container bg-gray-50 dark:bg-[#050505]">
+      <div className="layout-wrapper bg-gray-50 dark:bg-[#050505]">
         <Header />
         
-        {/* Main Content - This will grow and push footer to bottom */}
-        <main className="flex-grow w-full pt-16 md:pt-20 relative z-0 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        {/* Scrollable content area */}
+        <div ref={mainContentRef} className="main-content-wrapper pt-16 md:pt-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             {children}
           </div>
-        </main>
+        </div>
 
-        {showFooter && <Footer />}
+        {showFooter && (
+          <div className="footer-container">
+            <Footer />
+          </div>
+        )}
       </div>
     </>
   );
