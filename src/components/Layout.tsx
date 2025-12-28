@@ -9,16 +9,34 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
   return (
-    <div className="flex flex-col min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-[#050505]">
-      <Header />
-      
-      {/* Yahan se pb-20 hata diya hai, ab content aur footer chipak jayen ge */}
-      <main className="flex-1 w-full pt-16 md:pt-20">
-        {children}
-      </main>
+    <>
+      {/* Global Style to KILL Horizontal Scroll & Bottom Gap */}
+      <style>{`
+        html, body {
+          overflow-x: hidden;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          position: relative;
+        }
+        /* Mobile Scroll Bar Hide (Optional) */
+        ::-webkit-scrollbar {
+          width: 0px;
+          background: transparent;
+        }
+      `}</style>
 
-      {showFooter && <Footer />}
-    </div>
+      <div className="flex flex-col min-h-screen w-full relative bg-gray-50 dark:bg-[#050505] overflow-x-hidden">
+        <Header />
+        
+        {/* Main Content: pb-0 kar diya hai taa ke gap na aye */}
+        <main className="flex-1 w-full pt-16 md:pt-20 pb-0 relative z-0">
+          {children}
+        </main>
+
+        {showFooter && <Footer />}
+      </div>
+    </>
   );
 };
 
