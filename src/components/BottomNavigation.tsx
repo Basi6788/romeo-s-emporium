@@ -1,12 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  Home, 
-  Store, // Modern Shop Icon
+  House, 
+  LayoutGrid, // "Products" ke liye best (Grid view)
   Heart, 
-  ShoppingBag, // Modern Bag Icon (Better than basket)
+  ShoppingCart, // Classic Cart
   User, 
-  PackageSearch, // Modern Tracking Icon
+  Truck, // Tracking ke liye Truck (Modern)
   Plane 
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,14 +35,14 @@ const BottomNavigation: React.FC = () => {
 
   const isAdminPage = location.pathname.startsWith('/admin');
 
-  // Updated Modern & Filled Icons
+  // CONFIGURATION: Har icon ka apna "Asal Colour" (True Color)
   const navItems = [
-    { to: '/', label: 'Home', icon: Home },
-    { to: '/products', label: 'Shop', icon: Store },
-    { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount },
-    { to: '/cart', label: 'Cart', icon: ShoppingBag, badge: itemCount },
-    { to: '/track-order', label: 'Track', icon: PackageSearch },
-    { to: isAuthenticated ? '/profile' : '/auth', label: 'Account', icon: User },
+    { to: '/', label: 'Home', icon: House, activeColor: '#3b82f6' }, // Blue
+    { to: '/products', label: 'Shop', icon: LayoutGrid, activeColor: '#f59e0b' }, // Amber/Orange
+    { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount, activeColor: '#ef4444' }, // RED
+    { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount, activeColor: '#10b981' }, // Green
+    { to: '/track-order', label: 'Track', icon: Truck, activeColor: '#06b6d4' }, // Cyan
+    { to: isAuthenticated ? '/profile' : '/auth', label: 'Account', icon: User, activeColor: '#8b5cf6' }, // Purple
   ];
 
   // 1. Keyboard Logic
@@ -81,46 +81,52 @@ const BottomNavigation: React.FC = () => {
     }
   }, [location.pathname]);
 
-  // 4. PLANE -> BLOB ANIMATION
+  // 4. ANIMATION LOGIC (Plane -> Blob + Color Transition)
   useEffect(() => {
     if (activeIndex !== -1 && itemRefs.current[activeIndex] && indicatorRef.current) {
       const activeItem = itemRefs.current[activeIndex];
       const navRect = navRef.current?.getBoundingClientRect();
+      const currentConfig = navItems[activeIndex];
       
       if (activeItem && navRect) {
-        setIsMoving(true); // Start Flight (Show Plane)
+        setIsMoving(true); // Start Flight
 
         const itemRect = activeItem.getBoundingClientRect();
         const targetX = itemRect.left - navRect.left + (itemRect.width / 2);
 
-        // Move the Container
+        // Move the Indicator
         gsap.to(indicatorRef.current, {
           x: targetX,
           duration: 0.5,
           ease: 'power2.inOut',
           onComplete: () => {
-            setIsMoving(false); // Flight Over (Show Blob)
+            setIsMoving(false); // Flight Over
           }
         });
 
-        // Animate Icons (Bounce effect)
+        // Animate Icons (Color & Position)
         itemRefs.current.forEach((item, index) => {
           if (!item) return;
           const icon = item.querySelector('.nav-icon');
+          const config = navItems[index];
 
           if (index === activeIndex) {
-            // ACTIVE: Float Up & Glow
+            // ACTIVE: Float Up + Change to "True Color"
             gsap.to(icon, {
               y: -12,
               scale: 1.25,
+              color: config.activeColor, // Turning RED/BLUE/GREEN
+              filter: `drop-shadow(0 0 12px ${config.activeColor}80)`, // Colored Glow
               duration: 0.5,
               ease: 'back.out(2)'
             });
           } else {
-            // INACTIVE: Reset
+            // INACTIVE: Reset to Black/White Filled
             gsap.to(icon, {
               y: 0,
               scale: 1,
+              color: 'currentColor', // Wapas Text Color (Black/White) par
+              filter: 'none',
               duration: 0.4,
               ease: 'power2.out'
             });
@@ -130,7 +136,7 @@ const BottomNavigation: React.FC = () => {
     }
   }, [activeIndex]);
 
-  // 5. Scroll Hide/Show
+  // 5. Scroll Handling
   useEffect(() => {
     const handleScroll = () => {
       if (!ticking.current) {
@@ -171,7 +177,7 @@ const BottomNavigation: React.FC = () => {
         className={`
           pointer-events-auto
           mb-4 mx-4 w-full max-w-[360px]
-          bg-white/80 dark:bg-black/80 
+          bg-white/90 dark:bg-black/90 
           backdrop-blur-xl border border-white/20 dark:border-white/10
           rounded-full shadow-2xl
           will-change-transform
@@ -180,15 +186,14 @@ const BottomNavigation: React.FC = () => {
         `}
         style={{ height: '70px' }}
       >
-        {/* MOVING INDICATOR CONTAINER */}
+        {/* MOVING INDICATOR (Plane / Blob) */}
         <div 
           ref={indicatorRef}
           className="absolute top-1/2 -translate-y-1/2 left-0 -ml-7 pointer-events-none z-0"
         >
           {isMoving ? (
-            /* ✈️ AIRPLANE MODE (During Transition) */
+            /* ✈️ AIRPLANE MODE */
             <div className="relative w-14 h-14 flex items-center justify-center">
-              {/* Motion Trail */}
               <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
               <Plane 
                 className="w-8 h-8 text-primary transition-transform duration-300"
@@ -199,10 +204,10 @@ const BottomNavigation: React.FC = () => {
               />
             </div>
           ) : (
-            /* 💡 PURPLE BLOB MODE (When Static) */
+            /* 💡 PURPLE BLOB MODE */
             <div className="relative w-14 h-14 flex items-center justify-center animate-in fade-in zoom-in duration-300">
-              <div className="w-full h-full bg-primary rounded-full blur-2xl opacity-50 animate-pulse" />
-              <div className="absolute inset-2 bg-gradient-to-tr from-primary to-violet-500 rounded-full opacity-70" />
+              <div className="w-full h-full bg-primary rounded-full blur-2xl opacity-40 animate-pulse" />
+              <div className="absolute inset-2 bg-gradient-to-tr from-primary to-violet-500 rounded-full opacity-60" />
             </div>
           )}
         </div>
@@ -223,13 +228,16 @@ const BottomNavigation: React.FC = () => {
                 <div className="nav-icon transition-colors duration-300">
                   <item.icon 
                     size={26}
-                    fill={isActive ? "currentColor" : "none"} // Filled when active
-                    strokeWidth={isActive ? 0 : 2} // No stroke when filled, else normal
+                    // FILLED LOGIC: 
+                    // - isActive: Fill will be handled by GSAP 'color' (Red/Blue etc).
+                    // - !isActive: Fill is 'currentColor' (Black/White).
+                    fill="currentColor"
+                    strokeWidth={0} // Always solid filled
                     className={`
                       transition-all duration-300
                       ${isActive 
-                        ? 'text-black dark:text-white drop-shadow-[0_0_15px_rgba(124,58,237,0.5)]' // Active: Solid + Glow
-                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300' // Inactive
+                        ? '' // Active color handled by GSAP
+                        : 'text-foreground/80 dark:text-foreground/90' // Inactive: Solid Black/White
                       }
                     `}
                   />
