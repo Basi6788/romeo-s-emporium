@@ -13,10 +13,11 @@ const BottomNavigation: React.FC = () => {
   const { itemCount: wishlistCount } = useWishlist();
   
   const navRef = useRef<HTMLElement>(null);
-  const lampRef = useRef<HTMLDivElement>(null); // The liquid light blob
+  const lampRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   
   const [isVisible, setIsVisible] = useState(true);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const lastScrollY = useRef(0);
 
@@ -31,27 +32,52 @@ const BottomNavigation: React.FC = () => {
     { to: isAuthenticated ? '/profile' : '/auth', label: 'Account', icon: User },
   ];
 
-  // 1. Initial Entry Animation (Elastic Bounce)
+  // 1. Keyboard Detection & Visibility Logic
+  useEffect(() => {
+    const handleResize = () => {
+      // Agar window ki height 20% se zyada kam ho jaye, mtlb keyboard khul gaya hai
+      if (window.visualViewport && window.visualViewport.height < window.innerHeight * 0.8) {
+        setIsKeyboardOpen(true);
+      } else {
+        setIsKeyboardOpen(false);
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+    } else {
+      window.addEventListener('resize', handleResize);
+    }
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
+      } else {
+        window.removeEventListener('resize', handleResize);
+      }
+    };
+  }, []);
+
+  // 2. Initial Animation
   useEffect(() => {
     if (navRef.current && !isAdminPage) {
       gsap.fromTo(navRef.current,
-        { y: 150, opacity: 0, scale: 0.8 },
-        { y: 0, opacity: 1, scale: 1, duration: 1, ease: 'elastic.out(1, 0.7)', delay: 0.2 }
+        { y: 100, opacity: 0, scale: 0.9 },
+        { y: 0, opacity: 1, scale: 1, duration: 1.2, ease: 'elastic.out(1, 0.75)', delay: 0.2 }
       );
     }
   }, [isAdminPage]);
 
-  // 2. Active Index Logic
+  // 3. Active Index Tracker
   useEffect(() => {
     const newIndex = navItems.findIndex(item => {
       if (item.to === '/') return location.pathname === '/';
       return location.pathname.startsWith(item.to);
     });
-    
     if (newIndex !== -1) setActiveIndex(newIndex);
   }, [location.pathname]);
 
-  // 3. The 3D Animation & Liquid Lamp Movement
+  // 4. Main Animation Logic (Lamp + Icons)
   useEffect(() => {
     if (activeIndex !== -1 && itemRefs.current[activeIndex] && lampRef.current) {
       const activeItem = itemRefs.current[activeIndex];
@@ -59,35 +85,32 @@ const BottomNavigation: React.FC = () => {
       
       if (activeItem && navRect) {
         const itemRect = activeItem.getBoundingClientRect();
-        // Calculate center position relative to nav
         const targetX = itemRect.left - navRect.left + (itemRect.width / 2);
 
-        // Animate the Liquid Lamp (The glowing background blob)
+        // Move the Blob (Lamp)
         gsap.to(lampRef.current, {
           x: targetX,
-          duration: 0.6,
-          ease: 'elastic.out(1, 0.5)'
+          duration: 0.5,
+          ease: 'back.out(1.7)' // Thora sa overshoot karke wapas ayega (Smooth feel)
         });
 
-        // Animate Icons (3D Pop Effect)
+        // Animate All Icons
         itemRefs.current.forEach((item, index) => {
           if (!item) return;
           const icon = item.querySelector('.nav-icon');
-          const label = item.querySelector('.nav-label');
 
           if (index === activeIndex) {
-            // ACTIVE STATE: Float Up & Glow
+            // ACTIVE: Float up, Glow, Scale up
             gsap.to(icon, {
-              y: -8, // Float up
-              scale: 1.2,
-              color: '#ffffff', // Force white for contrast
-              filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.6))',
+              y: -12, // Thora aur opar uthaya
+              scale: 1.3,
+              color: '#ffffff',
+              filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.8))',
               duration: 0.4,
               ease: 'back.out(2)'
             });
-            gsap.to(label, { opacity: 1, y: 0, scale: 1, duration: 0.3 });
           } else {
-            // INACTIVE STATE: Reset
+            // INACTIVE: Reset position
             gsap.to(icon, {
               y: 0,
               scale: 1,
@@ -96,20 +119,23 @@ const BottomNavigation: React.FC = () => {
               duration: 0.4,
               ease: 'power2.out'
             });
-            gsap.to(label, { opacity: 0.6, y: 0, scale: 0.9, duration: 0.3 });
           }
         });
       }
     }
   }, [activeIndex]);
 
-  // 4. Smart Scroll Hide/Show
+  // 5. Scroll Handling (Prevent Jitter)
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+      
+      // Prevent bouncing on iOS/Android top edge
+      if (currentScrollY < 0) return;
+
       const scrollDiff = currentScrollY - lastScrollY.current;
 
-      // Hide if scrolling down > 10px, Show if scrolling up
+      // Thora tolerance rakha hai (10px) taake halki movement par gayab na ho
       if (currentScrollY > 50 && scrollDiff > 10) {
         setIsVisible(false);
       } else if (scrollDiff < -5 || currentScrollY < 50) {
@@ -122,6 +148,35 @@ const BottomNavigation: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Hover Effects (Mouse Enter/Leave) using GSAP
+  const handleMouseEnter = (index: number) => {
+    if (index === activeIndex) return; // Active wale ko disturb na kare
+    const item = itemRefs.current[index];
+    const icon = item?.querySelector('.nav-icon');
+    if (icon) {
+      gsap.to(icon, {
+        scale: 1.2,
+        y: -5,
+        duration: 0.3,
+        ease: 'elastic.out(1, 0.3)'
+      });
+    }
+  };
+
+  const handleMouseLeave = (index: number) => {
+    if (index === activeIndex) return;
+    const item = itemRefs.current[index];
+    const icon = item?.querySelector('.nav-icon');
+    if (icon) {
+      gsap.to(icon, {
+        scale: 1,
+        y: 0,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+    }
+  };
+
   if (isAdminPage) return null;
 
   return (
@@ -130,26 +185,29 @@ const BottomNavigation: React.FC = () => {
         ref={navRef}
         className={`
           pointer-events-auto
-          mb-6 mx-4 w-full max-w-sm
-          glass-liquid rounded-[2rem]
+          mb-2 mx-4 w-full max-w-[350px]
+          glass-liquid rounded-full
           transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
-          ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-[150%] opacity-0'}
+          ${(isVisible && !isKeyboardOpen) ? 'translate-y-0 opacity-100' : 'translate-y-[150%] opacity-0'}
         `}
         style={{
-          boxShadow: '0 20px 40px -10px rgba(0,0,0,0.3), inset 0 1px 0 0 rgba(255,255,255,0.2)'
+          boxShadow: '0 15px 35px -5px rgba(0,0,0,0.3), inset 0 1px 0 0 rgba(255,255,255,0.25)',
+          height: '65px', // Fixed height for consistency
+          backdropFilter: 'blur(20px)',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)' // Adjust based on your theme
         }}
       >
-        {/* The Liquid Lamp (Glowing Blob behind active item) */}
+        {/* The Liquid Lamp (Glowing Blob) */}
         <div 
           ref={lampRef}
-          className="absolute top-1/2 -translate-y-1/2 left-0 w-12 h-12 -ml-6 pointer-events-none"
+          className="absolute top-1/2 -translate-y-1/2 left-0 w-14 h-14 -ml-7 pointer-events-none"
         >
-          <div className="w-full h-full bg-primary rounded-full blur-xl opacity-60 animate-pulse" />
-          <div className="absolute inset-2 bg-gradient-to-tr from-primary to-violet-400 rounded-full opacity-80" />
+          <div className="w-full h-full bg-primary rounded-full blur-2xl opacity-50 animate-pulse" />
+          <div className="absolute inset-2 bg-gradient-to-tr from-primary to-purple-500 rounded-full opacity-70" />
         </div>
 
         {/* Nav Items Container */}
-        <div className="relative flex items-center justify-between px-2 py-3">
+        <div className="relative flex items-center justify-between px-4 h-full">
           {navItems.map((item, index) => {
             const isActive = index === activeIndex;
             
@@ -158,31 +216,28 @@ const BottomNavigation: React.FC = () => {
                 key={item.to}
                 ref={el => itemRefs.current[index] = el}
                 to={item.to}
+                onMouseEnter={() => handleMouseEnter(index)}
+                onMouseLeave={() => handleMouseLeave(index)}
                 className={`
-                  relative flex-1 flex flex-col items-center justify-center
-                  h-12 w-12 rounded-full transition-colors duration-300
-                  ${isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'}
+                  relative flex items-center justify-center
+                  h-10 w-10 rounded-full transition-colors duration-300
+                  ${isActive ? 'text-white' : 'text-muted-foreground/80 hover:text-foreground'}
                 `}
                 onClick={() => setActiveIndex(index)}
               >
-                {/* 3D Icon Container */}
-                <div className="nav-icon relative z-10 transform-style-3d will-change-transform">
+                {/* Icon Container */}
+                <div className="nav-icon relative z-10">
                   <item.icon 
-                    className={`w-6 h-6 transition-all duration-300 ${isActive ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`} 
+                    className={`w-6 h-6 transition-all duration-300 stroke-[1.5px]`} 
                   />
                   
                   {/* Notification Badge */}
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-background shadow-sm animate-scale-in">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border border-white/20 shadow-sm animate-bounce">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
                 </div>
-
-                {/* Label (Only visible/active logic handled by GSAP) */}
-                <span className="nav-label absolute -bottom-3 text-[9px] font-semibold tracking-wide whitespace-nowrap opacity-0">
-                  {item.label}
-                </span>
               </Link>
             );
           })}
