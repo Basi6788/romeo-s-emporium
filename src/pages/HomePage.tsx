@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback, useEffect, useMemo, useLayoutEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
@@ -12,64 +12,84 @@ import * as THREE from 'three';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// --- 1. Three.js Background (Optimized for Light/Dark) ---
+// --- 1. Enhanced Three.js Background (Floating Wave Effect) ---
 const ParticleBackground = () => {
   const mountRef = useRef(null);
 
   useEffect(() => {
-    if (!mountRef.current) return;
-    // Cleanup previous children if any (React strict mode fix)
-    while(mountRef.current.firstChild){
-        mountRef.current.removeChild(mountRef.current.firstChild);
-    }
+    if (!mountRef.current || window.innerWidth < 768) return; // Optional: Disable on mobile if performance is bad
+
+    // Cleanup previous
+    while(mountRef.current.firstChild) mountRef.current.removeChild(mountRef.current.firstChild);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    // Field of View increased for more immersive feel on desktop
+    const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
     
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Cap pixel ratio for performance
     mountRef.current.appendChild(renderer.domElement);
 
+    // --- Particles in a Wave Pattern ---
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = window.innerWidth < 768 ? 400 : 1000; 
+    const particlesCount = 1200;
     const posArray = new Float32Array(particlesCount * 3);
-
-    for(let i = 0; i < particlesCount * 3; i++) {
-      posArray[i] = (Math.random() - 0.5) * 15;
+    
+    for(let i = 0; i < particlesCount * 3; i+=3) {
+      // Spread particles wider on x-axis
+      posArray[i] = (Math.random() - 0.5) * 25; 
+      posArray[i+1] = (Math.random() - 0.5) * 15;
+      posArray[i+2] = (Math.random() - 0.5) * 10;
     }
 
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     
-    // Violet color that looks good on dark, and visible on light
+    // Slightly darker violet for better visibility in light mode
     const material = new THREE.PointsMaterial({
-      size: 0.025,
-      color: 0x7c3aed, 
+      size: 0.03,
+      color: 0x6d28d9, // Violet-700
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
     });
 
     const particlesMesh = new THREE.Points(particlesGeometry, material);
     scene.add(particlesMesh);
-    camera.position.z = 3;
+    camera.position.z = 5;
 
+    // Mouse Interactivity
     let mouseX = 0;
     let mouseY = 0;
+    let targetX = 0;
+    let targetY = 0;
 
     const handleMouseMove = (event) => {
-      mouseX = event.clientX / window.innerWidth - 0.5;
-      mouseY = event.clientY / window.innerHeight - 0.5;
+      mouseX = (event.clientX / window.innerWidth - 0.5) * 2;
+      mouseY = (event.clientY / window.innerHeight - 0.5) * 2;
     };
 
     if (window.matchMedia("(pointer: fine)").matches) {
        document.addEventListener('mousemove', handleMouseMove);
     }
 
+    // Animation Loop
+    const clock = new THREE.Clock();
     const animate = () => {
-      particlesMesh.rotation.y += 0.001;
-      particlesMesh.rotation.x += 0.001;
-      particlesMesh.rotation.y += 0.05 * (mouseX - particlesMesh.rotation.y) * 0.1;
-      particlesMesh.rotation.x += 0.05 * (mouseY - particlesMesh.rotation.x) * 0.1;
+      const elapsedTime = clock.getElapsedTime();
+
+      // Smooth mouse follow
+      targetX = mouseX * 0.5;
+      targetY = mouseY * 0.5;
+      particlesMesh.rotation.y += 0.02 * (targetX - particlesMesh.rotation.y);
+      particlesMesh.rotation.x += 0.02 * (targetY - particlesMesh.rotation.x);
+
+      // Wave motion effect
+      particlesMesh.position.y = Math.sin(elapsedTime * 0.5) * 0.2; 
+      
+      // Gentle constant rotation
+      particlesMesh.rotation.z += 0.0005;
+
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     };
@@ -93,19 +113,20 @@ const ParticleBackground = () => {
     };
   }, []);
 
-  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none opacity-60" />;
+  // Only show on Desktop for the "Hero Vibe", hide on mobile for performance/clean look
+  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none hidden md:block opacity-70" />;
 };
 
-// --- 2. Compact Hero Skeleton ---
+// --- 2. Skeleton Loader ---
 const HeroSkeleton = () => (
-  <div className="relative min-h-[450px] md:min-h-[550px] w-full bg-muted/20 overflow-hidden flex items-center justify-center">
-    <div className="container mx-auto px-4 flex flex-col justify-end h-full pb-20">
-      <div className="max-w-xl space-y-4">
-        <div className="h-6 w-24 bg-muted animate-pulse rounded-full" />
-        <div className="h-12 w-3/4 bg-muted animate-pulse rounded-2xl" />
-        <div className="h-4 w-1/2 bg-muted animate-pulse rounded-lg" />
-        <div className="flex gap-3 pt-2">
-          <div className="h-10 w-32 bg-muted animate-pulse rounded-xl" />
+  <div className="relative h-[500px] md:h-[650px] w-full bg-muted/30 overflow-hidden flex items-center justify-center animate-pulse">
+    <div className="container mx-auto px-4 flex flex-col justify-end h-full pb-24">
+      <div className="max-w-xl space-y-5">
+        <div className="h-8 w-32 bg-muted-foreground/20 rounded-full" />
+        <div className="h-16 w-4/5 bg-muted-foreground/20 rounded-3xl" />
+        <div className="h-6 w-3/5 bg-muted-foreground/20 rounded-xl" />
+        <div className="flex gap-4 pt-4">
+          <div className="h-12 w-36 bg-muted-foreground/20 rounded-full" />
         </div>
       </div>
     </div>
@@ -114,207 +135,211 @@ const HeroSkeleton = () => (
 
 // --- 3. Main HomePage ---
 const HomePage = () => {
-  // SCROLL FIX: Page load hote hi top par le aye ga
-  const { pathname } = useLocation();
-  useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-
+  // NOTE: Make sure to use your <ScrollToTop /> component in App.tsx!
+  
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   
-  // Refs
+  // Refs used for GSAP Animations
+  const heroSectionRef = useRef(null);
   const slideRefs = useRef([]);
   const contentRefs = useRef([]);
   const imageRefs = useRef([]);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const mouseGlowRef = useRef(null);
+  const featuresRef = useRef(null);
   
   // Data Hooks
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
 
-  // Hero Logic
+  // Hero Data Logic
   const heroSlides = useMemo(() => {
     if (dbHeroImages && dbHeroImages.length > 0) return dbHeroImages;
     if (!heroLoading) {
       return [{
         id: 'def-1',
-        title: 'Next Gen Tech',
-        subtitle: 'Upgrade your lifestyle today.',
+        title: 'Level Up Your Style',
+        subtitle: 'Discover the newest trends in tech and fashion.',
         image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop',
-        gradient: 'from-violet-600 via-purple-600 to-indigo-800',
-        badge: 'New Arrival',
+        gradient: 'from-violet-600/60 via-purple-600/60 to-indigo-800/60',
+        badge: 'New Season',
         link: '/products',
       }]; 
     }
     return [];
   }, [dbHeroImages, heroLoading]);
 
-  // Optimized Slicing
   const featuredProducts = useMemo(() => products.slice(0, 8), [products]);
 
-  // Mouse Glow
-  useEffect(() => {
-    const glow = mouseGlowRef.current;
-    if (!glow) return;
-    const moveGlow = (e) => {
-      gsap.to(glow, { x: e.clientX, y: e.clientY, duration: 0.4, ease: "power2.out" });
-    };
-    window.addEventListener("mousemove", moveGlow);
-    return () => window.removeEventListener("mousemove", moveGlow);
-  }, []);
-
-  // Animations Setup
+  // --- GSAP Animations Setup ---
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Categories Reveal - Faster & Smoother
-      const catItems = document.querySelectorAll('.category-item');
-      if (catItems.length > 0) {
-        gsap.fromTo(catItems,
-          { y: 30, opacity: 0 },
+      // 1. Hero Parallax (Desktop Vibe)
+      if (heroSectionRef.current && window.innerWidth > 768) {
+        gsap.to(imageRefs.current, {
+          yPercent: 20, // Move image slower than scroll
+          ease: "none",
+          scrollTrigger: {
+            trigger: heroSectionRef.current,
+            start: "top top",
+            end: "bottom top",
+            scrub: true
+          }
+        });
+      }
+
+      // 2. Features Reveal with elastic bounce
+      const featureCards = featuresRef.current?.querySelectorAll('.feature-card');
+      if (featureCards) {
+        gsap.fromTo(featureCards,
+          { y: 50, opacity: 0, scale: 0.9 },
           {
-            y: 0, opacity: 1, duration: 0.4, stagger: 0.03, ease: 'power2.out',
-            scrollTrigger: { trigger: '#categories-section', start: 'top 85%' }
+            y: 0, opacity: 1, scale: 1,
+            duration: 0.8, stagger: 0.1, ease: 'back.out(1.5)',
+            scrollTrigger: { trigger: featuresRef.current, start: 'top 90%' }
           }
         );
       }
 
-      // Products Reveal
-      const productCards = document.querySelectorAll('.product-card-anim');
-      if (productCards.length > 0) {
-        gsap.fromTo(productCards,
-          { y: 30, opacity: 0 },
-          {
-            y: 0, opacity: 1, duration: 0.5, stagger: 0.05, ease: 'power2.out',
-            scrollTrigger: { trigger: '#featured-section', start: 'top 85%' }
-          }
+      // 3. Categories & Products Reveal
+      gsap.utils.toArray(['.category-item-anim', '.product-card-wrapper']).forEach(el => {
+        gsap.fromTo(el,
+           { y: 40, opacity: 0 },
+           { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 92%' }}
         );
-      }
+      });
+
     });
     return () => ctx.revert();
-  }, [categories, products]); // Re-run when data loads
+  }, [categories, products, heroSlides.length]);
 
-  // Slide Animation
+  // --- 3D Tilt Effect for Product Cards (Desktop) ---
+  const handleCardMouseMove = (e, cardRef) => {
+    if (window.innerWidth < 768 || !cardRef) return;
+    const rect = cardRef.getBoundingClientRect();
+    const x = e.clientX - rect.left; // x position within the element.
+    const y = e.clientY - rect.top;  // y position within the element.
+    
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    const rotateX = ((y - centerY) / centerY) * -10; // Max 10deg rotation
+    const rotateY = ((x - centerX) / centerX) * 10;
+
+    gsap.to(cardRef, {
+        rotateX: rotateX,
+        rotateY: rotateY,
+        scale: 1.05,
+        boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+        duration: 0.3,
+        ease: "power2.out"
+    });
+  };
+
+  const handleCardMouseLeave = (cardRef) => {
+      if (window.innerWidth < 768 || !cardRef) return;
+      gsap.to(cardRef, {
+          rotateX: 0,
+          rotateY: 0,
+          scale: 1,
+          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+          duration: 0.5,
+          ease: "elastic.out(1, 0.5)" // Smooth elastic return
+      });
+  };
+
+
+  // Hero Slide Animation Logic
   const animateSlide = useCallback((newIndex) => {
     if (isAnimating || !slideRefs.current[newIndex]) return;
     setIsAnimating(true);
 
-    const currentContent = contentRefs.current[currentSlide];
-    const currentImage = imageRefs.current[currentSlide];
-    const currentSlideEl = slideRefs.current[currentSlide];
-    
-    const newContent = contentRefs.current[newIndex];
-    const newImage = imageRefs.current[newIndex];
-    const newSlideEl = slideRefs.current[newIndex];
+    const current = {
+        content: contentRefs.current[currentSlide],
+        image: imageRefs.current[currentSlide],
+        slide: slideRefs.current[currentSlide]
+    };
+    const next = {
+        content: contentRefs.current[newIndex],
+        image: imageRefs.current[newIndex],
+        slide: slideRefs.current[newIndex]
+    };
 
     const tl = gsap.timeline({
-      onComplete: () => {
-        setCurrentSlide(newIndex);
-        setIsAnimating(false);
-      }
+      onComplete: () => { setCurrentSlide(newIndex); setIsAnimating(false); }
     });
 
-    tl.to(currentContent, { y: -30, opacity: 0, duration: 0.4, ease: 'power2.in' }, 0)
-      .to(currentImage, { scale: 1.05, opacity: 0, duration: 0.4 }, 0)
-      .set(currentSlideEl, { visibility: 'hidden', zIndex: 0 });
+    // Out animation
+    tl.to(current.content, { y: -50, opacity: 0, duration: 0.5, ease: 'power3.in' }, 0)
+      .to(current.image, { scale: 1.1, opacity: 0, duration: 0.5 }, 0)
+      .set(current.slide, { visibility: 'hidden', zIndex: 0 });
 
-    tl.set(newSlideEl, { visibility: 'visible', zIndex: 10 }, 0)
-      .fromTo(newImage, 
-        { scale: 1.1, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.6, ease: 'power2.out' }, 0.1
-      )
-      .fromTo(newContent,
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.6, ease: 'back.out(1.2)' }, 0.2
-      );
+    // In animation
+    tl.set(next.slide, { visibility: 'visible', zIndex: 10 }, 0)
+      .fromTo(next.image, { scale: 1.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 1, ease: 'power3.out' }, 0.1)
+      .fromTo(next.content, { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'back.out(1.2)' }, 0.3);
+
   }, [currentSlide, isAnimating]);
 
-  const nextSlide = useCallback(() => {
-    if (heroSlides.length < 2) return;
-    const next = (currentSlide + 1) % heroSlides.length;
-    animateSlide(next);
-  }, [currentSlide, animateSlide, heroSlides.length]);
-
-  const prevSlide = useCallback(() => {
-    if (heroSlides.length < 2) return;
-    const prev = currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1;
-    animateSlide(prev);
-  }, [currentSlide, animateSlide, heroSlides.length]);
-
-  // Touch Swipe
-  const handleTouchEnd = () => {
-    const diff = touchStartX.current - touchEndX.current;
-    if (Math.abs(diff) > 50) {
-      diff > 0 ? nextSlide() : prevSlide();
-    }
-  };
-
+  // Autoplay
   useEffect(() => {
     if (heroSlides.length <= 1) return;
-    const autoplay = setInterval(() => { if(!isAnimating) nextSlide(); }, 6000);
+    const autoplay = setInterval(() => {
+        if(!isAnimating) animateSlide((currentSlide + 1) % heroSlides.length);
+    }, 6000);
     return () => clearInterval(autoplay);
-  }, [heroSlides.length, isAnimating, nextSlide]);
+  }, [heroSlides.length, isAnimating, currentSlide, animateSlide]);
+
 
   return (
     <Layout>
-      {/* Light Mode Glow Fix: visible darker glow in light mode, bright in dark */}
-      <div 
-        ref={mouseGlowRef}
-        className="fixed top-0 left-0 w-[300px] h-[300px] bg-primary/20 blur-[80px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0 hidden md:block mix-blend-multiply dark:mix-blend-normal"
-      />
-
       {/* Hero Section */}
-      <section 
-        className="relative overflow-hidden bg-background"
-        onTouchStart={e => touchStartX.current = e.touches[0].clientX}
-        onTouchMove={e => touchEndX.current = e.touches[0].clientX}
-        onTouchEnd={handleTouchEnd}
-      >
+      <section ref={heroSectionRef} className="relative overflow-hidden bg-background group">
         <ParticleBackground />
 
         {heroLoading || heroSlides.length === 0 ? <HeroSkeleton /> : (
-          <div className="relative min-h-[450px] md:min-h-[550px]">
+          <div className="relative h-[500px] md:h-[650px]"> {/* Increased height for desktop vibe */}
             {heroSlides.map((slide, index) => (
               <div
                 key={slide.id || index}
                 ref={el => slideRefs.current[index] = el}
-                className="absolute inset-0 overflow-hidden flex items-center md:items-end pb-20"
+                className="absolute inset-0 overflow-hidden flex items-center pb-16 md:pb-0"
                 style={{ visibility: index === 0 ? 'visible' : 'hidden', zIndex: index === 0 ? 10 : 0 }}
               >
-                <div className="absolute inset-0 z-[-1]">
+                {/* Image with Parallax Ref */}
+                <div className="absolute inset-0 z-[-1] overflow-hidden" style={{transform: 'translateZ(0)'}}> {/* Hardware acceleration fix */}
                     <img
                         ref={el => imageRefs.current[index] = el}
                         src={slide.image}
                         alt={slide.title}
-                        className="w-full h-full object-cover brightness-[0.85] dark:brightness-75"
+                        className="w-full h-[110%] object-cover brightness-[0.9] dark:brightness-75 scale-105" // Start slightly scaled for parallax room
                         loading={index === 0 ? 'eager' : 'lazy'}
                     />
-                    <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-40 mix-blend-multiply`} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+                    {/* Improved Gradient for Light Mode contrast */}
+                    <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient || 'from-black/50 to-black/10'} mix-blend-multiply`} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
                 </div>
 
-                <div className="container mx-auto px-4 relative z-10">
-                  <div ref={el => contentRefs.current[index] = el} className="max-w-lg">
-                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-background/20 backdrop-blur-md border border-white/20 text-xs font-semibold mb-4 text-foreground shadow-sm">
-                      <Sparkles className="w-3 h-3 text-primary animate-pulse" />
-                      {slide.badge || 'Featured'}
+                <div className="container mx-auto px-4 relative z-10 flex items-end h-full pb-20 md:pb-32">
+                  <div ref={el => contentRefs.current[index] = el} className="max-w-2xl">
+                    <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-semibold mb-6 text-white shadow-sm">
+                      <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                      {slide.badge || 'Featured Collection'}
                     </span>
-                    <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold mb-3 tracking-tight text-foreground drop-shadow-lg">
+                    {/* Text Shadow Added for Light Mode "Pop" */}
+                    <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold mb-4 tracking-tight text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.3)]">
                       {slide.title}
                     </h1>
-                    <p className="text-base md:text-lg text-white/90 dark:text-muted-foreground mb-6 font-medium leading-relaxed drop-shadow-md">
+                    <p className="text-lg md:text-xl text-white/90 mb-8 font-medium leading-relaxed max-w-xl drop-shadow-sm">
                       {slide.subtitle}
                     </p>
                     <Button 
                       asChild 
                       size="lg" 
-                      className="h-12 px-8 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 bg-primary hover:bg-primary/90 text-primary-foreground"
+                      className="h-14 px-10 text-lg rounded-full shadow-xl shadow-primary/20 hover:scale-105 hover:shadow-primary/40 active:scale-95 transition-all duration-300 bg-primary text-primary-foreground group-hover:animate-shimmer bg-[linear-gradient(110deg,#0000,45%,#fff3,55%,#0000)] bg-[length:200%_100%]"
                     >
                       <Link to={slide.link || '/products'}>
-                        Shop Now <ArrowRight className="ml-2 w-4 h-4" />
+                        Shop Now <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                       </Link>
                     </Button>
                   </div>
@@ -322,15 +347,15 @@ const HomePage = () => {
               </div>
             ))}
             
-            {/* Compact Indicators */}
+            {/* Indicators */}
             {heroSlides.length > 1 && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
                 {heroSlides.map((_, i) => (
                     <button
                     key={i}
                     onClick={() => i !== currentSlide && animateSlide(i)}
-                    className={`h-1 rounded-full transition-all duration-300 ${
-                        i === currentSlide ? 'w-8 bg-primary' : 'w-2 bg-white/50 hover:bg-white'
+                    className={`h-1.5 rounded-full transition-all duration-500 ease-out ${
+                        i === currentSlide ? 'w-10 bg-primary' : 'w-2 bg-white/50 hover:bg-white hover:w-4'
                     }`}
                     aria-label={`Go to slide ${i + 1}`}
                     />
@@ -341,62 +366,65 @@ const HomePage = () => {
         )}
       </section>
 
-      {/* Compact Features Bar */}
-      <section className="relative z-10 -mt-6 mb-8 px-4">
+      {/* Features Section - MOVED DOWN & Glassmorphic Look */}
+      <section ref={featuresRef} className="relative z-10 py-12 px-4 bg-background">
         <div className="container mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-card/80 backdrop-blur-md border border-border/40 p-3 rounded-2xl shadow-xl dark:shadow-none">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Truck, title: 'Free Shipping', desc: 'Over $100' },
-              { icon: Shield, title: 'Secure Pay', desc: '100% Safe' },
-              { icon: Clock, title: 'Fast Delivery', desc: 'Global' },
-              { icon: Headphones, title: 'Support', desc: '24/7' },
+              { icon: Truck, title: 'Free Shipping', desc: 'On orders over $100' },
+              { icon: Shield, title: 'Secure Payment', desc: '100% protected transactions' },
+              { icon: Clock, title: 'Fast Delivery', desc: 'Track your package worldwide' },
+              { icon: Headphones, title: '24/7 Support', desc: 'Dedicated support team' },
             ].map((f, i) => (
-              <div key={i} className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 p-2 hover:bg-accent/30 rounded-xl transition-colors">
-                <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
-                  <f.icon className="w-5 h-5" />
+              // Feature Card with Hover Elevation
+              <div key={i} className="feature-card flex flex-col items-center text-center p-6 rounded-3xl bg-card/50 backdrop-blur-lg border border-border/50 shadow-sm hover:shadow-xl hover:bg-card hover:-translate-y-2 transition-all duration-300 group">
+                <div className="p-4 rounded-2xl bg-primary/10 text-primary mb-4 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                  <f.icon className="w-8 h-8" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-sm text-foreground leading-tight">{f.title}</h3>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">{f.desc}</p>
-                </div>
+                <h3 className="font-bold text-lg text-foreground mb-2">{f.title}</h3>
+                <p className="text-sm text-muted-foreground">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Optimized Categories */}
-      <section id="categories-section" className="py-10 bg-background/50">
+      {/* Categories Section */}
+      <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Categories</h2>
-            <Link to="/products" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
-              All <ArrowRight className="w-3 h-3" />
+          <div className="flex items-end justify-between mb-10">
+            <div>
+                <span className="text-primary font-semibold tracking-wider uppercase text-sm">Curated For You</span>
+                <h2 className="text-3xl font-bold mt-2">Browse Categories</h2>
+            </div>
+            <Link to="/products" className="group flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
+              View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
           
           {categoriesLoading ? (
-             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-               {[...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-2xl bg-muted animate-pulse" />)}
+             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+               {[...Array(6)].map((_, i) => <div key={i} className="aspect-square rounded-3xl bg-muted animate-pulse" />)}
              </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-              {categories.slice(0, 8).map((cat) => (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+              {categories.slice(0, 6).map((cat) => (
                 <Link
                   key={cat.id}
                   to={`/products?category=${cat.id}`}
-                  className="category-item group flex flex-col items-center gap-2 p-3 rounded-2xl bg-card border border-border/40 hover:border-primary/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 active:scale-95"
+                  className="category-item-anim group flex flex-col items-center text-center gap-3"
                 >
-                  <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden bg-muted">
+                  {/* Hover: Subtle Rotate and Glow */}
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-muted shadow-md group-hover:shadow-primary/30 group-hover:rotate-3 transition-all duration-500 ease-out">
                     {cat.image_url ? (
                       <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xl bg-primary/5 text-primary">
-                        {cat.icon || '📦'}
+                      <div className="w-full h-full flex items-center justify-center text-3xl bg-primary/5 text-primary group-hover:bg-primary/10 transition-colors">
+                        {cat.icon || '✨'}
                       </div>
                     )}
                   </div>
-                  <span className="text-xs font-semibold text-center truncate w-full px-1">{cat.name}</span>
+                  <span className="text-sm font-semibold group-hover:text-primary transition-colors">{cat.name}</span>
                 </Link>
               ))}
             </div>
@@ -404,31 +432,39 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Trending Section - Faster Load Perception */}
-      <section id="featured-section" className="py-10">
+      {/* Trending Section - With 3D Tilt on Desktop */}
+      <section className="py-16 bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-             <h2 className="text-2xl font-bold">Trending Now</h2>
-             <div className="h-1 w-16 bg-primary rounded-full hidden sm:block" />
+          <div className="text-center mb-12">
+             <h2 className="text-3xl font-bold">Trending Now</h2>
+             <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mt-4" />
           </div>
           
           {productsLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="space-y-3">
-                   <div className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />
-                   <div className="h-4 w-2/3 bg-muted animate-pulse rounded" />
-                   <div className="h-4 w-1/3 bg-muted animate-pulse rounded" />
-                </div>
+                <div key={i} className="aspect-[3/4] rounded-3xl bg-muted animate-pulse" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {featuredProducts.map((product) => (
-                 <div className="product-card-anim h-full" key={product.id}>
-                    <ProductCard product={product} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 lg:gap-8">
+              {featuredProducts.map((product) => {
+                 const cardRef = useRef(null);
+                 return (
+                 // Wrapper for 3D Tilt Effect
+                 <div 
+                    className="product-card-wrapper h-full perspective-1000" 
+                    key={product.id}
+                    ref={cardRef}
+                    onMouseMove={(e) => handleCardMouseMove(e, cardRef.current)}
+                    onMouseLeave={() => handleCardMouseLeave(cardRef.current)}
+                 >
+                    {/* Ensure ProductCard has h-full and w-full */}
+                    <div className="h-full w-full transition-all duration-300" style={{ transformStyle: 'preserve-3d' }}>
+                        <ProductCard product={product} />
+                    </div>
                  </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
