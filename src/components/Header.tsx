@@ -1,13 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap, AlertCircle, Menu } from 'lucide-react';
+import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, X, Zap, AlertCircle, Menu } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import gsap from 'gsap';
-import { useGSAP } from '@gsap/react'; // Make sure to install: npm install @gsap/react
 
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -22,6 +21,7 @@ const Header: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]); 
   const [isSearching, setIsSearching] = useState(false);
+  const [activeButton, setActiveButton] = useState<string | null>(null);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -111,46 +111,53 @@ const Header: React.FC = () => {
     }
   };
 
-  // Button Hover Animation (3D Rotate & Rainbow)
-  const animateButton = (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>, enter: boolean) => {
-    const target = e.currentTarget;
-    const icon = target.querySelector('svg');
-    
-    if (enter) {
-      // Button Background Gradient & Glow
+  // Button Click Animation (3D Rotate & Rainbow)
+  const animateButton = (buttonId: string) => {
+    setActiveButton(buttonId);
+    const target = document.getElementById(buttonId);
+    const icon = target?.querySelector('svg');
+
+    if (target && icon) {
       gsap.to(target, {
         background: "linear-gradient(135deg, rgba(255,0,150,0.2), rgba(0,204,255,0.2))",
         boxShadow: "0 0 15px rgba(255,255,255,0.3)",
         scale: 1.1,
-        duration: 0.3,
+        duration: 0.2,
         ease: "back.out(1.7)"
       });
-      // Icon 3D Rotation
-      if (icon) {
-        gsap.to(icon, {
-          rotation: 360,
-          scale: 1.2,
-          duration: 0.5,
-          ease: "elastic.out(1, 0.5)"
-        });
-      }
-    } else {
-      gsap.to(target, {
-        background: "transparent",
-        boxShadow: "none",
-        scale: 1,
+      gsap.to(icon, {
+        rotation: 360,
+        scale: 1.2,
         duration: 0.3,
-        ease: "power2.out"
+        ease: "elastic.out(1, 0.5)"
       });
-      if (icon) {
-        gsap.to(icon, {
-          rotation: 0,
-          scale: 1,
-          duration: 0.3
-        });
-      }
     }
   };
+
+  // Revert Button Animation on Mouse Up/Touch End
+  const revertButtonAnimation = (buttonId: string) => {
+    if (activeButton === buttonId) {
+        const target = document.getElementById(buttonId);
+        const icon = target?.querySelector('svg');
+
+        if (target && icon) {
+          gsap.to(target, {
+            background: "transparent",
+            boxShadow: "none",
+            scale: 1,
+            duration: 0.2,
+            ease: "power2.out"
+          });
+          gsap.to(icon, {
+            rotation: 0,
+            scale: 1,
+            duration: 0.2
+          });
+        }
+        setActiveButton(null);
+    }
+  };
+
 
   // Menu Animation
   useEffect(() => {
@@ -183,155 +190,161 @@ const Header: React.FC = () => {
       <header 
         ref={headerRef}
         className={`fixed top-4 left-4 right-4 z-50 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]
-          ${scrolled 
-            ? 'bg-black/40 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]' 
-            : 'bg-transparent border border-transparent'}
-          rounded-2xl md:top-6 md:left-8 md:right-8 md:rounded-full`}
+          bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]
+          rounded-full h-16 flex items-center`}
       >
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-14 md:h-16">
-            
-            {/* Left Section: Menu Button & Logo */}
-            <div className="flex items-center gap-4">
-              {/* Menu Toggle Button (Left Side) */}
-              <button 
-                onClick={() => setMenuOpen(true)}
-                onMouseEnter={(e) => animateButton(e, true)}
-                onMouseLeave={(e) => animateButton(e, false)}
-                className="p-2 rounded-full text-foreground hover:text-primary transition-colors relative group"
-              >
-                <Menu className="w-6 h-6" />
-                {(itemCount > 0 || wishlistCount > 0) && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-              </button>
+        <div className="container mx-auto px-4 h-full flex items-center justify-between">
+          
+          {/* Left Section: Menu Button & Logo */}
+          <div className="flex items-center gap-4">
+            {/* Menu Toggle Button (Left Side) */}
+            <button 
+              id="menu-button"
+              onMouseDown={() => animateButton("menu-button")}
+              onMouseUp={() => revertButtonAnimation("menu-button")}
+              onTouchStart={() => animateButton("menu-button")}
+              onTouchEnd={() => revertButtonAnimation("menu-button")}
+              onClick={() => setMenuOpen(true)}
+              className="p-2.5 rounded-full text-foreground hover:text-primary transition-colors relative group"
+            >
+              <Menu className="w-6 h-6" />
+              {(itemCount > 0 || wishlistCount > 0) && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+            </button>
 
-              {/* LOGO: MIRAE. (Golden & Animated) */}
-              <Link 
-                to="/" 
-                ref={logoRef}
-                onMouseEnter={() => handleLogoHover(true)}
-                onMouseLeave={() => handleLogoHover(false)}
-                className="relative z-[60] select-none"
+            {/* LOGO: MIRAE. (Golden & Animated) */}
+            <Link 
+              to="/" 
+              ref={logoRef}
+              onMouseEnter={() => handleLogoHover(true)}
+              onMouseLeave={() => handleLogoHover(false)}
+              className="relative z-[60] select-none"
+            >
+              <span 
+                className="text-2xl md:text-3xl font-black tracking-tight"
+                style={{
+                  background: 'linear-gradient(to bottom, #FBF5B7 0%, #BF953F 40%, #AA771C 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.3))'
+                }}
               >
-                <span 
-                  className="text-2xl md:text-3xl font-black tracking-tight"
-                  style={{
-                    background: 'linear-gradient(to bottom, #FBF5B7 0%, #BF953F 40%, #AA771C 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.3))'
-                  }}
-                >
-                  MIRAE.
-                </span>
-              </Link>
-            </div>
-
-            {/* Middle Section: Desktop Nav (Optional, kept minimal) */}
-            <nav className="hidden lg:flex items-center gap-2">
-               {['/', '/products'].map((path) => (
-                  <Link 
-                    key={path} 
-                    to={path}
-                    onMouseEnter={(e) => animateButton(e, true)}
-                    onMouseLeave={(e) => animateButton(e, false)}
-                    className="px-6 py-2 rounded-full text-sm font-semibold text-foreground/80 hover:text-white transition-all border border-transparent hover:border-white/10"
-                  >
-                    {path === '/' ? 'Home' : 'Collection'}
-                  </Link>
-               ))}
-            </nav>
-
-            {/* Right Section: Actions */}
-            <div className="flex items-center gap-2 md:gap-3">
-              {/* Search Toggle */}
-              <button 
-                onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100); }} 
-                onMouseEnter={(e) => animateButton(e, true)}
-                onMouseLeave={(e) => animateButton(e, false)}
-                className="p-2.5 rounded-full text-foreground transition-all"
-              >
-                {searchOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
-              </button>
-
-              {/* Theme Toggle */}
-              <button 
-                onClick={toggleTheme} 
-                onMouseEnter={(e) => animateButton(e, true)}
-                onMouseLeave={(e) => animateButton(e, false)}
-                className="p-2.5 rounded-full text-foreground transition-all"
-              >
-                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              
-               {/* Cart (Desktop) */}
-               <Link 
-                  to="/cart"
-                  onMouseEnter={(e) => animateButton(e, true)}
-                  onMouseLeave={(e) => animateButton(e, false)}
-                  className="hidden md:flex p-2.5 rounded-full text-foreground relative"
-               >
-                  <ShoppingCart className="w-5 h-5" />
-                  {itemCount > 0 && <span className="absolute top-0 right-0 w-4 h-4 text-[10px] bg-primary text-white rounded-full flex items-center justify-center border border-background">{itemCount}</span>}
-               </Link>
-            </div>
+                MIRAE.
+              </span>
+            </Link>
           </div>
 
-          {/* Search Bar Dropdown (Floating) */}
-          {searchOpen && (
-            <div className="absolute top-full left-0 right-0 mt-4 px-2 animate-in slide-in-from-top-4 duration-300">
-              <div className="bg-background/90 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl p-4 overflow-hidden relative">
-                {/* Search Input */}
-                <form onSubmit={handleSearchSubmit} className="relative z-10">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <input
-                    id="search-input"
-                    type="text"
-                    placeholder="Search for luxury items..."
-                    autoFocus
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-white/5 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-[#BF953F]/50 text-foreground placeholder:text-muted-foreground border border-white/10 transition-all"
-                  />
-                  {isSearching && <div className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />}
-                </form>
+          {/* Middle Section: Desktop Nav (Optional, kept minimal) */}
+          <nav className="hidden lg:flex items-center gap-2">
+             {['/', '/products'].map((path) => (
+                <Link 
+                  key={path} 
+                  to={path}
+                  className="px-6 py-2 rounded-full text-sm font-semibold text-foreground/80 hover:text-white transition-all border border-transparent hover:border-white/10"
+                >
+                  {path === '/' ? 'Home' : 'Collection'}
+                </Link>
+             ))}
+          </nav>
 
-                {/* Suggestions List */}
-                {searchTerm.trim() && (
-                  <div className="mt-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                    {suggestions.length > 0 ? (
-                      suggestions.map((product) => (
-                        <Link
-                          key={product.id}
-                          to={`/products/${product.slug || product.id}`}
-                          onClick={() => { setSearchOpen(false); setSearchTerm(''); }}
-                          className="flex items-center gap-4 p-3 hover:bg-white/10 rounded-xl transition-all group"
-                        >
-                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted relative">
-                             {product.image ? (
-                               <img src={product.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                             ) : (
-                               <Package className="w-6 h-6 text-muted-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                             )}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground group-hover:text-[#BF953F] transition-colors">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">Rs. {product.price?.toLocaleString()}</p>
-                          </div>
-                        </Link>
-                      ))
-                    ) : (
-                       !isSearching && (
-                        <div className="py-8 text-center text-muted-foreground">
-                          <p>No results found for "{searchTerm}"</p>
-                        </div>
-                       )
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Right Section: Actions */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Search Toggle */}
+            <button 
+              id="search-button"
+              onMouseDown={() => animateButton("search-button")}
+              onMouseUp={() => revertButtonAnimation("search-button")}
+              onTouchStart={() => animateButton("search-button")}
+              onTouchEnd={() => revertButtonAnimation("search-button")}
+              onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100); }} 
+              className="p-2.5 rounded-full text-foreground transition-all"
+            >
+              {searchOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
+            </button>
+
+            {/* Theme Toggle */}
+            <button 
+              id="theme-button"
+              onMouseDown={() => animateButton("theme-button")}
+              onMouseUp={() => revertButtonAnimation("theme-button")}
+              onTouchStart={() => animateButton("theme-button")}
+              onTouchEnd={() => revertButtonAnimation("theme-button")}
+              onClick={toggleTheme} 
+              className="p-2.5 rounded-full text-foreground transition-all"
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            
+             {/* Cart (Desktop) */}
+             <Link 
+                to="/cart"
+                id="cart-button"
+                onMouseDown={() => animateButton("cart-button")}
+                onMouseUp={() => revertButtonAnimation("cart-button")}
+                onTouchStart={() => animateButton("cart-button")}
+                onTouchEnd={() => revertButtonAnimation("cart-button")}
+                className="hidden md:flex p-2.5 rounded-full text-foreground relative"
+             >
+                <ShoppingCart className="w-5 h-5" />
+                {itemCount > 0 && <span className="absolute top-0 right-0 w-4 h-4 text-[10px] bg-primary text-white rounded-full flex items-center justify-center border border-background">{itemCount}</span>}
+             </Link>
+          </div>
         </div>
+
+        {/* Search Bar Dropdown (Floating) */}
+        {searchOpen && (
+          <div className="absolute top-full left-0 right-0 mt-4 px-2 animate-in slide-in-from-top-4 duration-300">
+            <div className="bg-background/90 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl p-4 overflow-hidden relative">
+              {/* Search Input */}
+              <form onSubmit={handleSearchSubmit} className="relative z-10">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <input
+                  id="search-input"
+                  type="text"
+                  placeholder="Search for luxury items..."
+                  autoFocus
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-[#BF953F]/50 text-foreground placeholder:text-muted-foreground border border-white/10 transition-all"
+                />
+                {isSearching && <div className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />}
+              </form>
+
+              {/* Suggestions List */}
+              {searchTerm.trim() && (
+                <div className="mt-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {suggestions.length > 0 ? (
+                    suggestions.map((product) => (
+                      <Link
+                        key={product.id}
+                        to={`/products/${product.slug || product.id}`}
+                        onClick={() => { setSearchOpen(false); setSearchTerm(''); }}
+                        className="flex items-center gap-4 p-3 hover:bg-white/10 rounded-xl transition-all group"
+                      >
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted relative">
+                           {product.image ? (
+                             <img src={product.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                           ) : (
+                             <Package className="w-6 h-6 text-muted-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                           )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground group-hover:text-[#BF953F] transition-colors">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">Rs. {product.price?.toLocaleString()}</p>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                     !isSearching && (
+                      <div className="py-8 text-center text-muted-foreground">
+                        <p>No results found for "{searchTerm}"</p>
+                      </div>
+                     )
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Full Screen Menu Overlay */}
@@ -359,7 +372,15 @@ const Header: React.FC = () => {
               >
                 MIRAE.
               </span>
-              <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+              <button 
+                id="menu-close-button"
+                onMouseDown={() => animateButton("menu-close-button")}
+                onMouseUp={() => revertButtonAnimation("menu-close-button")}
+                onTouchStart={() => animateButton("menu-close-button")}
+                onTouchEnd={() => revertButtonAnimation("menu-close-button")}
+                onClick={() => setMenuOpen(false)} 
+                className="p-2.5 rounded-full hover:bg-white/10 transition-colors"
+              >
                 <X className="w-6 h-6" />
               </button>
             </div>
