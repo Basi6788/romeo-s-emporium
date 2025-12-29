@@ -1,13 +1,14 @@
-import React, { useRef, useState } from 'react';
+
+import React, { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Facebook, Twitter, Instagram, Youtube, 
   Mail, Phone, MapPin, MessageCircle, 
-  Home, Box, Tag, FileText, HelpCircle, Truck, RefreshCw, AlertCircle, Check
+  Home, Box, Tag, FileText, HelpCircle, Truck, RefreshCw, AlertCircle, X, Check
 } from 'lucide-react';
 import gsap from 'gsap';
 
-// --- Styles (Optimized) ---
+// --- Styles (Updated) ---
 const styles = `
   /* Gradient Text Fix */
   .mirae-gradient-text {
@@ -70,27 +71,37 @@ const styles = `
     to { background-position: 200% center; }
   }
   
-  /* Modal Overlay - Scroll Lock Fix */
+  /* Modal Overlay - Fixed Positioning Fix */
   .modal-overlay {
     background: rgba(0,0,0,0.7);
     backdrop-filter: blur(8px);
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    z-index: 10000;
+    z-index: 10000; /* Highest Z-Index to stay on top */
     display: flex;
     align-items: center;
     justify-content: center;
-    overscroll-behavior: contain; /* Prevents scroll chaining */
   }
 `;
 
 const Footer: React.FC = () => {
   const logoTextRef = useRef<HTMLHeadingElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null); // Ref for scrolling
   
   // State for Redirect Logic
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingLink, setPendingLink] = useState<{url: string, name: string} | null>(null);
+
+  // --- Auto Scroll Logic Fix ---
+  useEffect(() => {
+    if (modalOpen && modalRef.current) {
+      // Jab modal open ho, thora sa wait kar ke scroll karo ta ke wo view me aa jaye
+      setTimeout(() => {
+        modalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [modalOpen]);
 
   // --- 1. Animation Logic ---
   const handleLogoHover = () => {
@@ -199,9 +210,9 @@ const Footer: React.FC = () => {
   ];
 
   return (
-    // 'w-full' ensures it takes full width but not more. 
-    // 'mb-0' forces no margin at bottom.
-    <footer className="footer-container relative w-full bg-gray-50 dark:bg-[#050505] text-gray-800 dark:text-gray-200 mt-auto transition-colors duration-300 z-50 mb-0">
+    // Updated: Removed 'overflow-hidden' from main footer to allow Modal to be Fixed correctly
+    // Added 'relative' to keep structure
+    <footer className="footer-container relative bg-gray-50 dark:bg-[#050505] text-gray-800 dark:text-gray-200 mt-auto transition-colors duration-300">
       <style>{styles}</style>
 
       {/* --- OUTRO ANIMATION OVERLAY --- */}
@@ -212,10 +223,9 @@ const Footer: React.FC = () => {
         <span className="text-gold-gradient text-4xl font-bold animate-pulse">MIRAE</span>
       </div>
 
-      {/* --- REDIRECT MODAL --- */}
-      {/* Scroll issue fix: No scrollIntoView needed, overlay covers everything fixedly */}
+      {/* --- REDIRECT MODAL (Placed outside overflow-hidden wrapper) --- */}
       {modalOpen && (
-        <div className="modal-overlay p-4">
+        <div ref={modalRef} className="modal-overlay p-4">
           <div className="glass-panel p-8 rounded-2xl max-w-sm w-full text-center transform transition-all scale-100 animate-in fade-in zoom-in duration-300 shadow-2xl">
             <div className="mx-auto w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mb-4">
               <AlertCircle className="w-8 h-8 text-yellow-500" />
@@ -243,10 +253,10 @@ const Footer: React.FC = () => {
       )}
 
       {/* --- Main Content Wrapper (Overflow Hidden applied here) --- */}
-      {/* Strictly handles overflow for background blobs so they don't cause scrollbars */}
-      <div className="overflow-hidden relative pt-16 pb-8 w-full">
+      {/* Ye wrapper extra scroll issue solve karega */}
+      <div className="overflow-hidden relative pt-16 pb-8">
         
-        {/* Ambient Background Glows - Contained strictly inside this div */}
+        {/* Ambient Background Glows */}
         <div className="absolute top-0 left-1/4 w-80 h-80 bg-yellow-500/10 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-purple-900/10 rounded-full blur-[100px] pointer-events-none" />
 
@@ -405,4 +415,3 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
-
