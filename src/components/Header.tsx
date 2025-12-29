@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
@@ -20,7 +19,7 @@ const styles = `
 
   /* MIRAE Custom Font Style (Grift-like) */
   .brand-font {
-    font-family: 'Orbitron', 'Michroma', sans-serif; /* Fallback if Grift isn't loaded */
+    font-family: 'Orbitron', 'Michroma', sans-serif;
     font-weight: 900;
     letter-spacing: 0.15em;
     text-transform: uppercase;
@@ -34,49 +33,69 @@ const styles = `
     filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
   }
 
-  /* NEON RAINBOW BORDER ANIMATION */
+  /* NEON RAINBOW BORDER ANIMATION FOR WINDOW BORDER ONLY */
   @keyframes borderRotate {
     100% { background-position: 200% 0; }
   }
 
-  .neon-border-container {
+  /* Window Border Animation */
+  .window-neon-border {
     position: relative;
-    z-index: 1;
     overflow: hidden;
+    border-radius: 30px;
   }
 
-  /* The pseudo-element creating the rainbow border */
-  .neon-border-container::before {
+  .window-neon-border::before {
     content: '';
     position: absolute;
-    inset: -2px; /* Control border thickness */
+    inset: -3px;
     z-index: -1;
-    background: linear-gradient(90deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+    background: linear-gradient(90deg, 
+      rgba(255, 0, 0, 0.7),    /* Dimmed Red */
+      rgba(255, 115, 0, 0.7),  /* Dimmed Orange */
+      rgba(255, 251, 0, 0.7),  /* Dimmed Yellow */
+      rgba(72, 255, 0, 0.7),   /* Dimmed Green */
+      rgba(0, 255, 213, 0.7),  /* Dimmed Cyan */
+      rgba(0, 43, 255, 0.7),   /* Dimmed Blue */
+      rgba(122, 0, 255, 0.7),  /* Dimmed Purple */
+      rgba(255, 0, 200, 0.7),  /* Dimmed Pink */
+      rgba(255, 0, 0, 0.7)     /* Dimmed Red */
+    );
     background-size: 200% 100%;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.4s ease;
     border-radius: inherit;
+    animation: borderRotate 3s linear infinite paused;
+    filter: blur(4px);
   }
 
-  .neon-border-container:hover::before {
+  .window-neon-border:hover::before {
     opacity: 1;
-    animation: borderRotate 2s linear infinite;
-    filter: blur(4px); /* Creates the neon glow */
+    animation-play-state: running;
   }
 
   /* Inner background to cover the center of the rainbow */
-  .neon-border-container::after {
+  .window-neon-border::after {
     content: '';
     position: absolute;
-    inset: 1px; /* Must be slightly larger than inset of ::before */
-    background: inherit; /* Matches parent background */
+    inset: 2px;
+    background: inherit;
     border-radius: inherit;
     z-index: -1;
+  }
+
+  /* Card and Button Gradients (Dimmed) */
+  .dim-gradient-light {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15));
+  }
+
+  .dim-gradient-dark {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 140, 0, 0.1));
   }
 
   /* Glass Styles */
   .nav-glass {
-    backdrop-filter: blur(15px); /* Slightly reduced blur for performance */
+    backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
   }
   
@@ -89,14 +108,51 @@ const styles = `
     background: rgba(0, 0, 0, 0.7);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
+
+  /* Fix for search and menu buttons in light mode */
+  .light-mode-button {
+    background: rgba(0, 0, 0, 0.1) !important;
+    color: #000 !important;
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .light-mode-button:hover {
+    background: rgba(0, 0, 0, 0.15) !important;
+  }
+
+  /* MIRAE Logo Animation */
+  @keyframes spreadText {
+    0% {
+      letter-spacing: 0.15em;
+    }
+    50% {
+      letter-spacing: 0.3em;
+    }
+    100% {
+      letter-spacing: 0.15em;
+    }
+  }
+
+  .logo-spread {
+    animation: spreadText 2s ease-in-out;
+  }
+
+  /* Prevent keyboard opening on mobile */
+  input[type="text"]:focus {
+    outline: none;
+  }
 `;
 
 // --- Reusable Neon Button Component ---
-const NeonButton = ({ children, onClick, className = "", badge }) => {
+const NeonButton = ({ children, onClick, className = "", badge, isLightMode, isScrolled }) => {
+  const buttonClass = isScrolled && isLightMode 
+    ? `light-mode-button group relative flex items-center justify-center rounded-full transition-transform active:scale-95 ${className}`
+    : `neon-border-container group relative flex items-center justify-center rounded-full transition-transform active:scale-95 ${className}`;
+
   return (
     <button
       onClick={onClick}
-      className={`neon-border-container group relative flex items-center justify-center rounded-full transition-transform active:scale-95 ${className}`}
+      className={buttonClass}
     >
       <div className="relative z-10 flex items-center justify-center w-full h-full">
         {children}
@@ -115,14 +171,18 @@ const Header = React.memo(() => {
   const { isAuthenticated } = useAuth();
   const { itemCount } = useCart();
   const { wishlistCount } = useWishlist();
+  const location = useLocation();
   
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [logoAnimating, setLogoAnimating] = useState(false);
   
   const menuRef = useRef(null);
   const overlayRef = useRef(null);
   const logoRef = useRef(null);
+  const logoTextRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // --- 1. Scroll Logic ---
   useEffect(() => {
@@ -134,7 +194,6 @@ const Header = React.memo(() => {
   // --- 2. Optimized Menu Animation ---
   useEffect(() => {
     if (menuOpen && menuRef.current) {
-      // Use requestAnimationFrame for smoother start
       requestAnimationFrame(() => {
         const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
         
@@ -153,8 +212,8 @@ const Header = React.memo(() => {
             rotationX: 0, 
             opacity: 1, 
             scale: 1, 
-            duration: 0.5, // Slightly faster for snappier feel
-            force3D: true // Hardware acceleration
+            duration: 0.5,
+            force3D: true
           }
         );
 
@@ -177,20 +236,42 @@ const Header = React.memo(() => {
   }, [menuOpen]);
 
   // --- 3. Logo Animation ---
+  useEffect(() => {
+    if (logoAnimating && logoTextRef.current) {
+      const animation = gsap.to(logoTextRef.current, {
+        letterSpacing: "0.3em",
+        duration: 0.5,
+        ease: "power2.out",
+        onComplete: () => {
+          gsap.to(logoTextRef.current, {
+            letterSpacing: "0.15em",
+            duration: 0.5,
+            delay: 0.5,
+            ease: "power2.in",
+            onComplete: () => {
+              setLogoAnimating(false);
+            }
+          });
+        }
+      });
+
+      return () => {
+        animation.kill();
+      };
+    }
+  }, [logoAnimating]);
+
   const handleLogoHover = () => {
+    setLogoAnimating(true);
     gsap.to(logoRef.current, { scale: 1.05, duration: 0.3 });
   };
+
   const handleLogoLeave = () => {
     gsap.to(logoRef.current, { scale: 1, duration: 0.3 });
   };
 
-  // --- VISIBILITY LOGIC (Fixing the Invisible Icons) ---
+  // --- VISIBILITY LOGIC ---
   const isLight = theme === 'light';
-  
-  // Logic: 
-  // If Scrolled AND Light Mode -> Text Black, BG White.
-  // If Scrolled AND Dark Mode -> Text White, BG Black.
-  // If NOT Scrolled (Top) -> Text White (Assuming Hero is Dark), BG Transparent.
   
   const headerClass = scrolled 
     ? (isLight ? 'light-mode text-black' : 'dark-mode text-white') 
@@ -200,15 +281,28 @@ const Header = React.memo(() => {
     ? (isLight ? 'text-black' : 'text-white') 
     : 'text-white';
 
-  // Menu Items (Added Track Order back)
+  // Fix: Button color in light mode when scrolled
+  const buttonBgClass = scrolled && isLight 
+    ? 'light-mode-button'
+    : 'bg-white/10 hover:bg-white/20';
+
+  // Menu Items
   const menuItems = [
     { to: '/', label: 'Home', icon: Home },
     { to: '/products', label: 'Products', icon: Package },
     { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount },
     { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount },
-    { to: '/track-order', label: 'Track Order', icon: MapPin }, // <--- RESTORED
+    { to: '/track-order', label: 'Track Order', icon: MapPin },
     { to: isAuthenticated ? '/profile' : '/auth', label: isAuthenticated ? 'Account' : 'Sign In', icon: isAuthenticated ? Settings : LogIn },
   ];
+
+  // Handle search input focus to prevent keyboard on mobile
+  const handleSearchFocus = (e) => {
+    if (window.innerWidth <= 768) {
+      e.preventDefault();
+      e.target.blur();
+    }
+  };
 
   return (
     <>
@@ -221,34 +315,50 @@ const Header = React.memo(() => {
         <div className="container mx-auto px-4 h-full flex items-center justify-between">
           
           {/* LOGO */}
-          <Link to="/" className="flex items-center gap-2 group z-[60]">
+          <Link 
+            to="/" 
+            className="flex items-center gap-2 group z-[60]"
+            onMouseEnter={handleLogoHover}
+            onMouseLeave={handleLogoLeave}
+          >
              <img src="/logo-m.png" alt="M" className="w-8 h-8 object-contain drop-shadow-md group-hover:rotate-12 transition-transform duration-300" />
              <span 
                ref={logoRef}
-               onMouseEnter={handleLogoHover}
-               onMouseLeave={handleLogoLeave}
-               className="text-2xl brand-font gold-text-3d cursor-pointer"
+               className="text-2xl brand-font gold-text-3d cursor-pointer relative"
              >
-               MIRAE
+               <span 
+                 ref={logoTextRef}
+                 className={logoAnimating ? 'logo-spread' : ''}
+               >
+                 MIRAE
+               </span>
              </span>
           </Link>
 
           {/* CONTROLS */}
           <div className="flex items-center gap-3 z-[60]">
             
-            {/* Search Toggle */}
+            {/* Search Toggle - Fixed visibility in light mode */}
             <NeonButton 
               onClick={() => setSearchOpen(!searchOpen)} 
-              className={`w-10 h-10 ${scrolled && isLight ? 'bg-black/5 hover:bg-black/10' : 'bg-white/10 hover:bg-white/20'}`}
+              className={`w-10 h-10 transition-all ${buttonBgClass}`}
+              isLightMode={isLight}
+              isScrolled={scrolled}
             >
-              {searchOpen ? <X className={`w-5 h-5 ${iconColorClass}`} /> : <Search className={`w-5 h-5 ${iconColorClass}`} />}
+              {searchOpen ? (
+                <X className={`w-5 h-5 ${iconColorClass}`} />
+              ) : (
+                <Search className={`w-5 h-5 ${iconColorClass}`} />
+              )}
             </NeonButton>
 
-            {/* Menu Toggle */}
+            {/* Menu Toggle - Fixed visibility in light mode */}
             <NeonButton 
               onClick={() => setMenuOpen(true)} 
-              className={`w-10 h-10 ${scrolled && isLight ? 'bg-black/5 hover:bg-black/10' : 'bg-white/10 hover:bg-white/20'}`}
+              className={`w-10 h-10 transition-all ${buttonBgClass}`}
               badge={itemCount > 0 ? itemCount : null}
+              isLightMode={isLight}
+              isScrolled={scrolled}
             >
               <MenuIcon className={`w-5 h-5 ${iconColorClass}`} />
             </NeonButton>
@@ -256,15 +366,17 @@ const Header = React.memo(() => {
           </div>
         </div>
 
-        {/* SEARCH BAR (Fixed Visibility) */}
+        {/* SEARCH BAR - Fixed with proper visibility */}
         <div className={`absolute top-full left-0 right-0 overflow-hidden transition-all duration-300 ease-out ${searchOpen ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
            <div className={`p-4 backdrop-blur-xl border-b ${isLight ? 'bg-white/95 border-gray-200' : 'bg-black/95 border-white/10'}`}>
               <div className="container mx-auto max-w-2xl">
                  <input 
+                   ref={searchInputRef}
                    type="text" 
                    placeholder="Search..." 
                    className={`w-full bg-transparent border-b-2 py-2 text-lg focus:outline-none ${isLight ? 'border-gray-300 text-black placeholder-gray-500' : 'border-gray-700 text-white placeholder-gray-400'} focus:border-yellow-500 transition-colors`}
                    autoFocus
+                   onFocus={handleSearchFocus}
                  />
               </div>
            </div>
@@ -284,16 +396,15 @@ const Header = React.memo(() => {
           <div 
             ref={menuRef}
             className={`
-              gpu-accelerated relative w-full max-w-sm mt-16 rounded-[30px] border opacity-0
-              ${isLight ? 'bg-white/90 border-white shadow-xl' : 'bg-[#0f0f0f]/95 border-white/10 shadow-2xl shadow-black/50'}
+              gpu-accelerated relative w-full max-w-sm mt-16 window-neon-border opacity-0
+              ${isLight ? 'bg-white/90 shadow-xl' : 'bg-[#0f0f0f]/95 shadow-2xl shadow-black/50'}
               backdrop-blur-xl overflow-hidden
             `}
           >
-            {/* Menu Header with @ROMEO Signature */}
+            {/* Menu Header */}
             <div className="flex items-center justify-between p-6 pb-2">
               <div className="flex flex-col">
                 <span className={`text-2xl font-black tracking-tighter ${isLight ? 'text-black' : 'text-white'}`}>MENU</span>
-                {/* SIGNATURE ADDED HERE */}
                 <span className="text-[10px] font-bold tracking-widest bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse">
                   Created By @ROMEO
                 </span>
@@ -313,9 +424,8 @@ const Header = React.memo(() => {
             <div className="p-4 grid grid-cols-2 gap-3">
               {menuItems.map((item, idx) => {
                 const isActive = location.pathname === item.to;
-                // Background logic for menu items
                 const itemBg = isActive 
-                    ? 'bg-gradient-to-br from-yellow-500/20 to-orange-600/20 border-yellow-500/30'
+                    ? (isLight ? 'dim-gradient-light border-yellow-500/30' : 'dim-gradient-dark border-yellow-500/30')
                     : (isLight ? 'bg-gray-100 hover:bg-white' : 'bg-white/5 hover:bg-white/10');
                 
                 const itemText = isLight ? 'text-gray-800' : 'text-gray-200';
@@ -326,7 +436,7 @@ const Header = React.memo(() => {
                     to={item.to}
                     onClick={() => setMenuOpen(false)}
                     className={`
-                      menu-item-anim neon-border-container group flex flex-col items-center justify-center p-5 rounded-2xl border border-transparent transition-all duration-300
+                      menu-item-anim flex flex-col items-center justify-center p-5 rounded-2xl border transition-all duration-300
                       ${itemBg}
                     `}
                   >
@@ -338,7 +448,7 @@ const Header = React.memo(() => {
                     </div>
                     <span className={`text-sm font-bold ${itemText}`}>{item.label}</span>
                     
-                    {item.badge && (
+                    {item.badge && item.badge > 0 && (
                        <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-md">
                          {item.badge}
                        </span>
@@ -352,10 +462,11 @@ const Header = React.memo(() => {
             <div className="p-6 pt-2">
                <button 
                  onClick={toggleTheme}
-                 className={`neon-border-container w-full flex items-center justify-center gap-3 py-3 rounded-xl border transition-all active:scale-95
+                 className={`
+                   w-full flex items-center justify-center gap-3 py-3 rounded-xl border transition-all active:scale-95
                    ${isLight 
-                     ? 'bg-gray-50 border-gray-200 text-black' 
-                     : 'bg-white/5 border-white/10 text-white'}
+                     ? 'light-mode-button text-black' 
+                     : 'neon-border-container bg-white/5 border-white/10 text-white'}
                  `}
                >
                  {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
