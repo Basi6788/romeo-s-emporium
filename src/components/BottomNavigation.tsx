@@ -1,6 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingBag, Heart, ShoppingCart, User, MapPin } from 'lucide-react';
+import { 
+  House, // Home ki jagah House (better filled look)
+  LayoutGrid, // Modern Shop Icon
+  Heart, 
+  ShoppingBasket, // Modern Cart Icon
+  User, 
+  MapPin,
+  Plane // Airplane icon
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
@@ -13,29 +21,31 @@ const BottomNavigation: React.FC = () => {
   const { itemCount: wishlistCount } = useWishlist();
   
   const navRef = useRef<HTMLElement>(null);
-  const lampRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   
   const [isVisible, setIsVisible] = useState(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [prevIndex, setPrevIndex] = useState(0);
+  const [isMoving, setIsMoving] = useState(false);
   
-  // Refs for scroll handling to avoid re-renders
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
   const isAdminPage = location.pathname.startsWith('/admin');
 
+  // Updated Modern & Filled Icons
   const navItems = [
-    { to: '/', label: 'Home', icon: Home },
-    { to: '/products', label: 'Shop', icon: ShoppingBag },
+    { to: '/', label: 'Home', icon: House },
+    { to: '/products', label: 'Shop', icon: LayoutGrid },
     { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount },
-    { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount },
+    { to: '/cart', label: 'Cart', icon: ShoppingBasket, badge: itemCount },
     { to: '/track-order', label: 'Track', icon: MapPin },
     { to: isAuthenticated ? '/profile' : '/auth', label: 'Account', icon: User },
   ];
 
-  // 1. Keyboard Detection
+  // 1. Keyboard Logic
   useEffect(() => {
     const handleResize = () => {
       if (window.visualViewport && window.visualViewport.height < window.innerHeight * 0.8) {
@@ -44,78 +54,77 @@ const BottomNavigation: React.FC = () => {
         setIsKeyboardOpen(false);
       }
     };
-
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleResize);
-    } else {
-      window.addEventListener('resize', handleResize);
-    }
-
-    return () => {
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleResize);
-      } else {
-        window.removeEventListener('resize', handleResize);
-      }
-    };
+    window.visualViewport?.addEventListener('resize', handleResize);
+    return () => window.visualViewport?.removeEventListener('resize', handleResize);
   }, []);
 
-  // 2. Initial Animation
+  // 2. Initial Pop-up Animation
   useEffect(() => {
     if (navRef.current && !isAdminPage) {
       gsap.fromTo(navRef.current,
-        { y: 100, opacity: 0, scale: 0.9 },
-        { y: 0, opacity: 1, scale: 1, duration: 1.2, ease: 'elastic.out(1, 0.75)', delay: 0.2 }
+        { y: 100, opacity: 0 },
+        { y: 0, opacity: 1, duration: 1, ease: 'power4.out', delay: 0.2 }
       );
     }
   }, [isAdminPage]);
 
-  // 3. Active Index Tracker
+  // 3. Active Index Sync
   useEffect(() => {
     const newIndex = navItems.findIndex(item => {
       if (item.to === '/') return location.pathname === '/';
       return location.pathname.startsWith(item.to);
     });
-    if (newIndex !== -1) setActiveIndex(newIndex);
+    
+    if (newIndex !== -1 && newIndex !== activeIndex) {
+      setPrevIndex(activeIndex); // Save previous index for direction
+      setActiveIndex(newIndex);
+    }
   }, [location.pathname]);
 
-  // 4. Main Animation Logic (Lamp + Icons)
+  // 4. AIRPLANE TO EARTH ANIMATION
   useEffect(() => {
-    if (activeIndex !== -1 && itemRefs.current[activeIndex] && lampRef.current) {
+    if (activeIndex !== -1 && itemRefs.current[activeIndex] && indicatorRef.current) {
       const activeItem = itemRefs.current[activeIndex];
       const navRect = navRef.current?.getBoundingClientRect();
       
       if (activeItem && navRect) {
+        setIsMoving(true); // Start moving (Show Plane)
+
         const itemRect = activeItem.getBoundingClientRect();
         const targetX = itemRect.left - navRect.left + (itemRect.width / 2);
 
-        // Move the Blob (Lamp)
-        gsap.to(lampRef.current, {
+        // Determine Direction for Plane rotation
+        const direction = activeIndex > prevIndex ? 1 : -1; 
+        const rotation = direction === 1 ? 45 : -45; // Tilt plane right or left
+
+        // Animate the Indicator Container
+        gsap.to(indicatorRef.current, {
           x: targetX,
-          duration: 0.5,
-          ease: 'back.out(1.7)'
+          duration: 0.6,
+          ease: 'power2.inOut',
+          onComplete: () => {
+            setIsMoving(false); // Stop moving (Show Earth)
+          }
         });
 
-        // Animate All Icons
+        // Animate Icons
         itemRefs.current.forEach((item, index) => {
           if (!item) return;
           const icon = item.querySelector('.nav-icon');
 
           if (index === activeIndex) {
+            // ACTIVE: Bounce Up & Fill
             gsap.to(icon, {
-              y: -12,
-              scale: 1.3,
-              color: '#ffffff',
-              filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.8))',
-              duration: 0.4,
+              y: -14,
+              scale: 1.2,
+              duration: 0.5,
               ease: 'back.out(2)'
             });
           } else {
+            // INACTIVE: Reset
             gsap.to(icon, {
               y: 0,
               scale: 1,
-              color: 'currentColor',
-              filter: 'none',
               duration: 0.4,
               ease: 'power2.out'
             });
@@ -125,60 +134,34 @@ const BottomNavigation: React.FC = () => {
     }
   }, [activeIndex]);
 
-  // 5. Optimized Scroll Handling (No Jitter)
+  // 5. Scroll Hide/Show
   useEffect(() => {
     const handleScroll = () => {
       if (!ticking.current) {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
           const scrollDiff = currentScrollY - lastScrollY.current;
-
-          // Logic: Sirf tab hide karo jab user significant neeche scroll kare (>20px)
-          // Aur wapas tab lao jab user upar scroll kare
           if (currentScrollY > 50 && scrollDiff > 20) {
             setIsVisible(false);
           } else if (scrollDiff < -10 || currentScrollY < 50) {
             setIsVisible(true);
           }
-
           lastScrollY.current = currentScrollY;
           ticking.current = false;
         });
-
         ticking.current = true;
       }
     };
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Hover Effects
-  const handleMouseEnter = (index: number) => {
-    if (index === activeIndex) return;
-    const item = itemRefs.current[index];
-    const icon = item?.querySelector('.nav-icon');
-    if (icon) {
-      gsap.to(icon, { scale: 1.2, y: -5, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
-    }
-  };
-
-  const handleMouseLeave = (index: number) => {
-    if (index === activeIndex) return;
-    const item = itemRefs.current[index];
-    const icon = item?.querySelector('.nav-icon');
-    if (icon) {
-      gsap.to(icon, { scale: 1, y: 0, duration: 0.3, ease: 'power2.out' });
-    }
-  };
-
-  // Handle Click (Refresh if same page)
   const handleItemClick = (e: React.MouseEvent, to: string, index: number) => {
-    // Agar user usi page par hai jo click kia, to refresh karo
     if (location.pathname === to || (to !== '/' && location.pathname.startsWith(to))) {
       e.preventDefault();
       window.location.reload();
     } else {
+      setPrevIndex(activeIndex);
       setActiveIndex(index);
     }
   };
@@ -191,30 +174,60 @@ const BottomNavigation: React.FC = () => {
         ref={navRef}
         className={`
           pointer-events-auto
-          mb-4 mx-4 w-full max-w-[350px]
-          glass-liquid rounded-full
+          mb-4 mx-4 w-full max-w-[360px]
+          bg-white/80 dark:bg-black/80 
+          backdrop-blur-xl border border-white/20 dark:border-white/10
+          rounded-full shadow-2xl
           will-change-transform
           transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1)
           ${(isVisible && !isKeyboardOpen) ? 'translate-y-0' : 'translate-y-[180%]'}
         `}
-        style={{
-          boxShadow: '0 15px 35px -5px rgba(0,0,0,0.3), inset 0 1px 0 0 rgba(255,255,255,0.25)',
-          height: '65px',
-          backdropFilter: 'blur(20px)',
-          backgroundColor: 'rgba(255, 255, 255, 0.1)'
-        }}
+        style={{ height: '70px' }}
       >
-        {/* The Liquid Lamp */}
+        {/* MOVING INDICATOR (Plane -> Earth) */}
         <div 
-          ref={lampRef}
-          className="absolute top-1/2 -translate-y-1/2 left-0 w-14 h-14 -ml-7 pointer-events-none"
+          ref={indicatorRef}
+          className="absolute top-1/2 -translate-y-1/2 left-0 -ml-6 pointer-events-none z-0"
         >
-          <div className="w-full h-full bg-primary rounded-full blur-2xl opacity-50 animate-pulse" />
-          <div className="absolute inset-2 bg-gradient-to-tr from-primary to-purple-500 rounded-full opacity-70" />
+          {isMoving ? (
+            /* AIRPLANE MODE */
+            <div className="relative w-12 h-12 flex items-center justify-center">
+               {/* Motion Trail */}
+              <div className="absolute inset-0 bg-blue-500/30 blur-xl rounded-full animate-pulse" />
+              <Plane 
+                className={`w-8 h-8 text-blue-600 dark:text-blue-400 transition-transform duration-300`}
+                fill="currentColor"
+                style={{ 
+                  transform: `rotate(${activeIndex > prevIndex ? '45deg' : '-135deg'})` 
+                }} 
+              />
+            </div>
+          ) : (
+            /* EARTH MODE */
+            <div className="relative w-12 h-12 flex items-center justify-center">
+               {/* Earth Glow */}
+               <div className="absolute inset-0 bg-blue-400/20 blur-lg rounded-full" />
+               {/* CSS 3D Earth */}
+               <div 
+                 className="w-9 h-9 rounded-full shadow-inner animate-[spin_4s_linear_infinite]"
+                 style={{
+                   background: 'linear-gradient(to right, #005c97, #363795)', // Ocean
+                   backgroundImage: `
+                     radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8) 0%, rgba(0,0,0,0) 20%),
+                     repeating-linear-gradient(45deg, rgba(76, 175, 80, 0.6) 0px, rgba(76, 175, 80, 0.6) 10px, transparent 10px, transparent 20px)
+                   `, // Fake Continents effect
+                   boxShadow: 'inset -3px -3px 8px rgba(0,0,0,0.5), 0 0 10px rgba(59, 130, 246, 0.5)'
+                 }}
+               >
+                 {/* Atmosphere Ring */}
+                 <div className="absolute inset-0 rounded-full border border-blue-300/30" />
+               </div>
+            </div>
+          )}
         </div>
 
         {/* Nav Items */}
-        <div className="relative flex items-center justify-between px-4 h-full">
+        <div className="relative flex items-center justify-between px-5 h-full z-10">
           {navItems.map((item, index) => {
             const isActive = index === activeIndex;
             
@@ -224,21 +237,27 @@ const BottomNavigation: React.FC = () => {
                 ref={el => itemRefs.current[index] = el}
                 to={item.to}
                 onClick={(e) => handleItemClick(e, item.to, index)}
-                onMouseEnter={() => handleMouseEnter(index)}
-                onMouseLeave={() => handleMouseLeave(index)}
-                className={`
-                  relative flex items-center justify-center
-                  h-10 w-10 rounded-full transition-colors duration-300
-                  ${isActive ? 'text-white' : 'text-muted-foreground/80 hover:text-foreground'}
-                `}
+                className="relative flex items-center justify-center h-full w-12 group"
               >
-                {/* Icon Container */}
-                <div className="nav-icon relative z-10">
+                <div className="nav-icon transition-colors duration-300">
+                  {/* Icon Render */}
                   <item.icon 
-                    className={`w-6 h-6 transition-all duration-300 stroke-[1.5px]`} 
+                    size={26}
+                    // FILLED LOGIC: Fill color same as text, Stroke width 0 or very thin
+                    fill={isActive ? "currentColor" : "currentColor"} 
+                    strokeWidth={isActive ? 0 : 1.5}
+                    className={`
+                      transition-all duration-300
+                      ${isActive 
+                        ? 'text-black dark:text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' // Active: Solid White/Black
+                        : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300' // Inactive: Grey
+                      }
+                    `}
                   />
+                  
+                  {/* Badge */}
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border border-white/20 shadow-sm animate-bounce">
+                    <span className="absolute top-3 -right-1 min-w-[16px] h-[16px] px-0.5 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center border border-white shadow-sm">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
