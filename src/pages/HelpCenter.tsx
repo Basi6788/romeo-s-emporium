@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { Upload, Send, MessageCircle, HelpCircle, FileText, X, CheckCircle, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { supabase } from '@/lib/supabase'; // Make sure ye path sahi ho
+// 👇 YAHAN FIX KIYA HAI (Sahi path laga diya)
+import { supabase } from '@/integrations/supabase/client'; 
 import { toast } from 'sonner';
 
 const HelpCenter = () => {
@@ -73,8 +74,10 @@ const HelpCenter = () => {
 
       // 1. Upload Image to Supabase Storage
       if (file) {
+        // Unique file name banaya taake overwrite na ho
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
+        const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+        
         const { error: uploadError } = await supabase.storage
           .from('complaint-proofs')
           .upload(fileName, file);
