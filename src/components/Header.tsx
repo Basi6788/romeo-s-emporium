@@ -1,74 +1,13 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, Sun, Moon, Home, Package, MapPin, LogIn, Settings, X, Zap, Menu, ChevronRight } from 'lucide-react';
+import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap, AlertCircle } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import gsap from 'gsap';
-
-// --- REUSABLE MAGNETIC BUTTON COMPONENT ---
-// Ye component har button ko "Liquid/Magnetic" feel dega
-const MagneticButton = ({ children, className, onClick, id }: any) => {
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const btn = btnRef.current;
-    if (!btn) return;
-
-    const xTo = gsap.quickTo(btn, "x", { duration: 0.3, ease: "power3.out" });
-    const yTo = gsap.quickTo(btn, "y", { duration: 0.3, ease: "power3.out" });
-
-    const mouseMove = (e: MouseEvent) => {
-      const { clientX, clientY } = e;
-      const { height, width, left, top } = btn.getBoundingClientRect();
-      const x = clientX - (left + width / 2);
-      const y = clientY - (top + height / 2);
-      
-      // Move button slightly towards mouse (Magnetic Effect)
-      xTo(x * 0.3); 
-      yTo(y * 0.3);
-    };
-
-    const mouseLeave = () => {
-      xTo(0);
-      yTo(0);
-      // Rebound effect when mouse leaves
-      gsap.to(btn, { scale: 1, duration: 0.5, ease: "elastic.out(1, 0.3)" });
-    };
-
-    const mouseDown = () => {
-        gsap.to(btn, { scale: 0.90, duration: 0.1 });
-    };
-
-    const mouseUp = () => {
-        gsap.to(btn, { scale: 1, duration: 0.5, ease: "elastic.out(1, 0.3)" });
-    };
-
-    btn.addEventListener("mousemove", mouseMove);
-    btn.addEventListener("mouseleave", mouseLeave);
-    btn.addEventListener("mousedown", mouseDown);
-    btn.addEventListener("mouseup", mouseUp);
-    btn.addEventListener("touchstart", mouseDown); // For Mobile
-    btn.addEventListener("touchend", mouseUp);     // For Mobile
-
-    return () => {
-      btn.removeEventListener("mousemove", mouseMove);
-      btn.removeEventListener("mouseleave", mouseLeave);
-      btn.removeEventListener("mousedown", mouseDown);
-      btn.removeEventListener("mouseup", mouseUp);
-      btn.removeEventListener("touchstart", mouseDown);
-      btn.removeEventListener("touchend", mouseUp);
-    };
-  }, []);
-
-  return (
-    <button ref={btnRef} className={className} onClick={onClick} id={id}>
-      {children}
-    </button>
-  );
-};
 
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -79,30 +18,61 @@ const Header: React.FC = () => {
   // UI States
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  
+  // Search States
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]); 
+  const [isSearching, setIsSearching] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
   
   // Refs
-  const headerRef = useRef<HTMLDivElement>(null);
-  const menuContainerRef = useRef<HTMLDivElement>(null);
-  
-  // --- Search Logic ---
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
+  const menuBackdropRef = useRef<HTMLDivElement>(null);
+  const menuContentRef = useRef<HTMLDivElement>(null);
+  const particlesRef = useRef<HTMLDivElement>(null);
+
+  // --- 1. Supabase Search Logic (FIXED) ---
   useEffect(() => {
     const fetchSuggestions = async () => {
-      if (!searchTerm.trim()) { setSuggestions([]); return; }
-      const { data } = await supabase
-        .from('products')
-        .select('id, name, price, image, category') 
-        .or(`name.ilike.%${searchTerm}%`)
-        .limit(5);
-      setSuggestions(data || []);
+      if (!searchTerm.trim()) {
+        setSuggestions([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        // console.log("Searching for:", searchTerm);
+
+        // FIXED: 'slug' remove kar diya hai kyun ke wo DB me nahi hai
+        // Sirf wo columns select kiye hain jo screenshot me hain
+        const { data, error } = await supabase
+          .from('products')
+          .select('id, name, price, image, category, description') 
+          .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
+          .limit(10);
+
+        if (error) {
+          console.error("Supabase Error:", error.message);
+          throw error;
+        }
+        
+        // console.log("Results found:", data);
+        setSuggestions(data || []);
+        
+      } catch (error) {
+        console.error('Search Code Crash:', error);
+        setSuggestions([]);
+      } finally {
+        setIsSearching(false);
+      }
     };
-    const timeout = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(timeout);
+
+    const timeoutId = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -111,220 +81,211 @@ const Header: React.FC = () => {
       setSearchOpen(false);
       navigate(`/products?search=${encodeURIComponent(searchTerm)}`);
       setSearchTerm('');
+      setSuggestions([]);
     }
   };
 
-  // --- Scroll Effect ---
+  // --- UI Effects ---
   useEffect(() => {
-    const handleScroll = () => {
-        setScrolled(window.scrollY > 50);
-    };
+    if (menuOpen) { document.body.style.overflow = 'hidden'; } 
+    else { document.body.style.overflow = ''; }
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    const handleScroll = () => { if (!menuOpen) setScrolled(window.scrollY > 10); };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [menuOpen]);
 
-  // --- Reset on Route Change ---
   useEffect(() => {
-    setMenuOpen(false); setSearchOpen(false);
-    document.body.style.overflow = '';
+    setMenuOpen(false); setSearchOpen(false); setSuggestions([]); 
   }, [location.pathname]);
 
-  // --- Menu Animation (Open/Close) ---
+  // Animation
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = 'hidden'; // Stop background scroll
-      
+    if (menuOpen && menuRef.current && menuBackdropRef.current) {
       const tl = gsap.timeline();
-      
-      // 1. Fade in Backdrop
-      tl.to(".menu-backdrop", { opacity: 1, duration: 0.3, display: "block" });
-      
-      // 2. Slide/Fade in Menu Container
-      tl.fromTo(menuContainerRef.current, 
-        { y: '100%', opacity: 0, rotateX: -10 },
-        { y: '0%', opacity: 1, rotateX: 0, duration: 0.6, ease: "power4.out" } // Elegant slide up
-      );
-
-      // 3. Stagger Items
-      tl.fromTo(".menu-item", 
-        { y: 50, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: "back.out(1.2)" },
-        "-=0.4"
-      );
-
-    } else {
-      document.body.style.overflow = '';
-      gsap.to(".menu-backdrop", { opacity: 0, duration: 0.3, display: "none" });
-      gsap.to(menuContainerRef.current, { y: '100%', opacity: 0, duration: 0.4, ease: "power2.in" });
+      tl.fromTo(menuBackdropRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out' });
+      tl.fromTo(menuRef.current, { opacity: 0, y: -30, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'back.out(1.7)' }, '-=0.2');
+      tl.fromTo(menuItemsRef.current.filter(Boolean), { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, stagger: 0.05, ease: 'back.out(1.7)' }, '-=0.2');
     }
   }, [menuOpen]);
 
+  const closeMenu = useCallback(() => {
+    if (menuRef.current && menuBackdropRef.current) {
+      const tl = gsap.timeline({ onComplete: () => setMenuOpen(false) });
+      tl.to(menuItemsRef.current.filter(Boolean).reverse(), { opacity: 0, y: -20, duration: 0.2, stagger: 0.03 });
+      tl.to(menuRef.current, { opacity: 0, y: -20, scale: 0.95, duration: 0.3 }, '-=0.1');
+      tl.to(menuBackdropRef.current, { opacity: 0, duration: 0.2 }, '-=0.2');
+    } else {
+      setMenuOpen(false);
+    }
+  }, []);
+
   const menuItems = [
-    { to: '/', label: 'Home', icon: Home, desc: 'Start here' },
-    { to: '/products', label: 'Collection', icon: Package, desc: 'Browse all' },
-    { to: '/mepco-bill', label: 'Bill Checker', icon: Zap, desc: 'Tools' },
-    { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount, desc: 'Saved' },
-    { to: '/cart', label: 'My Cart', icon: ShoppingCart, badge: itemCount, desc: 'Bag' },
-    { to: '/track-order', label: 'Track Order', icon: MapPin, desc: 'Status' },
-    { to: isAuthenticated ? (isAdmin ? '/admin' : '/profile') : '/auth', label: isAuthenticated ? 'Account' : 'Sign In', icon: isAuthenticated ? Settings : LogIn, desc: 'Profile' },
+    { to: '/', label: 'Home', icon: Home, color: 'from-blue-500 to-cyan-500' },
+    { to: '/products', label: 'Products', icon: Package, color: 'from-violet-500 to-purple-500' },
+    { to: '/mepco-bill', label: 'Check Bill', icon: Zap, color: 'from-yellow-400 to-orange-500' },
+    { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount, color: 'from-pink-500 to-rose-500' },
+    { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount, color: 'from-orange-500 to-amber-500' },
+    { to: '/track-order', label: 'Track Order', icon: MapPin, color: 'from-emerald-500 to-teal-500' },
+    { to: isAuthenticated ? (isAdmin ? '/admin' : '/profile') : '/auth', label: isAuthenticated ? 'Account' : 'Sign In', icon: isAuthenticated ? Settings : LogIn, color: 'from-indigo-500 to-blue-500' },
   ];
 
   return (
-    <>
-      {/* --- HEADER BAR --- */}
-      <header 
-        ref={headerRef}
-        className={`fixed left-0 right-0 z-50 transition-all duration-500 ease-out
-          ${scrolled ? 'top-2 px-4' : 'top-0 px-0'}
-        `}
-      >
-        <div className={`
-          relative mx-auto flex items-center justify-between transition-all duration-500
-          ${scrolled 
-            ? 'h-16 max-w-5xl rounded-full bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50' 
-            : 'h-20 max-w-full bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[0px] border-b border-white/0 px-6'}
-        `}>
-          
-          {/* LEFT: Menu & Logo */}
-          <div className="flex items-center gap-4 pl-2">
-            <MagneticButton 
-              onClick={() => setMenuOpen(true)}
-              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${scrolled ? 'hover:bg-white/10 text-white' : 'hover:bg-black/20 text-white'}`}
-            >
-              <Menu className="w-6 h-6" />
-              {(itemCount > 0 || wishlistCount > 0) && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"/>}
-            </MagneticButton>
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled && !menuOpen ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' : 'bg-transparent'}`}>
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          <Link to="/" className="flex items-center gap-2 relative z-[60]">
+            <span className="text-xl font-bold">
+              <span className={menuOpen ? 'text-white' : 'text-foreground'}>BASIT</span>
+              <span className="text-primary">SHOP</span>
+            </span>
+          </Link>
 
-            <Link to="/" className="group relative z-50">
-               <span className="text-2xl font-black tracking-tighter text-white drop-shadow-md group-hover:tracking-widest transition-all duration-500">
-                 MIRAE<span className="text-[#BF953F]">.</span>
-               </span>
-            </Link>
-          </div>
-
-          {/* RIGHT: Actions */}
-          <div className="flex items-center gap-2 pr-2">
-            
-            {/* Search */}
-            <MagneticButton 
-              onClick={() => setSearchOpen(!searchOpen)}
-              className="w-10 h-10 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors"
-            >
-               {searchOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5"/>}
-            </MagneticButton>
-
-            {/* Cart */}
-            <Link to="/cart">
-              <MagneticButton className="w-10 h-10 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors relative">
-                <ShoppingCart className="w-5 h-5" />
-                {itemCount > 0 && <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-[#BF953F] rounded-full shadow-lg" />}
-              </MagneticButton>
-            </Link>
-
-            {/* Theme Toggle (Optional - kept small) */}
-             <MagneticButton onClick={toggleTheme} className="w-10 h-10 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors">
-                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-             </MagneticButton>
-          </div>
-
-          {/* SEARCH OVERLAY (Integrated) */}
-          {searchOpen && (
-             <div className="absolute top-full left-0 right-0 mt-2 px-4 animate-in slide-in-from-top-2">
-                <div className="bg-[#1a1a1a]/95 backdrop-blur-2xl border border-[#333] rounded-3xl p-4 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-                   <form onSubmit={handleSearchSubmit} className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input 
-                        autoFocus
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="Search luxury..."
-                        className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-1 focus:ring-[#BF953F] transition-all"
-                      />
-                   </form>
-                   {suggestions.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {suggestions.map(p => (
-                           <Link key={p.id} to={`/products/${p.id}`} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-colors group">
-                              <img src={p.image} className="w-10 h-10 rounded bg-gray-800 object-cover" alt=""/>
-                              <div className="flex-1">
-                                 <p className="text-sm font-medium text-gray-200 group-hover:text-[#BF953F] transition-colors">{p.name}</p>
-                                 <p className="text-xs text-gray-500">Rs. {p.price}</p>
-                              </div>
-                           </Link>
-                        ))}
-                      </div>
-                   )}
-                </div>
-             </div>
-          )}
-        </div>
-      </header>
-
-
-      {/* --- FULLSCREEN MENU OVERLAY (Z-INDEX FIX) --- */}
-      {/* Backdrop */}
-      <div 
-        className="menu-backdrop fixed inset-0 bg-black/80 backdrop-blur-md z-[9000] hidden opacity-0"
-        onClick={() => setMenuOpen(false)}
-      />
-
-      {/* Menu Container */}
-      <div 
-        ref={menuContainerRef}
-        className="fixed inset-x-0 bottom-0 top-[15%] md:top-[20%] z-[9001] bg-[#111] rounded-t-[2.5rem] border-t border-white/10 shadow-[0_-20px_60px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden opacity-0 translate-y-full"
-      >
-         {/* Handle Bar (Visual cue for swipe) */}
-         <div className="w-full flex justify-center pt-4 pb-2" onClick={() => setMenuOpen(false)}>
-            <div className="w-16 h-1.5 bg-white/20 rounded-full hover:bg-white/40 cursor-pointer transition-colors" />
-         </div>
-
-         {/* Header inside Menu */}
-         <div className="px-8 py-4 flex items-center justify-between border-b border-white/5">
-            <span className="text-sm uppercase tracking-widest text-gray-500">Navigation</span>
-            <MagneticButton onClick={() => setMenuOpen(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 text-white">
-               <X className="w-6 h-6" />
-            </MagneticButton>
-         </div>
-
-         {/* Menu Items Grid */}
-         <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-3 pb-24">
-            {menuItems.map((item, idx) => {
-               const isActive = location.pathname === item.to;
-               return (
-                  <Link 
-                    key={idx} 
-                    to={item.to} 
-                    className={`menu-item relative flex items-center gap-4 p-5 rounded-2xl border transition-all duration-300 group
-                      ${isActive 
-                        ? 'bg-gradient-to-r from-[#BF953F]/20 to-transparent border-[#BF953F]/30' 
-                        : 'bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10'}
-                    `}
-                  >
-                     <div className={`p-3 rounded-xl transition-all ${isActive ? 'bg-[#BF953F] text-black' : 'bg-black/40 text-gray-300 group-hover:scale-110'}`}>
-                        <item.icon className="w-6 h-6" />
-                     </div>
-                     <div className="flex-1">
-                        <h3 className={`text-lg font-bold ${isActive ? 'text-[#BF953F]' : 'text-white'}`}>{item.label}</h3>
-                        <p className="text-xs text-gray-500">{item.desc}</p>
-                     </div>
-                     <ChevronRight className={`w-5 h-5 text-gray-600 transition-transform ${isActive ? 'text-[#BF953F]' : 'group-hover:translate-x-1'}`}/>
-                  </Link>
-               )
+          <nav className="hidden md:flex items-center gap-1">
+            {['/', '/products'].map((path) => {
+              const isActive = location.pathname === path || (path === '/products' && location.pathname.startsWith('/products/'));
+              return (
+                <Link key={path} to={path} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                  {path === '/' ? 'Home' : 'Products'}
+                </Link>
+              );
             })}
-         </div>
+             <Link to="/mepco-bill" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/mepco-bill' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                Bill Checker
+              </Link>
+          </nav>
 
-         {/* Footer Info */}
-         <div className="p-6 bg-black/40 border-t border-white/5 flex items-center justify-between">
-             <div>
-                <p className="text-[#BF953F] text-xs font-bold tracking-widest">MIRAE. LUXURY</p>
-                <p className="text-gray-600 text-[10px] mt-1">© 2025 All Rights Reserved</p>
-             </div>
-             <MagneticButton onClick={toggleTheme} className="px-4 py-2 bg-white/5 rounded-full text-xs text-white border border-white/10">
-                Switch Appearance
-             </MagneticButton>
-         </div>
+          <div className="flex items-center gap-2 relative z-[60]">
+            <button onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100); }} className={`p-2.5 rounded-lg transition-colors ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
+              {searchOpen && !menuOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
+            </button>
+            <button onClick={toggleTheme} className={`p-2.5 rounded-lg transition-colors cursor-pointer relative z-[60] ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)} className={`p-2.5 rounded-lg transition-all relative z-[60] ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
+              <div className="relative w-5 h-5">
+                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'top-1/2 -translate-y-1/2 rotate-45' : 'top-1'}`} />
+                <span className={`absolute left-0 top-1/2 -translate-y-1/2 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`} />
+                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'top-1/2 -translate-y-1/2 -rotate-45' : 'bottom-1'}`} />
+              </div>
+              {(itemCount > 0 || wishlistCount > 0) && !menuOpen && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />}
+            </button>
+          </div>
+        </div>
+
+        {searchOpen && !menuOpen && (
+          <div className="pb-4 animate-in slide-in-from-top-2 duration-200 relative">
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <input
+                id="search-input"
+                type="text"
+                placeholder="Search products..."
+                autoFocus
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-muted/80 backdrop-blur-sm rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground border border-border/50"
+              />
+            </form>
+
+            {searchTerm.trim() && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                {isSearching ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
+                    <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+                    <span>Finding best matches...</span>
+                  </div>
+                ) : suggestions.length > 0 ? (
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {suggestions.map((product) => (
+                      <Link
+                        key={product.id}
+                        // Fallback to ID if slug is missing
+                        to={`/products/${product.slug || product.id}`}
+                        onClick={() => { setSearchOpen(false); setSearchTerm(''); }}
+                        className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
+                      >
+                        {product.image ? (
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                             <img src={product.image} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                            <Package className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{product.category || 'Product'} • Rs. {product.price?.toLocaleString()}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center flex flex-col items-center gap-2 text-muted-foreground">
+                    <AlertCircle className="w-8 h-8 opacity-20" />
+                    <p className="font-medium text-foreground">No products found</p>
+                    <p className="text-xs">Try searching for "{searchTerm}" in a different way</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    </>
+
+      {menuOpen && (
+        <>
+          <div ref={menuBackdropRef} className="fixed inset-0 z-40 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900" onClick={closeMenu} />
+          
+          <div ref={particlesRef} className="fixed inset-0 z-40 pointer-events-none overflow-hidden">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="absolute rounded-full bg-gradient-to-r from-primary/30 to-violet-500/30 blur-sm" style={{ width: `${Math.random() * 100 + 50}px`, height: `${Math.random() * 100 + 50}px`, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%` }} />
+            ))}
+            <Sparkles className="absolute top-20 right-10 w-8 h-8 text-primary/40" />
+            <Sparkles className="absolute bottom-40 left-10 w-6 h-6 text-violet-400/40" />
+          </div>
+
+          <div ref={menuRef} className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-hidden flex flex-col pointer-events-auto">
+            <div ref={menuContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="container mx-auto px-4 py-8 pb-24">
+                <nav className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                  {menuItems.map((item, index) => {
+                    const isActive = location.pathname === item.to;
+                    return (
+                      <Link key={item.to} ref={el => menuItemsRef.current[index] = el} to={item.to} onClick={closeMenu} className={`relative flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 group overflow-hidden ${isActive ? 'bg-white/10 border-white/20 shadow-2xl shadow-primary/20' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:-translate-y-1'}`}>
+                        <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                        <div className={`relative p-4 rounded-2xl bg-gradient-to-br ${item.color} shadow-lg`}>
+                          <item.icon className="w-6 h-6 text-white" />
+                          <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.color} blur-xl opacity-50 -z-10`} />
+                        </div>
+                        <span className="font-semibold text-white text-sm">{item.label}</span>
+                        {item.badge !== undefined && item.badge > 0 && <span className="absolute top-3 right-3 min-w-[24px] h-6 px-2 rounded-full bg-white text-slate-900 text-xs font-bold flex items-center justify-center shadow-lg">{item.badge}</span>}
+                        {isActive && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-transparent via-white to-transparent rounded-full" />}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <div className="mt-8 max-w-2xl mx-auto">
+                  <div className="p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="font-semibold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Need Help?</h3>
+                        <p className="text-sm text-white/60 mt-1">Contact our 24/7 support</p>
+                      </div>
+                      <Link to="/track-order" onClick={closeMenu} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-violet-500 text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/30 transition-all hover:scale-105">Track Order</Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </header>
   );
 };
 
