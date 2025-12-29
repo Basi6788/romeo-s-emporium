@@ -102,44 +102,61 @@
 }
 
 @layer base {
-  /* FIX: Added '*' selector which was missing */
+  /* 1. UNIVERSAL RESET (Zabardasti Reset) */
   * {
     @apply border-border;
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    /* FIX: Hide scrollbar in all browsers */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
   }
 
-  /* FIX: Hide Chrome/Safari Scrollbar completely */
-  ::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    background: transparent;
+  /* 2. LENIS SCROLL REQUIRED CSS (Ye Lazmi Hai) */
+  html.lenis, 
+  html.lenis body {
+    height: auto; /* Lenis ko height calculate karne do */
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important; /* Browser ka smooth scroll band karo ta k Lenis kam kare */
+  }
+
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  .lenis.lenis-scrolling iframe {
+    pointer-events: none;
+  }
+
+  /* 3. BODY & HTML HARD FIXES */
+  html {
+    width: 100%;
+    overflow-x: hidden !important; /* Horizontal scroll ka strict ilaaj */
+    -webkit-font-smoothing: antialiased;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    /* FIX: Force margin reset & overflow handling */
-    margin: 0 !important;
-    padding: 0 !important;
     width: 100%;
-    overflow-x: hidden;
+    min-height: 100vh;
+    overflow-x: hidden !important;
     position: relative;
-    -webkit-font-smoothing: antialiased;
+    /* Extra Scroll Killers */
+    overscroll-behavior-y: none; /* iOS rubber banding effect band */
   }
-
-  html {
-    scroll-behavior: smooth;
-    /* FIX: Prevent horizontal scroll gaps */
-    overflow-x: hidden;
+  
+  /* 4. ROOT CONTAINER FIX */
+  #root {
+    isolation: isolate; /* Z-index stacking context naya banata hai */
     width: 100%;
-    /* FIX: Smooth scroll for mobile */
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden; /* Agar koi element bahir nikal raha ho to usay kaat do */
   }
 }
+
 
 @layer components {
   .gradient-text {
