@@ -36,6 +36,16 @@ const ProductDetailPage = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  // Disable background scroll when modal is open
+  useEffect(() => {
+    if (showAuthModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [showAuthModal]);
+
   // 1. Entrance & Background Animations
   useEffect(() => {
     if (!product || !containerRef.current) return;
@@ -80,14 +90,14 @@ const ProductDetailPage = () => {
       
       ScrollTrigger.create({
         trigger: suggestionsRef.current,
-        start: 'top 85%', // Start animation a bit earlier
+        start: 'top 85%',
         onEnter: () => {
           gsap.to(cards, {
             y: 0, 
             opacity: 1, 
-            duration: 0.6, // Faster duration
+            duration: 0.6,
             stagger: 0.1, 
-            ease: 'power2.out', // Smoother, faster ease
+            ease: 'power2.out',
           });
         },
         once: true
@@ -158,26 +168,36 @@ const ProductDetailPage = () => {
         <div className="bg-blob absolute bottom-0 left-0 w-[300px] h-[300px] bg-purple-600/10 rounded-full blur-[80px] opacity-40 mix-blend-screen" />
       </div>
 
-      {/* AUTH MODAL */}
+      {/* AUTH MODAL - FIXED SCROLLING & TEXT */}
       {showAuthModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div 
             ref={authModalRef}
-            className="w-full max-w-sm rounded-[2rem] bg-white/10 dark:bg-black/80 backdrop-blur-xl border border-white/20 p-6 shadow-2xl relative overflow-hidden"
+            className="w-full max-w-sm rounded-[2rem] bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 p-6 shadow-2xl relative overflow-hidden"
           >
+            {/* Top decorative line */}
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-80" />
-            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-              <X className="w-5 h-5" />
+            
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors z-10">
+              <X className="w-5 h-5 text-foreground" />
             </button>
-            <div className="flex flex-col items-center text-center space-y-4 pt-4">
-              <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mb-2">
-                <Lock className="w-8 h-8 text-amber-500" />
+
+            <div className="flex flex-col items-center text-center space-y-4 pt-2">
+              <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center mb-1">
+                <Lock className="w-7 h-7 text-amber-500" />
               </div>
-              <h3 className="text-2xl font-bold text-white">Login Required</h3>
-              <p className="text-muted-foreground text-sm">Jani, order place karne ke liye pehle login karna paray ga. Sirf aik minute lagay ga!</p>
-              <div className="grid grid-cols-2 gap-3 w-full mt-4">
-                 <Button onClick={() => navigate('/auth?mode=login')} className="w-full rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 h-12">Login</Button>
-                 <Button onClick={() => navigate('/auth?mode=signup')} className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold h-12">Sign Up</Button>
+              
+              {/* Updated Header */}
+              <h3 className="text-xl font-bold text-foreground">Login / Sign Up Required</h3>
+              
+              {/* Funny English Text */}
+              <p className="text-muted-foreground text-sm px-2">
+                Hold up! You need to log in to snag this beauty. Don't worry, it's faster than making instant noodles!
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 w-full mt-2">
+                 <Button onClick={() => navigate('/auth?mode=login')} className="w-full rounded-xl bg-gray-100 dark:bg-white/10 text-foreground hover:bg-gray-200 dark:hover:bg-white/20 border border-transparent h-11">Login</Button>
+                 <Button onClick={() => navigate('/auth?mode=signup')} className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold h-11">Sign Up</Button>
               </div>
             </div>
           </div>
@@ -187,14 +207,14 @@ const ProductDetailPage = () => {
       <div ref={containerRef} className="container mx-auto px-4 pb-10 pt-4 md:pt-8 min-h-screen relative z-10">
         {/* Navigation Header */}
         <div className="flex items-center justify-between mb-6 sticky top-4 z-40">
-          <button onClick={() => navigate(-1)} onMouseEnter={animateIcon} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-white/20 shadow-lg hover:scale-110 transition-transform">
+          <button onClick={() => navigate(-1)} onMouseEnter={animateIcon} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-gray-200 dark:border-white/20 shadow-lg hover:scale-110 transition-transform">
             <ChevronLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex gap-3">
-            <button onClick={handleWishlist} onMouseEnter={animateIcon} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-white/20 shadow-lg hover:scale-110 transition-transform">
+            <button onClick={handleWishlist} onMouseEnter={animateIcon} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-gray-200 dark:border-white/20 shadow-lg hover:scale-110 transition-transform">
               <Heart className={`wishlist-icon w-5 h-5 ${isInWishlist(product.id) ? 'fill-rose-500 text-rose-500' : 'text-foreground'}`} />
             </button>
-            <button onClick={() => { navigator.share({ title: product.name, url: window.location.href }); }} onMouseEnter={animateIcon} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-white/20 shadow-lg hover:scale-110 transition-transform">
+            <button onClick={() => { navigator.share({ title: product.name, url: window.location.href }); }} onMouseEnter={animateIcon} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-gray-200 dark:border-white/20 shadow-lg hover:scale-110 transition-transform">
               <Share2 className="w-5 h-5 text-foreground" />
             </button>
           </div>
@@ -203,7 +223,7 @@ const ProductDetailPage = () => {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* IMAGE SECTION */}
           <div ref={imageRef} className="space-y-4">
-            <div className="relative aspect-square w-full rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl">
+            <div className="relative aspect-square w-full rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-gray-100 to-white dark:from-white/10 dark:to-transparent backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-xl">
                <img src={productImages[selectedImage]} alt={product.name} className="w-full h-full object-contain p-6 drop-shadow-2xl" />
             </div>
             <div className="flex justify-center gap-3 overflow-x-auto py-2 no-scrollbar">
@@ -223,12 +243,13 @@ const ProductDetailPage = () => {
                  <span className="text-amber-500 font-bold tracking-widest text-xs uppercase block">{product.category}</span>
                  <div className="flex items-center text-amber-500 text-sm font-bold gap-1"><Star className="fill-current w-4 h-4"/> {product.rating}</div>
               </div>
-              <h1 className="text-3xl font-black text-foreground mb-2 leading-tight">{product.name}</h1>
-              {/* Price Moved Here and Rs:1 Removed */}
-              <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-amber-600">
-                  Rs. {product.price.toLocaleString()}
-                </span>
+              
+              {/* NAME AND PRICE FIXED TOGETHER */}
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
+                  <h1 className="text-3xl font-black text-foreground leading-tight">{product.name}</h1>
+                  <span className="text-2xl font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
+                    Rs. {product.price.toLocaleString()}
+                  </span>
               </div>
             </div>
 
@@ -243,51 +264,51 @@ const ProductDetailPage = () => {
                    ))}
                  </div>
                )}
-               <div className="flex items-center bg-white/5 rounded-xl border border-white/10 p-1">
-                  <button onClick={() => setQuantity(Math.max(1, quantity-1))} className="p-2 hover:text-amber-500"><Minus className="w-4 h-4"/></button>
-                  <span className="w-10 text-center font-bold">{quantity}</span>
-                  <button onClick={() => setQuantity(quantity+1)} className="p-2 hover:text-amber-500"><Plus className="w-4 h-4"/></button>
+               <div className="flex items-center bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-1">
+                  <button onClick={() => setQuantity(Math.max(1, quantity-1))} className="p-2 hover:text-amber-500"><Minus className="w-4 h-4 text-foreground"/></button>
+                  <span className="w-10 text-center font-bold text-foreground">{quantity}</span>
+                  <button onClick={() => setQuantity(quantity+1)} className="p-2 hover:text-amber-500"><Plus className="w-4 h-4 text-foreground"/></button>
                </div>
             </div>
 
             {/* --- BIG BUTTONS --- */}
             <div className="pt-4 space-y-3">
-               {/* CLEAN BUY NOW BUTTON */}
+               {/* NATURAL GREEN GLOWING BUTTON */}
                <button
                  onClick={() => handleAction('buy')}
-                 className="btn-buy w-full h-16 rounded-2xl flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+                 className="btn-buy w-full h-16 rounded-2xl flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg shadow-green-500/30 transition-all active:scale-95"
                >
                   <span className="text-xl font-bold uppercase tracking-wider">Buy Now</span>
                   <ArrowRight className="w-6 h-6 animate-pulse" />
                </button>
 
-               {/* ADD TO CART */}
+               {/* ADD TO CART - FIXED FOR LIGHT MODE */}
                <button
                  onClick={() => handleAction('cart')}
-                 className="btn-cart w-full h-14 rounded-2xl bg-white/10 border border-white/20 hover:bg-white/20 text-white font-bold tracking-wide flex items-center justify-center gap-2 transition-all active:scale-95"
+                 className="btn-cart w-full h-14 rounded-2xl bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-900 dark:text-white font-bold tracking-wide flex items-center justify-center gap-2 transition-all active:scale-95"
                >
                  <ShoppingBag className="w-5 h-5" /> Add to Cart
                </button>
 
                {/* TRUST BADGES */}
                <div className="flex justify-center gap-6 pt-2 opacity-70">
-                  <div className="flex flex-col items-center gap-1"><Shield className="w-5 h-5 text-green-500" /><span className="text-[10px]">Secure</span></div>
-                  <div className="flex flex-col items-center gap-1"><Truck className="w-5 h-5 text-blue-500" /><span className="text-[10px]">Fast Ship</span></div>
-                  <div className="flex flex-col items-center gap-1"><RotateCcw className="w-5 h-5 text-orange-500" /><span className="text-[10px]">Returns</span></div>
+                  <div className="flex flex-col items-center gap-1"><Shield className="w-5 h-5 text-green-500" /><span className="text-[10px] text-foreground">Secure</span></div>
+                  <div className="flex flex-col items-center gap-1"><Truck className="w-5 h-5 text-blue-500" /><span className="text-[10px] text-foreground">Fast Ship</span></div>
+                  <div className="flex flex-col items-center gap-1"><RotateCcw className="w-5 h-5 text-orange-500" /><span className="text-[10px] text-foreground">Returns</span></div>
                </div>
             </div>
 
             {/* Description Tab */}
-            <div className="pt-6 border-t border-white/10">
-               <h3 className="font-bold mb-2">Description</h3>
+            <div className="pt-6 border-t border-gray-200 dark:border-white/10">
+               <h3 className="font-bold mb-2 text-foreground">Description</h3>
                <p className="text-muted-foreground text-sm leading-relaxed">{product.description || "Experience premium quality with Basit Shop. Best in class materials."}</p>
             </div>
           </div>
         </div>
 
-        {/* RELATED PRODUCTS (Faster Animation) */}
+        {/* RELATED PRODUCTS */}
         <section ref={suggestionsRef} className="mt-20">
-          <h2 className="text-2xl font-bold mb-6 pl-4 border-l-4 border-amber-500">You May Also Like</h2>
+          <h2 className="text-2xl font-bold mb-6 pl-4 border-l-4 border-amber-500 text-foreground">You May Also Like</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {relatedProducts.map((p, index) => (
               <div key={p.id} ref={el => productCardsRef.current[index] = el} className="opacity-0 translate-y-10">
