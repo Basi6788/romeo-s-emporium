@@ -1,13 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  House, // Home ki jagah House (better filled look)
-  LayoutGrid, // Modern Shop Icon
+  Home, 
+  Store, // Modern Shop Icon
   Heart, 
-  ShoppingBasket, // Modern Cart Icon
+  ShoppingBag, // Modern Bag Icon (Better than basket)
   User, 
-  MapPin,
-  Plane // Airplane icon
+  PackageSearch, // Modern Tracking Icon
+  Plane 
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -37,11 +37,11 @@ const BottomNavigation: React.FC = () => {
 
   // Updated Modern & Filled Icons
   const navItems = [
-    { to: '/', label: 'Home', icon: House },
-    { to: '/products', label: 'Shop', icon: LayoutGrid },
+    { to: '/', label: 'Home', icon: Home },
+    { to: '/products', label: 'Shop', icon: Store },
     { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount },
-    { to: '/cart', label: 'Cart', icon: ShoppingBasket, badge: itemCount },
-    { to: '/track-order', label: 'Track', icon: MapPin },
+    { to: '/cart', label: 'Cart', icon: ShoppingBag, badge: itemCount },
+    { to: '/track-order', label: 'Track', icon: PackageSearch },
     { to: isAuthenticated ? '/profile' : '/auth', label: 'Account', icon: User },
   ];
 
@@ -76,47 +76,43 @@ const BottomNavigation: React.FC = () => {
     });
     
     if (newIndex !== -1 && newIndex !== activeIndex) {
-      setPrevIndex(activeIndex); // Save previous index for direction
+      setPrevIndex(activeIndex);
       setActiveIndex(newIndex);
     }
   }, [location.pathname]);
 
-  // 4. AIRPLANE TO EARTH ANIMATION
+  // 4. PLANE -> BLOB ANIMATION
   useEffect(() => {
     if (activeIndex !== -1 && itemRefs.current[activeIndex] && indicatorRef.current) {
       const activeItem = itemRefs.current[activeIndex];
       const navRect = navRef.current?.getBoundingClientRect();
       
       if (activeItem && navRect) {
-        setIsMoving(true); // Start moving (Show Plane)
+        setIsMoving(true); // Start Flight (Show Plane)
 
         const itemRect = activeItem.getBoundingClientRect();
         const targetX = itemRect.left - navRect.left + (itemRect.width / 2);
 
-        // Determine Direction for Plane rotation
-        const direction = activeIndex > prevIndex ? 1 : -1; 
-        const rotation = direction === 1 ? 45 : -45; // Tilt plane right or left
-
-        // Animate the Indicator Container
+        // Move the Container
         gsap.to(indicatorRef.current, {
           x: targetX,
-          duration: 0.6,
+          duration: 0.5,
           ease: 'power2.inOut',
           onComplete: () => {
-            setIsMoving(false); // Stop moving (Show Earth)
+            setIsMoving(false); // Flight Over (Show Blob)
           }
         });
 
-        // Animate Icons
+        // Animate Icons (Bounce effect)
         itemRefs.current.forEach((item, index) => {
           if (!item) return;
           const icon = item.querySelector('.nav-icon');
 
           if (index === activeIndex) {
-            // ACTIVE: Bounce Up & Fill
+            // ACTIVE: Float Up & Glow
             gsap.to(icon, {
-              y: -14,
-              scale: 1.2,
+              y: -12,
+              scale: 1.25,
               duration: 0.5,
               ease: 'back.out(2)'
             });
@@ -184,18 +180,18 @@ const BottomNavigation: React.FC = () => {
         `}
         style={{ height: '70px' }}
       >
-        {/* MOVING INDICATOR (Plane -> Earth) */}
+        {/* MOVING INDICATOR CONTAINER */}
         <div 
           ref={indicatorRef}
-          className="absolute top-1/2 -translate-y-1/2 left-0 -ml-6 pointer-events-none z-0"
+          className="absolute top-1/2 -translate-y-1/2 left-0 -ml-7 pointer-events-none z-0"
         >
           {isMoving ? (
-            /* AIRPLANE MODE */
-            <div className="relative w-12 h-12 flex items-center justify-center">
-               {/* Motion Trail */}
-              <div className="absolute inset-0 bg-blue-500/30 blur-xl rounded-full animate-pulse" />
+            /* ✈️ AIRPLANE MODE (During Transition) */
+            <div className="relative w-14 h-14 flex items-center justify-center">
+              {/* Motion Trail */}
+              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
               <Plane 
-                className={`w-8 h-8 text-blue-600 dark:text-blue-400 transition-transform duration-300`}
+                className="w-8 h-8 text-primary transition-transform duration-300"
                 fill="currentColor"
                 style={{ 
                   transform: `rotate(${activeIndex > prevIndex ? '45deg' : '-135deg'})` 
@@ -203,25 +199,10 @@ const BottomNavigation: React.FC = () => {
               />
             </div>
           ) : (
-            /* EARTH MODE */
-            <div className="relative w-12 h-12 flex items-center justify-center">
-               {/* Earth Glow */}
-               <div className="absolute inset-0 bg-blue-400/20 blur-lg rounded-full" />
-               {/* CSS 3D Earth */}
-               <div 
-                 className="w-9 h-9 rounded-full shadow-inner animate-[spin_4s_linear_infinite]"
-                 style={{
-                   background: 'linear-gradient(to right, #005c97, #363795)', // Ocean
-                   backgroundImage: `
-                     radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8) 0%, rgba(0,0,0,0) 20%),
-                     repeating-linear-gradient(45deg, rgba(76, 175, 80, 0.6) 0px, rgba(76, 175, 80, 0.6) 10px, transparent 10px, transparent 20px)
-                   `, // Fake Continents effect
-                   boxShadow: 'inset -3px -3px 8px rgba(0,0,0,0.5), 0 0 10px rgba(59, 130, 246, 0.5)'
-                 }}
-               >
-                 {/* Atmosphere Ring */}
-                 <div className="absolute inset-0 rounded-full border border-blue-300/30" />
-               </div>
+            /* 💡 PURPLE BLOB MODE (When Static) */
+            <div className="relative w-14 h-14 flex items-center justify-center animate-in fade-in zoom-in duration-300">
+              <div className="w-full h-full bg-primary rounded-full blur-2xl opacity-50 animate-pulse" />
+              <div className="absolute inset-2 bg-gradient-to-tr from-primary to-violet-500 rounded-full opacity-70" />
             </div>
           )}
         </div>
@@ -240,24 +221,22 @@ const BottomNavigation: React.FC = () => {
                 className="relative flex items-center justify-center h-full w-12 group"
               >
                 <div className="nav-icon transition-colors duration-300">
-                  {/* Icon Render */}
                   <item.icon 
                     size={26}
-                    // FILLED LOGIC: Fill color same as text, Stroke width 0 or very thin
-                    fill={isActive ? "currentColor" : "currentColor"} 
-                    strokeWidth={isActive ? 0 : 1.5}
+                    fill={isActive ? "currentColor" : "none"} // Filled when active
+                    strokeWidth={isActive ? 0 : 2} // No stroke when filled, else normal
                     className={`
                       transition-all duration-300
                       ${isActive 
-                        ? 'text-black dark:text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' // Active: Solid White/Black
-                        : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300' // Inactive: Grey
+                        ? 'text-black dark:text-white drop-shadow-[0_0_15px_rgba(124,58,237,0.5)]' // Active: Solid + Glow
+                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300' // Inactive
                       }
                     `}
                   />
                   
-                  {/* Badge */}
+                  {/* Notification Badge */}
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute top-3 -right-1 min-w-[16px] h-[16px] px-0.5 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center border border-white shadow-sm">
+                    <span className="absolute top-3 -right-1 min-w-[16px] h-[16px] px-0.5 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center border border-white dark:border-black shadow-sm">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
