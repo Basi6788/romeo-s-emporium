@@ -43,7 +43,7 @@
     --amber: 38 92% 50%;
     --emerald: 160 84% 39%;
     --violet: 250 95% 60%;
-    
+
     --glass-bg: 0 0% 100% / 0.7;
     --glass-border: 0 0% 100% / 0.3;
     --blur-intensity: 20px;
@@ -102,13 +102,17 @@
 }
 
 @layer base {
+  /* FIX: Added '*' selector which was missing */
   * {
     @apply border-border;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
     /* FIX: Hide scrollbar in all browsers */
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
   }
-  
+
   /* FIX: Hide Chrome/Safari Scrollbar completely */
   ::-webkit-scrollbar {
     display: none;
@@ -118,9 +122,11 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    /* FIX: Force hide horizontal overflow */
-    overflow-x: hidden;
+    /* FIX: Force margin reset & overflow handling */
+    margin: 0 !important;
+    padding: 0 !important;
     width: 100%;
+    overflow-x: hidden;
     position: relative;
     -webkit-font-smoothing: antialiased;
   }
@@ -131,7 +137,7 @@
     overflow-x: hidden;
     width: 100%;
     /* FIX: Smooth scroll for mobile */
-    -webkit-overflow-scrolling: touch; 
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -161,7 +167,7 @@
       hsl(var(--background) / 0.8) 100%
     );
     border: 1px solid hsl(var(--border) / 0.3);
-    box-shadow: 
+    box-shadow:
       0 8px 32px hsl(var(--primary) / 0.1),
       inset 0 0 0 1px hsl(var(--border) / 0.1);
   }
@@ -237,11 +243,11 @@
 }
 
 @keyframes glow {
-  from { 
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3), 0 0 40px hsl(var(--emerald) / 0.1); 
+  from {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3), 0 0 40px hsl(var(--emerald) / 0.1);
   }
-  to { 
-    box-shadow: 0 0 40px hsl(var(--primary) / 0.5), 0 0 80px hsl(var(--emerald) / 0.2); 
+  to {
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.5), 0 0 80px hsl(var(--emerald) / 0.2);
   }
 }
 
@@ -305,12 +311,6 @@
 /* Safe area for bottom navigation */
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom, 8px);
-}
-
-/* Custom scrollbar - Overridden by global hide but kept for specific containers if needed later */
-::-webkit-scrollbar {
-  width: 0px; /* Changed to 0 */
-  height: 0px; /* Changed to 0 */
 }
 
 /* Color utility classes */
