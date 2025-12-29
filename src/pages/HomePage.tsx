@@ -1,300 +1,498 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { gsap } from 'gsap';
-import { Upload, Send, MessageCircle, HelpCircle, FileText, X, CheckCircle, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react';
 import Layout from '@/components/Layout';
-// 👇 YAHAN FIX KIYA HAI (Sahi path laga diya)
-import { supabase } from '@/integrations/supabase/client'; 
-import { toast } from 'sonner';
+import ProductCard from '@/components/ProductCard';
+import { useProducts, useCategories } from '@/hooks/useApi';
+import { useHeroImages } from '@/hooks/useHeroImages';
+import { Button } from '@/components/ui/button';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import * as THREE from 'three'; // Make sure three is installed: npm install three
 
-const HelpCenter = () => {
-  const formRef = useRef(null);
-  const faqRef = useRef(null);
+gsap.registerPlugin(ScrollTrigger);
 
-  const [loading, setLoading] = useState(false);
-  const [file, setFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: 'Order Issue',
-    message: ''
-  });
+// --- 1. Three.js Background Component (Optimized) ---
+const ParticleBackground = () => {
+  const mountRef = useRef(null);
 
-  // Animations on Load
   useEffect(() => {
-    const tl = gsap.timeline();
+    if (!mountRef.current) return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     
-    tl.fromTo('.header-text', 
-      { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.8, stagger: 0.1, ease: 'power3.out' }
-    )
-    .fromTo(formRef.current,
-      { x: -50, opacity: 0 },
-      { x: 0, opacity: 1, duration: 0.8, ease: 'power3.out' },
-      '-=0.4'
-    )
-    .fromTo(faqRef.current?.children || [],
-      { x: 50, opacity: 0 },
-      { x: 0, opacity: 1, stagger: 0.1, duration: 0.8, ease: 'power3.out' },
-      '-=0.6'
-    );
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for mobile
+    mountRef.current.appendChild(renderer.domElement);
+
+    // Particles
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particlesCount = window.innerWidth < 768 ? 500 : 1500; // Less particles on mobile
+    const posArray = new Float32Array(particlesCount * 3);
+
+    for(let i = 0; i < particlesCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 15; // Spread
+    }
+
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const material = new THREE.PointsMaterial({
+      size: 0.02,
+      color: 0x8b5cf6, // Violet tint
+      transparent: true,
+      opacity: 0.5,
+    });
+
+    const particlesMesh = new THREE.Points(particlesGeometry, material);
+    scene.add(particlesMesh);
+    camera.position.z = 3;
+
+    // Mouse interaction
+    let mouseX = 0;
+    let mouseY = 0;
+
+    const handleMouseMove = (event) => {
+      mouseX = event.clientX / window.innerWidth - 0.5;
+      mouseY = event.clientY / window.innerHeight - 0.5;
+    };
+
+    if (window.matchMedia("(pointer: fine)").matches) {
+       document.addEventListener('mousemove', handleMouseMove);
+    }
+
+    // Animation Loop
+    const animate = () => {
+      particlesMesh.rotation.y += 0.001;
+      particlesMesh.rotation.x += 0.001;
+      
+      // Gentle reaction to mouse
+      particlesMesh.rotation.y += 0.05 * (mouseX - particlesMesh.rotation.y) * 0.1;
+      particlesMesh.rotation.x += 0.05 * (mouseY - particlesMesh.rotation.x) * 0.1;
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('mousemove', handleMouseMove);
+      if (mountRef.current) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
+      // Cleanup Three.js resources
+      particlesGeometry.dispose();
+      material.dispose();
+      renderer.dispose();
+    };
   }, []);
 
-  // Handle Input Change
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none" />;
+};
 
-  // Handle File Select
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
-    if (selected) {
-      if (selected.size > 5000000) { // 5MB limit
-        toast.error('Jani file size 5MB se kam rakho!');
-        return;
-      }
-      setFile(selected);
-      setPreviewUrl(URL.createObjectURL(selected));
+// --- 2. Skeleton Loader Component ---
+const HeroSkeleton = () => (
+  <div className="relative min-h-[520px] md:min-h-[600px] w-full bg-muted/20 overflow-hidden flex items-end pb-20 px-4">
+    <div className="container mx-auto">
+      <div className="max-w-xl space-y-4">
+        <div className="h-8 w-24 bg-muted animate-pulse rounded-full" />
+        <div className="h-16 w-3/4 bg-muted animate-pulse rounded-2xl" />
+        <div className="h-6 w-1/2 bg-muted animate-pulse rounded-lg" />
+        <div className="flex gap-3 pt-2">
+          <div className="h-12 w-32 bg-muted animate-pulse rounded-xl" />
+          <div className="h-12 w-32 bg-muted animate-pulse rounded-xl" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// --- 3. Main HomePage Component ---
+const HomePage = () => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const heroRef = useRef(null);
+  const slideRefs = useRef([]);
+  const contentRefs = useRef([]);
+  const imageRefs = useRef([]);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const mouseGlowRef = useRef(null);
+  
+  // Section refs for parallax
+  const featuresRef = useRef(null);
+  const categoriesRef = useRef(null);
+  const dealsRef = useRef(null);
+  const featuredRef = useRef(null);
+  const promoRef = useRef(null);
+  
+  const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: categories = [] } = useCategories();
+  // IMPORTANT: Ensure useHeroImages returns 'isLoading'
+  const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
+
+  // Logic: Show DB images if exist, otherwise wait. Don't show default immediately if loading.
+  const heroSlides = useMemo(() => {
+    if (dbHeroImages && dbHeroImages.length > 0) {
+      return dbHeroImages.map(hero => ({
+        id: hero.id,
+        title: hero.title,
+        subtitle: hero.subtitle || '',
+        image: hero.image,
+        gradient: hero.gradient,
+        badge: hero.badge,
+        link: hero.link,
+      }));
     }
-  };
-
-  const removeFile = () => {
-    setFile(null);
-    setPreviewUrl(null);
-  };
-
-  // Submit Logic
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      let imageUrl = '';
-
-      // 1. Upload Image to Supabase Storage
-      if (file) {
-        // Unique file name banaya taake overwrite na ho
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('complaint-proofs')
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        // Get Public URL
-        const { data: urlData } = supabase.storage
-          .from('complaint-proofs')
-          .getPublicUrl(fileName);
-          
-        imageUrl = urlData.publicUrl;
-      }
-
-      // 2. Insert Data into Database
-      const { error: dbError } = await supabase
-        .from('complaints')
-        .insert([
+    // Only return defaults if NOT loading and DB is empty
+    if (!heroLoading) {
+      return [
           {
-            name: formData.name,
-            email: formData.email,
-            subject: formData.subject,
-            message: formData.message,
-            image_url: imageUrl,
-            status: 'pending' // Admin ke liye status
+            id: 'def-1',
+            title: 'Welcome to Future',
+            subtitle: 'Experience the best technology.',
+            image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop', // Abstract tech
+            gradient: 'from-violet-600 via-purple-600 to-indigo-800',
+            badge: 'New Era',
+            link: '/products',
           }
-        ]);
+      ]; 
+    }
+    return [];
+  }, [dbHeroImages, heroLoading]);
 
-      if (dbError) throw dbError;
+  const featuredProducts = products.slice(0, 8);
+  const dealProducts = products.filter(p => p.originalPrice).slice(0, 4);
 
-      toast.success('Complaint received! Hum jaldi contact karenge.');
-      
-      // Reset Form
-      setFormData({ name: '', email: '', subject: 'Order Issue', message: '' });
-      removeFile();
+  // Mouse Glow Effect
+  useEffect(() => {
+    const glow = mouseGlowRef.current;
+    if (!glow) return;
 
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Oye hoye! Kuch garbar ho gayi. Dubara try karo.');
-    } finally {
-      setLoading(false);
+    const moveGlow = (e) => {
+      gsap.to(glow, {
+        x: e.clientX,
+        y: e.clientY,
+        duration: 0.6,
+        ease: "power2.out"
+      });
+    };
+
+    window.addEventListener("mousemove", moveGlow);
+    return () => window.removeEventListener("mousemove", moveGlow);
+  }, []);
+
+  // Parallax & ScrollTrigger setup
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Features - Stagger Reveal
+      if (featuresRef.current) {
+        gsap.fromTo(featuresRef.current.querySelectorAll('.feature-item'),
+          { y: 50, opacity: 0, scale: 0.8 },
+          {
+            y: 0, opacity: 1, scale: 1,
+            duration: 0.6, stagger: 0.1, ease: 'back.out(1.7)',
+            scrollTrigger: { trigger: featuresRef.current, start: 'top 85%' }
+          }
+        );
+      }
+
+      // Categories - Smooth Fade Up
+      if (categoriesRef.current) {
+        gsap.fromTo(categoriesRef.current.querySelectorAll('.category-item'),
+          { y: 40, opacity: 0 },
+          {
+            y: 0, opacity: 1,
+            duration: 0.5, stagger: 0.05, ease: 'power2.out',
+            scrollTrigger: { trigger: categoriesRef.current, start: 'top 80%' }
+          }
+        );
+      }
+
+      // Product Cards - 3D Flip Effect
+      const cards = document.querySelectorAll('.product-card');
+      cards.forEach((card, i) => {
+        gsap.fromTo(card,
+          { opacity: 0, rotateY: 30, y: 50 },
+          {
+            opacity: 1, rotateY: 0, y: 0,
+            duration: 0.8, ease: 'power3.out',
+            scrollTrigger: { trigger: card, start: 'top 90%' }
+          }
+        );
+      });
+    });
+
+    return () => ctx.revert();
+  }, [products, categories]);
+
+  // Slide Animation Logic
+  const animateSlide = useCallback((newIndex, direction) => {
+    if (isAnimating || !slideRefs.current[newIndex]) return;
+    setIsAnimating(true);
+
+    const currentContent = contentRefs.current[currentSlide];
+    const currentImage = imageRefs.current[currentSlide];
+    const currentSlideEl = slideRefs.current[currentSlide];
+    
+    const newContent = contentRefs.current[newIndex];
+    const newImage = imageRefs.current[newIndex];
+    const newSlideEl = slideRefs.current[newIndex];
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        setCurrentSlide(newIndex);
+        setIsAnimating(false);
+      }
+    });
+
+    // Exit Current
+    tl.to(currentContent, { y: -50, opacity: 0, duration: 0.5, ease: 'power2.in' }, 0)
+      .to(currentImage, { scale: 1.1, opacity: 0, duration: 0.5 }, 0)
+      .set(currentSlideEl, { visibility: 'hidden', zIndex: 0 });
+
+    // Enter New
+    tl.set(newSlideEl, { visibility: 'visible', zIndex: 10 }, 0)
+      .fromTo(newImage, 
+        { scale: 1.2, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.8, ease: 'power2.out' }, 0.1
+      )
+      .fromTo(newContent,
+        { y: 50, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.8, ease: 'back.out(1.2)' }, 0.3
+      );
+
+  }, [currentSlide, isAnimating]);
+
+  const nextSlide = useCallback(() => {
+    if (heroSlides.length < 2) return;
+    const next = (currentSlide + 1) % heroSlides.length;
+    animateSlide(next, 'next');
+  }, [currentSlide, animateSlide, heroSlides.length]);
+
+  const prevSlide = useCallback(() => {
+    if (heroSlides.length < 2) return;
+    const prev = currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1;
+    animateSlide(prev, 'prev');
+  }, [currentSlide, animateSlide, heroSlides.length]);
+
+  // Touch Swipe Logic
+  const handleTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 50) {
+      diff > 0 ? nextSlide() : prevSlide();
     }
   };
+
+  // Autoplay
+  useEffect(() => {
+    if (heroSlides.length <= 1) return;
+    const autoplay = setInterval(() => {
+        if(!isAnimating) nextSlide();
+    }, 5000);
+    return () => clearInterval(autoplay);
+  }, [heroSlides.length, isAnimating, nextSlide]);
 
   return (
     <Layout>
-      {/* Dynamic Background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 bg-background">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] opacity-40 mix-blend-screen" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[100px] opacity-40 mix-blend-screen" />
-      </div>
+      {/* Mouse Follower Glow (Desktop Only visually, hidden on touch via CSS usually) */}
+      <div 
+        ref={mouseGlowRef}
+        className="fixed top-0 left-0 w-[400px] h-[400px] bg-primary/20 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0 hidden md:block"
+      />
 
-      <div className="container mx-auto px-4 py-12 min-h-screen">
-        
-        {/* Header Section */}
-        <div className="text-center mb-16 space-y-4">
-          <div className="header-text inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 font-bold text-sm uppercase tracking-wider">
-            <HelpCircle className="w-4 h-4" /> 24/7 Support
-          </div>
-          <h1 className="header-text text-4xl md:text-5xl font-black text-foreground">
-            How can we <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-600">help you?</span>
-          </h1>
-          <p className="header-text text-muted-foreground max-w-2xl mx-auto text-lg">
-            Koi masla aa raha hai? Form fill karo, screenshot lagao, aur chill karo. Romeo sambhal lega!
-          </p>
+      {/* Hero Section */}
+      <section 
+        ref={heroRef}
+        className="relative overflow-hidden bg-background"
+        onTouchStart={e => touchStartX.current = e.touches[0].clientX}
+        onTouchMove={e => touchEndX.current = e.touches[0].clientX}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Three.js Background Layer */}
+        <div className="absolute inset-0 z-0">
+           <ParticleBackground />
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
-          
-          {/* FORM SECTION */}
-          <div ref={formRef} className="bg-white/50 dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
-            {/* Top Glow Line */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50" />
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-foreground ml-1">Your Name</label>
-                  <input 
-                    type="text" 
-                    name="name" 
-                    value={formData.name} 
-                    onChange={handleChange}
-                    required
-                    placeholder="Basit Romeo"
-                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-foreground focus:outline-none focus:border-amber-500 transition-colors"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-foreground ml-1">Email Address</label>
-                  <input 
-                    type="email" 
-                    name="email" 
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="romeo@example.com"
-                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-foreground focus:outline-none focus:border-amber-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground ml-1">Subject</label>
-                <select 
-                  name="subject" 
-                  value={formData.subject}
-                  onChange={handleChange}
-                  className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-foreground focus:outline-none focus:border-amber-500 transition-colors appearance-none cursor-pointer"
-                >
-                  <option>Order Not Received</option>
-                  <option>Damaged Product</option>
-                  <option>Payment Issue</option>
-                  <option>Bug Report</option>
-                  <option>Other</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground ml-1">Message</label>
-                <textarea 
-                  name="message" 
-                  value={formData.message}
-                  onChange={handleChange}
-                  required
-                  rows="4"
-                  placeholder="Details batao jani, kya masla hua..."
-                  className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none"
-                />
-              </div>
-
-              {/* IMAGE UPLOAD AREA */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground ml-1">Attach Screenshot (Optional)</label>
-                
-                {!previewUrl ? (
-                  <label className="border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-500/5 transition-all group">
-                    <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                      <Upload className="w-6 h-6 text-muted-foreground group-hover:text-amber-500" />
-                    </div>
-                    <p className="text-sm text-muted-foreground text-center">
-                      <span className="text-amber-500 font-bold">Click to upload</span> or drag and drop
-                      <br /> SVG, PNG, JPG (Max 5MB)
-                    </p>
-                  </label>
-                ) : (
-                  <div className="relative rounded-xl overflow-hidden border border-amber-500/50 group">
-                    <img src={previewUrl} alt="Preview" className="w-full h-48 object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        type="button"
-                        onClick={removeFile}
-                        className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:scale-105 transition-transform"
-                      >
-                        <X className="w-4 h-4" /> Remove
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-14 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-lg shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+        {/* Conditional Rendering: Skeleton vs Real Content */}
+        {heroLoading || heroSlides.length === 0 ? (
+          <HeroSkeleton />
+        ) : (
+          <div className="relative min-h-[520px] md:min-h-[600px]">
+            {heroSlides.map((slide, index) => (
+              <div
+                key={slide.id}
+                ref={el => slideRefs.current[index] = el}
+                className="absolute inset-0 overflow-hidden flex items-end pb-20"
+                style={{ 
+                    visibility: index === 0 ? 'visible' : 'hidden',
+                    zIndex: index === 0 ? 10 : 0 
+                }}
               >
-                {loading ? (
-                  <>Processing...</>
-                ) : (
-                  <>Submit Complaint <Send className="w-5 h-5" /></>
-                )}
-              </button>
+                {/* Background Image with optimized blending */}
+                <div className="absolute inset-0 z-[-1]">
+                    <img
+                        ref={el => imageRefs.current[index] = el}
+                        src={slide.image}
+                        alt={slide.title}
+                        className="w-full h-full object-cover"
+                        loading={index === 0 ? 'eager' : 'lazy'}
+                    />
+                    <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-50 mix-blend-multiply`} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+                </div>
 
-            </form>
-          </div>
-
-          {/* FAQ / SIDE INFO */}
-          <div ref={faqRef} className="space-y-6">
-            <h3 className="text-2xl font-bold text-foreground mb-4">Common Questions</h3>
-            
-            {[
-              { q: "Order kab tak milega?", a: "Jani usually 3-4 working days lagte hain. Tracking ID check kar lo." },
-              { q: "Return policy kya hai?", a: "Agar cheez tooti hui nikli, tu 7 din ke andar wapas bhej do. No tension." },
-              { q: "Payment methods?", a: "Cash on Delivery (COD), JazzCash, aur EasyPaisa available hain." }
-            ].map((item, index) => (
-              <div key={index} className="bg-white/50 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl p-6 hover:border-amber-500/50 transition-colors cursor-default">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-full bg-amber-500/10 shrink-0">
-                    <MessageCircle className="w-6 h-6 text-amber-500" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-foreground text-lg mb-1">{item.q}</h4>
-                    <p className="text-muted-foreground text-sm leading-relaxed">{item.a}</p>
+                {/* Content */}
+                <div className="container mx-auto px-4 relative z-10">
+                  <div ref={el => contentRefs.current[index] = el} className="max-w-xl">
+                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-medium mb-6 text-foreground shadow-lg">
+                      <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                      {slide.badge}
+                    </span>
+                    <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold mb-4 tracking-tight leading-[1.1] text-foreground drop-shadow-2xl">
+                      {slide.title}
+                    </h1>
+                    <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-md font-light leading-relaxed">
+                      {slide.subtitle}
+                    </p>
+                    <div className="flex flex-wrap gap-4">
+                      <Button 
+                        asChild 
+                        size="lg" 
+                        className="h-14 px-8 text-lg rounded-full shadow-primary/30 shadow-lg hover:scale-105 transition-transform duration-300"
+                      >
+                        <Link to={slide.link || '/products'}>
+                          Shop Now <ArrowRight className="ml-2 w-5 h-5" />
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
+            
+            {/* Dots Indicator only - No Buttons */}
+            {heroSlides.length > 1 && (
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
+                {heroSlides.map((_, i) => (
+                    <button
+                    key={i}
+                    onClick={() => {
+                        const dir = i > currentSlide ? 'next' : 'prev';
+                        animateSlide(i, dir);
+                    }}
+                    className={`h-1.5 rounded-full transition-all duration-500 ${
+                        i === currentSlide 
+                        ? 'w-10 bg-primary shadow-[0_0_10px_theme(colors.primary.DEFAULT)]' 
+                        : 'w-2 bg-muted-foreground/50 hover:bg-primary/50'
+                    }`}
+                    aria-label={`Go to slide ${i + 1}`}
+                    />
+                ))}
+                </div>
+            )}
+          </div>
+        )}
+      </section>
 
-            <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-[2rem] p-8 text-white relative overflow-hidden mt-8 shadow-2xl">
-              <div className="relative z-10">
-                <h3 className="text-2xl font-black mb-2">Direct Contact?</h3>
-                <p className="opacity-90 mb-6">Agar bohot urgent hai tu seedha WhatsApp kar lo.</p>
-                <button className="bg-white text-orange-600 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition-colors w-full sm:w-auto">
-                  WhatsApp Us
-                </button>
+      {/* Features Bar - Glassmorphism */}
+      <section ref={featuresRef} className="relative z-10 -mt-8 mb-10">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-background/60 backdrop-blur-xl border border-white/10 p-4 rounded-3xl shadow-2xl">
+            {[
+              { icon: Truck, title: 'Free Shipping', desc: 'On orders over $100' },
+              { icon: Shield, title: 'Secure Payment', desc: '100% Protected' },
+              { icon: Clock, title: 'Fast Delivery', desc: 'Global tracking' },
+              { icon: Headphones, title: '24/7 Support', desc: 'Dedicated team' },
+            ].map((f, i) => (
+              <div key={i} className="feature-item flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-3 p-2">
+                <div className="p-3 rounded-2xl bg-primary/10 text-primary mb-2 sm:mb-0">
+                  <f.icon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-foreground">{f.title}</h3>
+                  <p className="text-xs text-muted-foreground">{f.desc}</p>
+                </div>
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-10 -mt-10" />
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10" />
-            </div>
-
+            ))}
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Categories */}
+      <section ref={categoriesRef} className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <span className="text-primary font-medium tracking-wider text-sm uppercase">Collections</span>
+              <h2 className="text-3xl font-bold mt-2">Browse Categories</h2>
+            </div>
+            <Link to="/products" className="group flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors">
+              View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+            {categories.slice(0, 8).map((cat) => (
+              <Link
+                key={cat.id}
+                to={`/products?category=${cat.id}`}
+                className="category-item group flex flex-col items-center gap-4 p-6 rounded-3xl bg-card hover:bg-accent/50 border border-border/50 hover:border-primary/30 transition-all duration-500 hover:-translate-y-2"
+              >
+                <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg group-hover:shadow-primary/20 transition-all">
+                  {cat.image_url ? (
+                    <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full bg-primary/10 flex items-center justify-center text-2xl">
+                      {cat.icon || '📦'}
+                    </div>
+                  )}
+                </div>
+                <span className="text-sm font-semibold text-center">{cat.name}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products (Using Skeleton if Loading) */}
+      <section ref={featuredRef} className="py-16 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Trending Now</h2>
+            <div className="h-1 w-20 bg-primary mx-auto rounded-full" />
+          </div>
+          
+          {productsLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="aspect-[3/4] rounded-3xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {featuredProducts.map((product) => (
+                 <div className="product-card" key={product.id}>
+                    <ProductCard product={product} />
+                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
     </Layout>
   );
 };
 
-export default HelpCenter;
+export default HomePage;
