@@ -33,64 +33,72 @@ const styles = `
     filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
   }
 
-  /* NEON RAINBOW BORDER ANIMATION FOR WINDOW BORDER ONLY */
+  /* NEON RAINBOW BORDER ANIMATION FOR ALL ELEMENTS */
   @keyframes borderRotate {
     100% { background-position: 200% 0; }
   }
 
-  /* Window Border Animation */
-  .window-neon-border {
+  /* Window, Cards, Buttons aur Toggles ke liye Neon Border */
+  .neon-border-all {
     position: relative;
     overflow: hidden;
-    border-radius: 30px;
   }
 
-  .window-neon-border::before {
+  .neon-border-all::before {
     content: '';
     position: absolute;
-    inset: -3px;
+    inset: -2px;
     z-index: -1;
     background: linear-gradient(90deg, 
-      rgba(255, 0, 0, 0.7),    /* Dimmed Red */
-      rgba(255, 115, 0, 0.7),  /* Dimmed Orange */
-      rgba(255, 251, 0, 0.7),  /* Dimmed Yellow */
-      rgba(72, 255, 0, 0.7),   /* Dimmed Green */
-      rgba(0, 255, 213, 0.7),  /* Dimmed Cyan */
-      rgba(0, 43, 255, 0.7),   /* Dimmed Blue */
-      rgba(122, 0, 255, 0.7),  /* Dimmed Purple */
-      rgba(255, 0, 200, 0.7),  /* Dimmed Pink */
-      rgba(255, 0, 0, 0.7)     /* Dimmed Red */
+      rgba(255, 0, 0, 0.6),    /* Halka Dim Red */
+      rgba(255, 115, 0, 0.6),  /* Halka Dim Orange */
+      rgba(255, 251, 0, 0.6),  /* Halka Dim Yellow */
+      rgba(72, 255, 0, 0.6),   /* Halka Dim Green */
+      rgba(0, 255, 213, 0.6),  /* Halka Dim Cyan */
+      rgba(0, 43, 255, 0.6),   /* Halka Dim Blue */
+      rgba(122, 0, 255, 0.6),  /* Halka Dim Purple */
+      rgba(255, 0, 200, 0.6),  /* Halka Dim Pink */
+      rgba(255, 0, 0, 0.6)     /* Halka Dim Red */
     );
     background-size: 200% 100%;
     opacity: 0;
-    transition: opacity 0.4s ease;
+    transition: opacity 0.3s ease;
     border-radius: inherit;
-    animation: borderRotate 3s linear infinite paused;
-    filter: blur(4px);
+    animation: borderRotate 2.5s linear infinite paused;
+    filter: blur(3px); /* Halka glow effect */
   }
 
-  .window-neon-border:hover::before {
+  .neon-border-all:hover::before {
     opacity: 1;
     animation-play-state: running;
   }
 
-  /* Inner background to cover the center of the rainbow */
-  .window-neon-border::after {
+  .neon-border-all::after {
     content: '';
     position: absolute;
-    inset: 2px;
+    inset: 1px;
     background: inherit;
     border-radius: inherit;
     z-index: -1;
   }
 
-  /* Card and Button Gradients (Dimmed) */
+  /* Special style for window border only (thicker) */
+  .window-neon-border::before {
+    inset: -3px;
+    filter: blur(4px);
+  }
+
+  .window-neon-border::after {
+    inset: 2px;
+  }
+
+  /* Card and Button Gradients (Halke dim) */
   .dim-gradient-light {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15));
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 140, 0, 0.25));
   }
 
   .dim-gradient-dark {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 140, 0, 0.1));
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.2));
   }
 
   /* Glass Styles */
@@ -100,24 +108,26 @@ const styles = `
   }
   
   .nav-glass.light-mode {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.9);
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   }
 
   .nav-glass.dark-mode {
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.75);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* Fix for search and menu buttons in light mode */
-  .light-mode-button {
-    background: rgba(0, 0, 0, 0.1) !important;
-    color: #000 !important;
-    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  /* Fix for icons in light mode */
+  .light-icon {
+    color: #333 !important;
   }
 
-  .light-mode-button:hover {
-    background: rgba(0, 0, 0, 0.15) !important;
+  .light-icon-bg {
+    background: rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .light-icon-bg:hover {
+    background: rgba(0, 0, 0, 0.2) !important;
   }
 
   /* MIRAE Logo Animation */
@@ -126,7 +136,7 @@ const styles = `
       letter-spacing: 0.15em;
     }
     50% {
-      letter-spacing: 0.3em;
+      letter-spacing: 0.35em;
     }
     100% {
       letter-spacing: 0.15em;
@@ -134,7 +144,29 @@ const styles = `
   }
 
   .logo-spread {
-    animation: spreadText 2s ease-in-out;
+    animation: spreadText 1.5s ease-in-out;
+  }
+
+  /* Button click animation */
+  @keyframes buttonClick {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+  }
+
+  .button-click {
+    animation: buttonClick 0.3s ease;
+  }
+
+  /* Hover animation for menu/search buttons */
+  @keyframes buttonHover {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  .button-hover {
+    animation: buttonHover 0.5s ease infinite;
   }
 
   /* Prevent keyboard opening on mobile */
@@ -144,13 +176,48 @@ const styles = `
 `;
 
 // --- Reusable Neon Button Component ---
-const NeonButton = ({ children, onClick, className = "", badge, isLightMode, isScrolled }) => {
+const NeonButton = ({ 
+  children, 
+  onClick, 
+  className = "", 
+  badge, 
+  isLightMode, 
+  isScrolled,
+  isHovering,
+  isClicked 
+}) => {
+  const buttonRef = useRef(null);
+  
+  // Click animation
+  useEffect(() => {
+    if (isClicked && buttonRef.current) {
+      const el = buttonRef.current;
+      el.classList.add('button-click');
+      const timer = setTimeout(() => {
+        el.classList.remove('button-click');
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isClicked]);
+
+  // Hover animation
+  useEffect(() => {
+    if (isHovering && buttonRef.current) {
+      const el = buttonRef.current;
+      el.classList.add('button-hover');
+      return () => {
+        el.classList.remove('button-hover');
+      };
+    }
+  }, [isHovering]);
+
   const buttonClass = isScrolled && isLightMode 
-    ? `light-mode-button group relative flex items-center justify-center rounded-full transition-transform active:scale-95 ${className}`
-    : `neon-border-container group relative flex items-center justify-center rounded-full transition-transform active:scale-95 ${className}`;
+    ? `neon-border-all group relative flex items-center justify-center rounded-full transition-all ${className}`
+    : `neon-border-all group relative flex items-center justify-center rounded-full transition-all ${className}`;
 
   return (
     <button
+      ref={buttonRef}
       onClick={onClick}
       className={buttonClass}
     >
@@ -177,6 +244,11 @@ const Header = React.memo(() => {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [logoAnimating, setLogoAnimating] = useState(false);
+  const [isHoveringSearch, setIsHoveringSearch] = useState(false);
+  const [isHoveringMenu, setIsHoveringMenu] = useState(false);
+  const [isSearchClicked, setIsSearchClicked] = useState(false);
+  const [isMenuClicked, setIsMenuClicked] = useState(false);
+  const [isThemeToggleHovering, setIsThemeToggleHovering] = useState(false);
   
   const menuRef = useRef(null);
   const overlayRef = useRef(null);
@@ -239,7 +311,7 @@ const Header = React.memo(() => {
   useEffect(() => {
     if (logoAnimating && logoTextRef.current) {
       const animation = gsap.to(logoTextRef.current, {
-        letterSpacing: "0.3em",
+        letterSpacing: "0.35em",
         duration: 0.5,
         ease: "power2.out",
         onComplete: () => {
@@ -270,6 +342,30 @@ const Header = React.memo(() => {
     gsap.to(logoRef.current, { scale: 1, duration: 0.3 });
   };
 
+  // --- Button click handlers ---
+  const handleSearchClick = () => {
+    setIsSearchClicked(true);
+    setSearchOpen(!searchOpen);
+    setTimeout(() => setIsSearchClicked(false), 300);
+  };
+
+  const handleMenuClick = () => {
+    setIsMenuClicked(true);
+    setMenuOpen(true);
+    setTimeout(() => setIsMenuClicked(false), 300);
+  };
+
+  const handleThemeToggleClick = () => {
+    const toggleButton = document.querySelector('.theme-toggle-button');
+    if (toggleButton) {
+      toggleButton.classList.add('button-click');
+      setTimeout(() => {
+        toggleButton.classList.remove('button-click');
+      }, 300);
+    }
+    toggleTheme();
+  };
+
   // --- VISIBILITY LOGIC ---
   const isLight = theme === 'light';
   
@@ -277,14 +373,14 @@ const Header = React.memo(() => {
     ? (isLight ? 'light-mode text-black' : 'dark-mode text-white') 
     : 'bg-transparent text-white';
 
-  const iconColorClass = scrolled 
-    ? (isLight ? 'text-black' : 'text-white') 
-    : 'text-white';
+  // Fix: Icon color in light mode
+  const iconColorClass = scrolled && isLight 
+    ? 'light-icon' 
+    : (scrolled ? 'text-white' : 'text-white');
 
-  // Fix: Button color in light mode when scrolled
   const buttonBgClass = scrolled && isLight 
-    ? 'light-mode-button'
-    : 'bg-white/10 hover:bg-white/20';
+    ? 'light-icon-bg'
+    : 'bg-white/10';
 
   // Menu Items
   const menuItems = [
@@ -340,10 +436,14 @@ const Header = React.memo(() => {
             
             {/* Search Toggle - Fixed visibility in light mode */}
             <NeonButton 
-              onClick={() => setSearchOpen(!searchOpen)} 
-              className={`w-10 h-10 transition-all ${buttonBgClass}`}
+              onClick={handleSearchClick} 
+              className={`w-10 h-10 ${buttonBgClass}`}
               isLightMode={isLight}
               isScrolled={scrolled}
+              isHovering={isHoveringSearch}
+              isClicked={isSearchClicked}
+              onMouseEnter={() => setIsHoveringSearch(true)}
+              onMouseLeave={() => setIsHoveringSearch(false)}
             >
               {searchOpen ? (
                 <X className={`w-5 h-5 ${iconColorClass}`} />
@@ -354,11 +454,15 @@ const Header = React.memo(() => {
 
             {/* Menu Toggle - Fixed visibility in light mode */}
             <NeonButton 
-              onClick={() => setMenuOpen(true)} 
-              className={`w-10 h-10 transition-all ${buttonBgClass}`}
+              onClick={handleMenuClick} 
+              className={`w-10 h-10 ${buttonBgClass}`}
               badge={itemCount > 0 ? itemCount : null}
               isLightMode={isLight}
               isScrolled={scrolled}
+              isHovering={isHoveringMenu}
+              isClicked={isMenuClicked}
+              onMouseEnter={() => setIsHoveringMenu(true)}
+              onMouseLeave={() => setIsHoveringMenu(false)}
             >
               <MenuIcon className={`w-5 h-5 ${iconColorClass}`} />
             </NeonButton>
@@ -396,7 +500,7 @@ const Header = React.memo(() => {
           <div 
             ref={menuRef}
             className={`
-              gpu-accelerated relative w-full max-w-sm mt-16 window-neon-border opacity-0
+              gpu-accelerated relative w-full max-w-sm mt-16 window-neon-border neon-border-all opacity-0
               ${isLight ? 'bg-white/90 shadow-xl' : 'bg-[#0f0f0f]/95 shadow-2xl shadow-black/50'}
               backdrop-blur-xl overflow-hidden
             `}
@@ -412,7 +516,7 @@ const Header = React.memo(() => {
               
               <button 
                 onClick={() => setMenuOpen(false)}
-                className={`p-2 rounded-full transition-colors ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/10 text-white'}`}
+                className={`p-2 rounded-full transition-colors neon-border-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/10 text-white'}`}
               >
                 <X className="w-6 h-6" />
               </button>
@@ -420,7 +524,7 @@ const Header = React.memo(() => {
 
             <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-gray-500/20 to-transparent my-2"></div>
 
-            {/* Menu Grid */}
+            {/* Menu Grid - Cards with RGB borders */}
             <div className="p-4 grid grid-cols-2 gap-3">
               {menuItems.map((item, idx) => {
                 const isActive = location.pathname === item.to;
@@ -436,7 +540,7 @@ const Header = React.memo(() => {
                     to={item.to}
                     onClick={() => setMenuOpen(false)}
                     className={`
-                      menu-item-anim flex flex-col items-center justify-center p-5 rounded-2xl border transition-all duration-300
+                      menu-item-anim neon-border-all flex flex-col items-center justify-center p-5 rounded-2xl border border-transparent transition-all duration-300
                       ${itemBg}
                     `}
                   >
@@ -458,15 +562,18 @@ const Header = React.memo(() => {
               })}
             </div>
 
-            {/* Footer / Theme Toggle */}
+            {/* Footer / Theme Toggle - Animated toggle */}
             <div className="p-6 pt-2">
                <button 
-                 onClick={toggleTheme}
+                 onClick={handleThemeToggleClick}
+                 onMouseEnter={() => setIsThemeToggleHovering(true)}
+                 onMouseLeave={() => setIsThemeToggleHovering(false)}
                  className={`
-                   w-full flex items-center justify-center gap-3 py-3 rounded-xl border transition-all active:scale-95
+                   theme-toggle-button neon-border-all w-full flex items-center justify-center gap-3 py-3 rounded-xl border transition-all
                    ${isLight 
-                     ? 'light-mode-button text-black' 
-                     : 'neon-border-container bg-white/5 border-white/10 text-white'}
+                     ? 'light-icon-bg text-black' 
+                     : 'bg-white/5 border-white/10 text-white'}
+                   ${isThemeToggleHovering ? 'scale-105' : ''}
                  `}
                >
                  {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
