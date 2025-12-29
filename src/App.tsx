@@ -29,6 +29,7 @@ import OrdersPage from "./pages/OrdersPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import MepcoBill from "./pages/MepcoBill";
+import HelpCenter from "./pages/HelpCenter"; // 🔥 Added Import
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -85,6 +86,7 @@ const AnimatedRoutes = () => {
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/mepco-bill" element={<MepcoBill />} />
+            <Route path="/help" element={<HelpCenter />} /> {/* 🔥 Added Route */}
             
             {/* Protected Customer Routes */}
             <Route path="/cart" element={<CartPage />} />
