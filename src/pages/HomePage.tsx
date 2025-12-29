@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react';
+import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
@@ -12,15 +12,13 @@ import * as THREE from 'three';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// --- 1. Three.js Background (Floating Wave Effect) ---
+// --- 1. Three.js Background (Optimized) ---
 const ParticleBackground = () => {
   const mountRef = useRef(null);
 
   useEffect(() => {
-    // Safety check: Don't run heavily on mobile to avoid crashes
     if (!mountRef.current || window.innerWidth < 768) return; 
 
-    // Cleanup previous
     while(mountRef.current.firstChild) mountRef.current.removeChild(mountRef.current.firstChild);
 
     const scene = new THREE.Scene();
@@ -31,7 +29,6 @@ const ParticleBackground = () => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); 
     mountRef.current.appendChild(renderer.domElement);
 
-    // Particles Wave Setup
     const particlesGeometry = new THREE.BufferGeometry();
     const particlesCount = 1200;
     const posArray = new Float32Array(particlesCount * 3);
@@ -44,7 +41,6 @@ const ParticleBackground = () => {
 
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     
-    // Violet color suited for both modes
     const material = new THREE.PointsMaterial({
       size: 0.03,
       color: 0x6d28d9, 
@@ -57,16 +53,13 @@ const ParticleBackground = () => {
     scene.add(particlesMesh);
     camera.position.z = 5;
 
-    // Animation Loop
     let animationId;
     const clock = new THREE.Clock();
     
     const animate = () => {
       const elapsedTime = clock.getElapsedTime();
-      // Wave motion
       particlesMesh.position.y = Math.sin(elapsedTime * 0.5) * 0.2; 
-      particlesMesh.rotation.z += 0.0005; // Gentle spin
-      
+      particlesMesh.rotation.z += 0.0005;
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(animate);
     };
@@ -84,7 +77,7 @@ const ParticleBackground = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationId);
-      if(mountRef.current) mountRef.current.innerHTML = ''; // Force cleanup
+      if(mountRef.current) mountRef.current.innerHTML = '';
       particlesGeometry.dispose();
       material.dispose();
       renderer.dispose();
@@ -94,7 +87,22 @@ const ParticleBackground = () => {
   return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none hidden md:block opacity-60" />;
 };
 
-// --- 2. Compact Hero Skeleton ---
+// --- 2. Custom Loading Component (New) ---
+const LoadingSpinner = () => (
+  <div className="col-span-full flex flex-col items-center justify-center py-20 min-h-[300px]">
+    <div className="relative">
+      <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+      </div>
+    </div>
+    <p className="mt-6 text-muted-foreground font-medium animate-pulse tracking-wide">
+      Please wait loading......
+    </p>
+  </div>
+);
+
+// --- 3. Hero Skeleton ---
 const HeroSkeleton = () => (
   <div className="relative h-[500px] md:h-[600px] w-full bg-muted/20 animate-pulse flex items-center justify-center">
     <div className="container mx-auto px-4 flex flex-col justify-end h-full pb-20">
@@ -108,27 +116,29 @@ const HeroSkeleton = () => (
   </div>
 );
 
-// --- 3. Main HomePage Component ---
+// --- 4. Main HomePage Component ---
 const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   
-  // Refs for Animations
+  // Refs
   const heroRef = useRef(null);
   const slideRefs = useRef([]);
   const contentRefs = useRef([]);
   const imageRefs = useRef([]);
   const featuresRef = useRef(null);
   
-  // Hooks
+  // Touch Handling State
+  const touchStartX = useRef(null);
+  const touchEndX = useRef(null);
+
+  // Data
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
 
-  // Hero Data with Fallback
   const heroSlides = useMemo(() => {
     if (dbHeroImages && dbHeroImages.length > 0) return dbHeroImages;
-    // Show default only if not loading
     if (!heroLoading) {
       return [{
         id: 'def-1',
@@ -148,33 +158,24 @@ const HomePage = () => {
   // --- Animations ---
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // 1. Hero Parallax (Desktop)
+      // Parallax
       if (window.innerWidth > 768) {
         gsap.to(imageRefs.current, {
           yPercent: 15,
           ease: "none",
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: "top top",
-            end: "bottom top",
-            scrub: true
-          }
+          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true }
         });
       }
-
-      // 2. Features Reveal (Staggered Bounce)
+      // Features Reveal
       if(featuresRef.current) {
         gsap.fromTo(featuresRef.current.children,
           { y: 50, opacity: 0, scale: 0.9 },
-          {
-            y: 0, opacity: 1, scale: 1,
-            duration: 0.6, stagger: 0.1, ease: 'back.out(1.5)',
+          { y: 0, opacity: 1, scale: 1, duration: 0.6, stagger: 0.1, ease: 'back.out(1.5)',
             scrollTrigger: { trigger: featuresRef.current, start: 'top 85%' }
           }
         );
       }
-
-      // 3. Products & Cats
+      // General Reveal
       gsap.utils.toArray('.anim-up').forEach(el => {
         gsap.fromTo(el,
            { y: 30, opacity: 0 },
@@ -185,32 +186,23 @@ const HomePage = () => {
     return () => ctx.revert();
   }, [heroSlides.length, categories, products]);
 
-  // --- 3D Tilt Effect Logic (Desktop Only) ---
+  // --- 3D Tilt ---
   const handleTilt = (e, card) => {
     if(window.innerWidth < 768 || !card) return;
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const rotateX = ((y - rect.height/2) / rect.height) * -8; // Max 8 deg
+    const rotateX = ((y - rect.height/2) / rect.height) * -8;
     const rotateY = ((x - rect.width/2) / rect.width) * 8;
-
-    gsap.to(card, { 
-      rotateX, rotateY, scale: 1.02, 
-      boxShadow: "0 20px 30px -10px rgba(0,0,0,0.2)",
-      duration: 0.3 
-    });
+    gsap.to(card, { rotateX, rotateY, scale: 1.02, boxShadow: "0 20px 30px -10px rgba(0,0,0,0.2)", duration: 0.3 });
   };
 
   const resetTilt = (card) => {
     if(!card) return;
-    gsap.to(card, { 
-      rotateX: 0, rotateY: 0, scale: 1, 
-      boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-      duration: 0.5, ease: "elastic.out(1, 0.5)" 
-    });
+    gsap.to(card, { rotateX: 0, rotateY: 0, scale: 1, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", duration: 0.5, ease: "elastic.out(1, 0.5)" });
   };
 
-  // --- Slide Logic ---
+  // --- Slide Animation Logic ---
   const animateSlide = useCallback((newIndex) => {
     if (isAnimating || !slideRefs.current[newIndex]) return;
     setIsAnimating(true);
@@ -219,27 +211,70 @@ const HomePage = () => {
 
     const tl = gsap.timeline({ onComplete: () => { setCurrentSlide(newIndex); setIsAnimating(false); }});
     
-    // Out
     tl.to(curr.content, { y: -30, opacity: 0, duration: 0.4 }, 0)
       .to(curr.img, { scale: 1.1, opacity: 0, duration: 0.4 }, 0)
       .set(curr.el, { visibility: 'hidden', zIndex: 0 });
 
-    // In
     tl.set(next.el, { visibility: 'visible', zIndex: 10 }, 0)
       .fromTo(next.img, { scale: 1.15, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.8, ease: 'power2.out' }, 0.1)
       .fromTo(next.content, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'back.out' }, 0.3);
   }, [currentSlide, isAnimating]);
 
+  const nextSlide = useCallback(() => {
+    const next = (currentSlide + 1) % heroSlides.length;
+    animateSlide(next);
+  }, [currentSlide, heroSlides.length, animateSlide]);
+
+  const prevSlide = useCallback(() => {
+    const prev = currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1;
+    animateSlide(prev);
+  }, [currentSlide, heroSlides.length, animateSlide]);
+
+  // --- FIXED SWIPE LOGIC ---
+  const onTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX; // Initialize end with start
+  };
+
+  const onTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe) {
+      nextSlide();
+    } else if (isRightSwipe) {
+      prevSlide();
+    }
+    
+    // Reset
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
+
+  // Autoplay
   useEffect(() => {
     if (heroSlides.length <= 1) return;
-    const interval = setInterval(() => { if(!isAnimating) animateSlide((currentSlide + 1) % heroSlides.length); }, 6000);
+    const interval = setInterval(() => { if(!isAnimating) nextSlide(); }, 6000);
     return () => clearInterval(interval);
-  }, [heroSlides.length, isAnimating, currentSlide, animateSlide]);
+  }, [heroSlides.length, isAnimating, nextSlide]);
 
   return (
     <Layout>
-      {/* HERO SECTION */}
-      <section ref={heroRef} className="relative overflow-hidden bg-background">
+      {/* HERO SECTION with Swipe Fix */}
+      <section 
+        ref={heroRef} 
+        className="relative overflow-hidden bg-background"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <ParticleBackground />
         
         {heroLoading || heroSlides.length === 0 ? <HeroSkeleton /> : (
@@ -251,7 +286,6 @@ const HomePage = () => {
                 className="absolute inset-0 overflow-hidden flex items-center md:items-end pb-16 md:pb-28"
                 style={{ visibility: index === 0 ? 'visible' : 'hidden', zIndex: index === 0 ? 10 : 0 }}
               >
-                {/* Background Image */}
                 <div className="absolute inset-0 z-[-1]">
                     <img
                         ref={el => imageRefs.current[index] = el}
@@ -264,7 +298,6 @@ const HomePage = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
                 </div>
 
-                {/* Content */}
                 <div className="container mx-auto px-4 relative z-10">
                   <div ref={el => contentRefs.current[index] = el} className="max-w-2xl">
                     <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-semibold mb-4 text-white shadow-lg">
@@ -277,11 +310,7 @@ const HomePage = () => {
                     <p className="text-lg text-white/90 mb-8 font-medium max-w-lg drop-shadow-md">
                       {slide.subtitle}
                     </p>
-                    <Button 
-                      asChild 
-                      size="lg" 
-                      className="h-14 px-8 text-lg rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105 transition-all duration-300"
-                    >
+                    <Button asChild size="lg" className="h-14 px-8 text-lg rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105 transition-all duration-300">
                       <Link to={slide.link || '/products'}>
                         Shop Now <ArrowRight className="ml-2 w-5 h-5" />
                       </Link>
@@ -305,7 +334,7 @@ const HomePage = () => {
         )}
       </section>
 
-      {/* FEATURES SECTION - FIXED GRID (2 Cols on Mobile) */}
+      {/* FEATURES SECTION (Fixed Grid) */}
       <section className="py-6 bg-muted/20 relative z-10">
         <div className="container mx-auto px-4">
           <div ref={featuresRef} className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -358,7 +387,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* TRENDING PRODUCTS - 3D TILT EFFECT */}
+      {/* TRENDING PRODUCTS - 3D TILT & LOADING FIX */}
       <section className="py-16 bg-muted/10">
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
@@ -366,12 +395,15 @@ const HomePage = () => {
             <div className="w-16 h-1 bg-primary mx-auto rounded-full mt-2" />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-            {productsLoading ? [...Array(4)].map((_, i) => <div key={i} className="aspect-[3/4] bg-muted rounded-3xl animate-pulse" />) :
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 min-h-[400px]">
+            {/* Loading Logic Updated: Show Spinner instead of Skeleton */}
+            {productsLoading ? (
+               <LoadingSpinner />
+            ) : (
              featuredProducts.map((product) => (
                <div 
                  key={product.id} 
-                 className="anim-up perspective-1000" // Required for 3D tilt
+                 className="anim-up perspective-1000"
                  onMouseMove={(e) => handleTilt(e, e.currentTarget)}
                  onMouseLeave={(e) => resetTilt(e.currentTarget)}
                >
@@ -379,7 +411,7 @@ const HomePage = () => {
                     <ProductCard product={product} />
                  </div>
                </div>
-            ))}
+            )))}
           </div>
         </div>
       </section>
