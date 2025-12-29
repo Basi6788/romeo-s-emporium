@@ -1,12 +1,65 @@
-import { supabase } from '@/integrations/supabase/client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap, AlertCircle, Menu } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, X, Sparkles } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import gsap from 'gsap';
+
+// --- Custom Styles for Liquid Glass & Golden Glow ---
+const styles = `
+  /* Premium Liquid Glass Surface */
+  .glass-modal {
+    background: rgba(20, 20, 20, 0.7); /* Dark semi-transparent base */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 20px 50px rgba(0, 0, 0, 0.5), 
+      inset 0 0 20px rgba(255, 255, 255, 0.05);
+    transform-style: preserve-3d;
+    perspective: 1000px;
+  }
+
+  /* Light Mode Adaptation */
+  .light .glass-modal {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Glass Button Item */
+  .glass-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transform-style: preserve-3d;
+  }
+
+  .light .glass-item {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  /* Golden/Premium Glow Animation on Hover */
+  .glass-item:hover, .glass-item:active {
+    background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,255,255,0.05));
+    border-color: rgba(255, 215, 0, 0.5);
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.3); /* Golden Glow */
+  }
+  
+  /* Badge Pulse */
+  @keyframes badge-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 66, 104, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(255, 66, 104, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 66, 104, 0); }
+  }
+  .animate-badge {
+    animation: badge-pulse 2s infinite;
+  }
+`;
 
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -14,312 +67,290 @@ const Header: React.FC = () => {
   const { itemCount } = useCart();
   const { itemCount: wishlistCount } = useWishlist();
   
-  // UI States
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  
-  // Search States
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [suggestions, setSuggestions] = useState<any[]>([]); 
-  const [isSearching, setIsSearching] = useState(false);
   
-  const navigate = useNavigate();
   const location = useLocation();
   
-  // Refs
-  const menuContainerRef = useRef<HTMLDivElement>(null);
-  const menuBackdropRef = useRef<HTMLDivElement>(null);
-  const menuItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
-  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Refs for Animation
+  const modalRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const itemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
 
-  // --- 1. Supabase Search Logic ---
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (!searchTerm.trim()) {
-        setSuggestions([]);
-        return;
-      }
-      setIsSearching(true);
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('id, name, price, image, category, description') 
-          .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
-          .limit(10);
-
-        if (error) throw error;
-        setSuggestions(data || []);
-      } catch (error) {
-        console.error('Search Code Crash:', error);
-        setSuggestions([]);
-      } finally {
-        setIsSearching(false);
-      }
-    };
-    const timeoutId = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      setSearchOpen(false);
-      navigate(`/products?search=${encodeURIComponent(searchTerm)}`);
-      setSearchTerm('');
-      setSuggestions([]);
-    }
-  };
-
-  // --- UI Effects ---
-  useEffect(() => {
-    document.body.style.overflow = menuOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [menuOpen]);
-
+  // Scroll Detection
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Close menu on route change
   useEffect(() => {
-    setMenuOpen(false); setSearchOpen(false); setSuggestions([]); 
+    setMenuOpen(false);
+    setSearchOpen(false);
   }, [location.pathname]);
 
-  // --- GSAP Animations ---
-  
-  // Menu Open Animation (Elastic Pop in Center)
+  // Lock Body Scroll when Menu is Open
   useEffect(() => {
-    if (menuOpen && menuContainerRef.current && menuBackdropRef.current) {
+    if (menuOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+  }, [menuOpen]);
+
+  // --- GSAP Open/Close Animation ---
+  useEffect(() => {
+    if (menuOpen && modalRef.current && overlayRef.current) {
       const tl = gsap.timeline();
-      
-      // Backdrop Blur Fade In
-      tl.fromTo(menuBackdropRef.current, 
-        { opacity: 0, backdropFilter: "blur(0px)" }, 
-        { opacity: 1, backdropFilter: "blur(10px)", duration: 0.4, ease: 'power2.out' }
+
+      // 1. Overlay Fade In
+      tl.to(overlayRef.current, { 
+        opacity: 1, 
+        duration: 0.4, 
+        ease: 'power2.out' 
+      });
+
+      // 2. Modal "POP" (Elastic Effect) - Center Screen
+      tl.fromTo(modalRef.current,
+        { scale: 0.5, opacity: 0, rotationX: 15 },
+        { 
+          scale: 1, 
+          opacity: 1, 
+          rotationX: 0,
+          duration: 0.8, 
+          ease: "elastic.out(1, 0.75)" 
+        },
+        "-=0.2"
       );
 
-      // 3D Window Pop
-      tl.fromTo(menuContainerRef.current,
-        { scale: 0.8, opacity: 0, rotationX: 15, y: 50 },
-        { scale: 1, opacity: 1, rotationX: 0, y: 0, duration: 0.6, ease: 'elastic.out(1, 0.75)', clearProps: "transform" },
-        '-=0.3'
-      );
-
-      // Stagger Items
-      tl.fromTo(menuItemsRef.current.filter(Boolean),
+      // 3. Stagger Items
+      tl.fromTo(itemsRef.current.filter(Boolean),
         { y: 20, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.3, stagger: 0.05, ease: 'back.out(1.5)' },
-        '-=0.4'
+        { 
+          y: 0, 
+          opacity: 1, 
+          stagger: 0.05, 
+          duration: 0.4, 
+          ease: "back.out(1.7)" 
+        },
+        "-=0.6"
       );
     }
   }, [menuOpen]);
 
-  // Reactive Button Hover Effect Helper
-  const handleButtonHover = (e: React.MouseEvent, scale: number) => {
-    gsap.to(e.currentTarget, { scale: scale, duration: 0.2, ease: "power1.out" });
-  };
-
-  const closeMenu = useCallback(() => {
-    if (menuContainerRef.current && menuBackdropRef.current) {
-      const tl = gsap.timeline({ onComplete: () => setMenuOpen(false) });
-      tl.to(menuContainerRef.current, { scale: 0.9, opacity: 0, y: 20, duration: 0.2, ease: 'power2.in' });
-      tl.to(menuBackdropRef.current, { opacity: 0, backdropFilter: "blur(0px)", duration: 0.2 }, '-=0.1');
+  const closeMenu = () => {
+    if (modalRef.current && overlayRef.current) {
+      const tl = gsap.timeline({
+        onComplete: () => setMenuOpen(false)
+      });
+      
+      // Close Animation
+      tl.to(itemsRef.current.filter(Boolean), { 
+        y: 10, opacity: 0, duration: 0.2, stagger: 0.02 
+      });
+      tl.to(modalRef.current, { 
+        scale: 0.8, opacity: 0, duration: 0.3, ease: "power2.in" 
+      }, "-=0.1");
+      tl.to(overlayRef.current, { 
+        opacity: 0, duration: 0.3 
+      }, "-=0.2");
     } else {
       setMenuOpen(false);
     }
-  }, []);
+  };
+
+  // --- Reactive Button Animation (Hover/Touch) ---
+  const handleHover = (e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.currentTarget as HTMLElement;
+    gsap.to(target, {
+      scale: 1.05,
+      duration: 0.3,
+      ease: "power2.out"
+    });
+  };
+
+  const handleLeave = (e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.currentTarget as HTMLElement;
+    gsap.to(target, {
+      scale: 1,
+      duration: 0.3,
+      ease: "power2.out"
+    });
+  };
 
   const menuItems = [
     { to: '/', label: 'Home', icon: Home },
     { to: '/products', label: 'Products', icon: Package },
-    { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount },
     { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount },
-    { to: '/mepco-bill', label: 'Bill Checker', icon: Zap },
+    { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount },
     { to: '/track-order', label: 'Track Order', icon: MapPin },
     { to: isAuthenticated ? (isAdmin ? '/admin' : '/profile') : '/auth', label: isAuthenticated ? 'Account' : 'Sign In', icon: isAuthenticated ? Settings : LogIn },
   ];
 
   return (
     <>
-      {/* --- Main Floating Header --- */}
+      <style>{styles}</style>
+      
+      {/* --- Main Header Bar --- */}
       <header 
-        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 border-b ${
-          scrolled 
-            ? 'bg-background/60 backdrop-blur-xl border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)] py-2' 
-            : 'bg-transparent border-transparent py-4'
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled && !menuOpen
+            ? 'bg-background/70 backdrop-blur-md border-b border-white/10 shadow-sm' 
+            : 'bg-transparent'
         }`}
       >
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
             
-            {/* Logo Section - Golden & Glowing */}
-            <Link 
-              to="/" 
-              className="relative z-[60] group"
-              onMouseEnter={(e) => handleButtonHover(e, 1.05)}
-              onMouseLeave={(e) => handleButtonHover(e, 1)}
-            >
-              <div className="flex flex-col leading-none">
-                <span className="text-2xl md:text-3xl font-black tracking-tighter bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(234,179,8,0.4)] filter">
-                  MIRAE.
-                </span>
-              </div>
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2 relative z-[60]">
+              <span className="text-xl font-bold tracking-tight">
+                <span className={menuOpen ? 'text-white' : 'text-foreground'}>BASIT</span>
+                <span className="text-yellow-500">SHOP</span>
+              </span>
             </Link>
 
-            {/* Desktop Nav - Minimal Pills */}
-            <nav className="hidden md:flex items-center gap-2 p-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-              {['/', '/products', '/mepco-bill'].map((path) => (
-                <Link 
-                  key={path} 
-                  to={path}
-                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 relative overflow-hidden group ${
-                    location.pathname === path 
-                      ? 'text-black bg-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-white/10'
-                  }`}
-                >
-                  {path === '/' ? 'Home' : path === '/products' ? 'Shop' : 'Bill'}
-                </Link>
-              ))}
-            </nav>
-
             {/* Right Actions */}
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100); }} 
-                className="p-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/20 hover:border-white/30 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)] transition-all active:scale-95 group"
-              >
-                {searchOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5 group-hover:text-primary transition-colors" />}
-              </button>
+            <div className="flex items-center gap-3 relative z-[60]">
               
-              <button 
-                onClick={() => setMenuOpen(true)} 
-                className="relative p-3 rounded-full bg-white/5 border border-white/10 hover:bg-primary/20 hover:border-primary/50 hover:shadow-[0_0_15px_rgba(var(--primary),0.4)] transition-all active:scale-95 group"
+              {/* Search Toggle */}
+              <button
+                onClick={() => setSearchOpen(!searchOpen)}
+                className={`p-2.5 rounded-full transition-all ${
+                  menuOpen ? 'text-white/80 hover:bg-white/10' : 'text-foreground/80 hover:bg-black/5 dark:hover:bg-white/10'
+                }`}
               >
-                <div className="flex flex-col gap-1.5 items-end w-5">
-                  <span className="h-0.5 w-full bg-foreground rounded-full group-hover:bg-primary transition-colors" />
-                  <span className="h-0.5 w-3/4 bg-foreground rounded-full group-hover:w-full group-hover:bg-primary transition-all duration-300" />
-                  <span className="h-0.5 w-1/2 bg-foreground rounded-full group-hover:w-full group-hover:bg-primary transition-all duration-300" />
-                </div>
-                {(itemCount > 0 || wishlistCount > 0) && <span className="absolute top-0 right-0 w-3 h-3 rounded-full bg-red-500 border-2 border-background animate-pulse" />}
+                <Search className="w-5 h-5" />
+              </button>
+
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`hidden md:block p-2.5 rounded-full transition-all ${
+                  menuOpen ? 'text-white/80 hover:bg-white/10' : 'text-foreground/80 hover:bg-black/5 dark:hover:bg-white/10'
+                }`}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+
+              {/* Hamburger / Menu Trigger */}
+              <button
+                onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)}
+                className={`p-2.5 rounded-full transition-all relative group ${
+                  menuOpen ? 'text-white hover:rotate-90' : 'text-foreground hover:bg-black/5 dark:hover:bg-white/10'
+                }`}
+              >
+                {menuOpen ? (
+                   <X className="w-6 h-6" />
+                ) : (
+                  <div className="flex flex-col gap-1.5 items-end">
+                    <span className="w-6 h-0.5 bg-current rounded-full group-hover:w-4 transition-all" />
+                    <span className="w-4 h-0.5 bg-current rounded-full group-hover:w-6 transition-all" />
+                  </div>
+                )}
+                
+                {/* Notification Dot */}
+                {(itemCount > 0 || wishlistCount > 0) && !menuOpen && (
+                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 animate-badge" />
+                )}
               </button>
             </div>
           </div>
 
-          {/* Search Bar Dropdown */}
-          {searchOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 px-4 container mx-auto z-50">
-               <div className="bg-background/80 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-4 animate-in slide-in-from-top-4 fade-in duration-300">
-                  <form onSubmit={handleSearchSubmit} className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <input
-                      id="search-input"
-                      type="text"
-                      placeholder="Search MIRAE collection..."
-                      autoFocus
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-white/5 rounded-xl text-base focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white/10 transition-all border border-transparent focus:border-white/10 text-foreground placeholder:text-muted-foreground/50"
-                    />
-                  </form>
-                  {/* Suggestions List (Same logic as before) */}
-                  {searchTerm.trim() && (
-                    <div className="mt-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
-                      {isSearching ? (
-                        <div className="p-4 text-center text-muted-foreground"><div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"/>Searching...</div>
-                      ) : suggestions.length > 0 ? (
-                        <div className="grid gap-2">
-                           {suggestions.map((product) => (
-                              <Link key={product.id} to={`/products/${product.slug || product.id}`} onClick={() => { setSearchOpen(false); setSearchTerm(''); }} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/10 transition-colors group">
-                                <div className="w-12 h-12 rounded-lg bg-white/5 overflow-hidden border border-white/5">
-                                  {product.image ? <img src={product.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : <Package className="w-6 h-6 m-auto mt-3 text-muted-foreground"/>}
-                                </div>
-                                <div>
-                                  <p className="font-medium text-foreground group-hover:text-primary transition-colors">{product.name}</p>
-                                  <p className="text-xs text-muted-foreground">Rs. {product.price?.toLocaleString()}</p>
-                                </div>
-                              </Link>
-                           ))}
-                        </div>
-                      ) : <div className="p-4 text-center text-muted-foreground">No matches found.</div>}
-                    </div>
-                  )}
-               </div>
-            </div>
-          )}
+          {/* Inline Search Bar (Slide Down) */}
+          <div className={`overflow-hidden transition-all duration-300 ${searchOpen && !menuOpen ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
+             <div className="pb-4 pt-1">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search for luxury items..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500/50 text-foreground placeholder:text-muted-foreground"
+                    autoFocus
+                  />
+                </div>
+             </div>
+          </div>
         </div>
       </header>
 
-      {/* --- CENTERED 3D GLASS MENU WINDOW --- */}
+      {/* --- CENTERED GLASS MODAL OVERLAY --- */}
       {menuOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 h-[100dvh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           
-          {/* Dark Overlay with Blur */}
+          {/* 1. Background Blur Overlay */}
           <div 
-            ref={menuBackdropRef} 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
-            onClick={closeMenu} 
+            ref={overlayRef}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 transition-opacity"
+            onClick={closeMenu}
           />
-
-          {/* The Glass Window */}
+          
+          {/* 2. Floating Glass Window (Center Pop) */}
           <div 
-            ref={menuContainerRef} 
-            className="relative w-full max-w-md bg-zinc-900/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[85vh]"
+            ref={modalRef}
+            className="relative w-full max-w-lg glass-modal rounded-[2rem] p-6 md:p-8 opacity-0"
           >
-            {/* Header inside Menu */}
-            <div className="flex items-center justify-between p-6 border-b border-white/5">
-               <span className="text-xl font-bold text-white/90 tracking-widest">MENU</span>
-               <button onClick={closeMenu} className="p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors">
-                 <X className="w-6 h-6" />
-               </button>
+            {/* Window Header */}
+            <div className="text-center mb-8">
+               <h2 className="text-2xl font-bold text-white tracking-wide flex items-center justify-center gap-2">
+                 <Sparkles className="w-5 h-5 text-yellow-500" />
+                 Menu
+               </h2>
+               <div className="h-1 w-12 bg-yellow-500/50 rounded-full mx-auto mt-2" />
             </div>
 
-            {/* Menu Grid */}
-            <div className="p-6 overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-2 gap-3">
-                {menuItems.map((item, i) => {
-                   const isActive = location.pathname === item.to;
-                   return (
-                     <Link 
-                        key={item.to} 
-                        ref={el => menuItemsRef.current[i] = el}
-                        to={item.to} 
-                        onClick={closeMenu}
-                        className={`
-                          relative flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border transition-all duration-300 group
-                          ${isActive 
-                            ? 'bg-primary/20 border-primary/50 text-white shadow-[0_0_20px_rgba(var(--primary),0.2)]' 
-                            : 'bg-white/5 border-white/5 text-muted-foreground hover:bg-white/10 hover:border-white/20 hover:text-white hover:scale-105'}
-                        `}
-                     >
-                        <item.icon className={`w-8 h-8 ${isActive ? 'text-primary drop-shadow-[0_0_10px_rgba(var(--primary),0.8)]' : 'text-white/50 group-hover:text-white group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'} transition-all duration-300`} />
-                        <span className="text-sm font-medium tracking-wide">{item.label}</span>
-                        
-                        {item.badge && item.badge > 0 && (
-                          <span className="absolute top-3 right-3 w-6 h-6 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg animate-bounce">
-                            {item.badge}
-                          </span>
-                        )}
-                     </Link>
-                   )
-                })}
-              </div>
+            {/* Grid Items */}
+            <div className="grid grid-cols-2 gap-4">
+              {menuItems.map((item, index) => {
+                const isActive = location.pathname === item.to;
+                return (
+                  <Link
+                    key={item.to}
+                    ref={el => itemsRef.current[index] = el}
+                    to={item.to}
+                    onClick={closeMenu}
+                    onMouseEnter={handleHover}
+                    onMouseLeave={handleLeave}
+                    onTouchStart={handleHover}
+                    onTouchEnd={handleLeave}
+                    className={`
+                      glass-item relative flex flex-col items-center justify-center gap-3 p-5 rounded-2xl group
+                      ${isActive ? 'border-yellow-500/30 bg-white/10' : ''}
+                    `}
+                  >
+                    {/* Icon Container */}
+                    <div className={`
+                      p-3 rounded-full transition-all duration-300
+                      ${isActive ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white group-hover:bg-yellow-500 group-hover:text-black'}
+                    `}>
+                      <item.icon className="w-6 h-6" />
+                    </div>
 
-              {/* Theme Toggle at Bottom */}
-              <div className="mt-6 p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
-                <span className="text-sm font-medium text-white/70">Appearance</span>
-                <button 
-                  onClick={toggleTheme} 
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/20 hover:bg-black/40 border border-white/5 transition-colors"
-                >
-                   {theme === 'dark' ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-blue-400" />}
-                   <span className="text-xs text-white">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-                </button>
-              </div>
+                    {/* Label */}
+                    <span className={`text-sm font-medium transition-colors ${isActive ? 'text-yellow-400' : 'text-gray-200 group-hover:text-white'}`}>
+                      {item.label}
+                    </span>
+
+                    {/* Badges */}
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="absolute top-3 right-3 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Quick Footer inside Modal */}
+            <div className="mt-8 pt-6 border-t border-white/10 flex justify-between items-center">
+               <button onClick={toggleTheme} className="text-sm text-gray-400 hover:text-white flex items-center gap-2 transition-colors">
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  <span>Change Theme</span>
+               </button>
+               <span className="text-xs text-gray-500">v1.0.0</span>
             </div>
           </div>
+
         </div>
       )}
     </>
