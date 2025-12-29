@@ -8,40 +8,50 @@ import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import gsap from 'gsap';
 
-// --- STYLES: Neon Glow, Performance Fixes, & Grift Font ---
+// --- STYLES: Neon Glow, 3D Pop/Tilt, & Performance ---
 const styles = `
-  /* Performance Optimization for Animations */
+  /* Performance Optimization */
   .gpu-accelerated {
     will-change: transform, opacity;
     transform: translateZ(0);
     backface-visibility: hidden;
   }
 
-  /* MIRAE Custom Font Style (Grift-like) */
+  /* MIRAE Custom Font Style (Grift-like Look) */
   .brand-font {
-    font-family: 'Orbitron', 'Michroma', sans-serif;
+    font-family: 'Orbitron', 'Eurostile', sans-serif;
     font-weight: 900;
     letter-spacing: 0.15em;
     text-transform: uppercase;
   }
 
-  /* 3D Gold Text Effect */
-  .gold-text-3d {
-    background: linear-gradient(to bottom, #cfc09f 22%, #634f2c 24%, #cfc09f 26%, #cfc09f 27%, #ffecb3 40%, #3a2c0f 78%); 
+  /* 3D Gold Text Effect for Romeo Signature */
+  .romeo-signature {
+    background: linear-gradient(to right, #FFD700, #FF8C00, #FF0080);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
+    font-weight: 800;
+    letter-spacing: 1px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    animation: shine 3s infinite linear;
   }
 
-  /* NEON RAINBOW BORDER ANIMATION FOR ALL ELEMENTS */
+  @keyframes shine {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+  }
+
+  /* NEON RAINBOW BORDER ANIMATION */
   @keyframes borderRotate {
-    100% { background-position: 200% 0; }
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
   }
 
-  /* Window, Cards, Buttons aur Toggles ke liye Neon Border */
+  /* Universal Neon Border */
   .neon-border-all {
     position: relative;
-    overflow: hidden;
+    overflow: hidden; /* Ensure rounded corners clip the border */
   }
 
   .neon-border-all::before {
@@ -50,27 +60,26 @@ const styles = `
     inset: -2px;
     z-index: -1;
     background: linear-gradient(90deg, 
-      rgba(255, 0, 0, 0.6),    /* Halka Dim Red */
-      rgba(255, 115, 0, 0.6),  /* Halka Dim Orange */
-      rgba(255, 251, 0, 0.6),  /* Halka Dim Yellow */
-      rgba(72, 255, 0, 0.6),   /* Halka Dim Green */
-      rgba(0, 255, 213, 0.6),  /* Halka Dim Cyan */
-      rgba(0, 43, 255, 0.6),   /* Halka Dim Blue */
-      rgba(122, 0, 255, 0.6),  /* Halka Dim Purple */
-      rgba(255, 0, 200, 0.6),  /* Halka Dim Pink */
-      rgba(255, 0, 0, 0.6)     /* Halka Dim Red */
+      #ff0000, #ff7300, #fffb00, #48ff00, 
+      #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000
     );
-    background-size: 200% 100%;
+    background-size: 300% 300%;
     opacity: 0;
     transition: opacity 0.3s ease;
-    border-radius: inherit;
-    animation: borderRotate 2.5s linear infinite paused;
-    filter: blur(3px); /* Halka glow effect */
+    border-radius: inherit; /* Follows parent's rounded corners */
+    animation: borderRotate 4s linear infinite;
+    filter: blur(5px);
   }
 
+  /* Hover Shine Logic */
   .neon-border-all:hover::before {
     opacity: 1;
-    animation-play-state: running;
+  }
+
+  /* Active/Current Item Always Shine */
+  .neon-active::before {
+    opacity: 0.8;
+    filter: blur(3px);
   }
 
   .neon-border-all::after {
@@ -82,144 +91,92 @@ const styles = `
     z-index: -1;
   }
 
-  /* Special style for window border only (thicker) */
-  .window-neon-border::before {
-    inset: -3px;
-    filter: blur(4px);
+  /* POP & TILT ANIMATION (Touch & Mouse Reactive) */
+  .pop-tilt {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease;
   }
 
-  .window-neon-border::after {
-    inset: 2px;
+  .pop-tilt:hover {
+    transform: translateY(-4px) scale(1.02) rotate(1deg);
+    z-index: 10;
   }
 
-  /* Card and Button Gradients (Halke dim) */
-  .dim-gradient-light {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 140, 0, 0.25));
+  .pop-tilt:active {
+    transform: scale(0.95) rotate(0deg);
   }
 
-  .dim-gradient-dark {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.2));
-  }
-
-  /* Glass Styles */
+  /* Glass Styles - More Transparent */
   .nav-glass {
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
   
   .nav-glass.light-mode {
-    background: rgba(255, 255, 255, 0.9);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.75);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   }
 
   .nav-glass.dark-mode {
-    background: rgba(0, 0, 0, 0.75);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.6); /* More transparent */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  /* Fix for icons in light mode */
-  .light-icon {
-    color: #333 !important;
+  /* Light Mode Visibility Fixes */
+  .text-dark-visible {
+    color: #1a1a1a !important;
+  }
+  
+  .bg-light-visible {
+    background: rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+  
+  .bg-light-visible:hover {
+    background: rgba(0, 0, 0, 0.15) !important;
   }
 
-  .light-icon-bg {
-    background: rgba(0, 0, 0, 0.1) !important;
+  /* Menu Window Specifics */
+  .menu-window {
+    border-radius: 24px; /* Rounded corners */
   }
 
-  .light-icon-bg:hover {
-    background: rgba(0, 0, 0, 0.2) !important;
+  /* Hide Scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
-
-  /* MIRAE Logo Animation */
-  @keyframes spreadText {
-    0% {
-      letter-spacing: 0.15em;
-    }
-    50% {
-      letter-spacing: 0.35em;
-    }
-    100% {
-      letter-spacing: 0.15em;
-    }
-  }
-
-  .logo-spread {
-    animation: spreadText 1.5s ease-in-out;
-  }
-
-  /* Button click animation */
-  @keyframes buttonClick {
-    0% { transform: scale(1); }
-    50% { transform: scale(0.95); }
-    100% { transform: scale(1); }
-  }
-
-  .button-click {
-    animation: buttonClick 0.3s ease;
-  }
-
-  /* Hover animation for menu/search buttons */
-  @keyframes buttonHover {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-  }
-
-  .button-hover {
-    animation: buttonHover 0.5s ease infinite;
-  }
-
-  /* Prevent keyboard opening on mobile */
-  input[type="text"]:focus {
-    outline: none;
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 `;
 
-// --- Reusable Neon Button Component ---
+// --- Reusable Neon Button (Pop & Tilt Included) ---
 const NeonButton = ({ 
   children, 
   onClick, 
   className = "", 
   badge, 
   isLightMode, 
-  isScrolled,
-  isHovering,
-  isClicked 
+  active 
 }) => {
-  const buttonRef = useRef(null);
   
-  // Click animation
-  useEffect(() => {
-    if (isClicked && buttonRef.current) {
-      const el = buttonRef.current;
-      el.classList.add('button-click');
-      const timer = setTimeout(() => {
-        el.classList.remove('button-click');
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isClicked]);
+  // Base classes for shape and layout
+  const baseClasses = `
+    group relative flex items-center justify-center rounded-full 
+    transition-all duration-300 pop-tilt neon-border-all
+  `;
 
-  // Hover animation
-  useEffect(() => {
-    if (isHovering && buttonRef.current) {
-      const el = buttonRef.current;
-      el.classList.add('button-hover');
-      return () => {
-        el.classList.remove('button-hover');
-      };
-    }
-  }, [isHovering]);
+  // Dynamic Coloring based on Mode
+  const colorClasses = isLightMode 
+    ? 'bg-light-visible text-dark-visible' 
+    : 'bg-white/10 text-white border border-white/10 hover:bg-white/20';
 
-  const buttonClass = isScrolled && isLightMode 
-    ? `neon-border-all group relative flex items-center justify-center rounded-full transition-all ${className}`
-    : `neon-border-all group relative flex items-center justify-center rounded-full transition-all ${className}`;
+  const activeClass = active ? 'neon-active border-yellow-500/50' : '';
 
   return (
     <button
-      ref={buttonRef}
       onClick={onClick}
-      className={buttonClass}
+      className={`${baseClasses} ${colorClasses} ${activeClass} ${className}`}
     >
       <div className="relative z-10 flex items-center justify-center w-full h-full">
         {children}
@@ -244,15 +201,9 @@ const Header = React.memo(() => {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [logoAnimating, setLogoAnimating] = useState(false);
-  const [isHoveringSearch, setIsHoveringSearch] = useState(false);
-  const [isHoveringMenu, setIsHoveringMenu] = useState(false);
-  const [isSearchClicked, setIsSearchClicked] = useState(false);
-  const [isMenuClicked, setIsMenuClicked] = useState(false);
-  const [isThemeToggleHovering, setIsThemeToggleHovering] = useState(false);
   
   const menuRef = useRef(null);
   const overlayRef = useRef(null);
-  const logoRef = useRef(null);
   const logoTextRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -263,126 +214,58 @@ const Header = React.memo(() => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // --- 2. Optimized Menu Animation ---
+  // --- 2. Menu Animation (Optimized GSAP) ---
   useEffect(() => {
     if (menuOpen && menuRef.current) {
-      requestAnimationFrame(() => {
-        const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-        
-        gsap.to(overlayRef.current, { opacity: 1, duration: 0.3 });
-        
-        tl.fromTo(menuRef.current, 
-          { 
-            y: -20, 
-            rotationX: 20, 
-            opacity: 0, 
-            scale: 0.9,
-            transformPerspective: 1000 
-          },
-          { 
-            y: 0, 
-            rotationX: 0, 
-            opacity: 1, 
-            scale: 1, 
-            duration: 0.5,
-            force3D: true
-          }
-        );
+      // Open Animation
+      gsap.to(overlayRef.current, { opacity: 1, duration: 0.3 });
+      
+      gsap.fromTo(menuRef.current, 
+        { y: -30, opacity: 0, scale: 0.9, rotationX: 10 },
+        { y: 0, opacity: 1, scale: 1, rotationX: 0, duration: 0.4, ease: "back.out(1.2)" }
+      );
 
-        gsap.fromTo(".menu-item-anim",
-          { x: -30, opacity: 0 },
-          { x: 0, opacity: 1, stagger: 0.05, duration: 0.3, delay: 0.1 }
-        );
-      });
+      gsap.fromTo(".menu-card",
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, stagger: 0.05, duration: 0.3, delay: 0.1 }
+      );
 
     } else if (!menuOpen && menuRef.current) {
-      gsap.to(menuRef.current, { 
-        y: -20, 
-        opacity: 0, 
-        scale: 0.95, 
-        duration: 0.25,
-        force3D: true
-      });
-      gsap.to(overlayRef.current, { opacity: 0, duration: 0.25 });
+      // Close Animation
+      gsap.to(menuRef.current, { y: -20, opacity: 0, scale: 0.95, duration: 0.2 });
+      gsap.to(overlayRef.current, { opacity: 0, duration: 0.2 });
     }
   }, [menuOpen]);
 
-  // --- 3. Logo Animation ---
+  // --- 3. Logo Animation Logic ---
   useEffect(() => {
     if (logoAnimating && logoTextRef.current) {
-      const animation = gsap.to(logoTextRef.current, {
+      gsap.to(logoTextRef.current, {
         letterSpacing: "0.35em",
-        duration: 0.5,
+        duration: 0.4,
         ease: "power2.out",
-        onComplete: () => {
-          gsap.to(logoTextRef.current, {
-            letterSpacing: "0.15em",
-            duration: 0.5,
-            delay: 0.5,
-            ease: "power2.in",
-            onComplete: () => {
-              setLogoAnimating(false);
-            }
-          });
-        }
+        yoyo: true,
+        repeat: 1,
+        onComplete: () => setLogoAnimating(false)
       });
-
-      return () => {
-        animation.kill();
-      };
     }
   }, [logoAnimating]);
 
-  const handleLogoHover = () => {
-    setLogoAnimating(true);
-    gsap.to(logoRef.current, { scale: 1.05, duration: 0.3 });
-  };
-
-  const handleLogoLeave = () => {
-    gsap.to(logoRef.current, { scale: 1, duration: 0.3 });
-  };
-
-  // --- Button click handlers ---
-  const handleSearchClick = () => {
-    setIsSearchClicked(true);
-    setSearchOpen(!searchOpen);
-    setTimeout(() => setIsSearchClicked(false), 300);
-  };
-
-  const handleMenuClick = () => {
-    setIsMenuClicked(true);
-    setMenuOpen(true);
-    setTimeout(() => setIsMenuClicked(false), 300);
-  };
-
-  const handleThemeToggleClick = () => {
-    const toggleButton = document.querySelector('.theme-toggle-button');
-    if (toggleButton) {
-      toggleButton.classList.add('button-click');
-      setTimeout(() => {
-        toggleButton.classList.remove('button-click');
-      }, 300);
-    }
-    toggleTheme();
-  };
-
-  // --- VISIBILITY LOGIC ---
+  // Visibility Helpers
   const isLight = theme === 'light';
   
+  // Header Background Logic
   const headerClass = scrolled 
-    ? (isLight ? 'light-mode text-black' : 'dark-mode text-white') 
-    : 'bg-transparent text-white';
+    ? (isLight ? 'light-mode shadow-sm' : 'dark-mode shadow-lg shadow-purple-500/10') 
+    : 'bg-transparent';
 
-  // Fix: Icon color in light mode
-  const iconColorClass = scrolled && isLight 
-    ? 'light-icon' 
-    : (scrolled ? 'text-white' : 'text-white');
+  // Text Colors
+  const textColor = (scrolled && isLight) ? 'text-black' : 'text-white';
+  const logoGradient = (scrolled && isLight) 
+    ? 'text-transparent bg-clip-text bg-gradient-to-r from-gray-800 to-black' 
+    : 'text-transparent bg-clip-text bg-gradient-to-b from-[#cfc09f] via-[#ffecb3] to-[#3a2c0f]';
 
-  const buttonBgClass = scrolled && isLight 
-    ? 'light-icon-bg'
-    : 'bg-white/10';
-
-  // Menu Items
+  // Menu Items Array (Track Order Added)
   const menuItems = [
     { to: '/', label: 'Home', icon: Home },
     { to: '/products', label: 'Products', icon: Package },
@@ -392,11 +275,9 @@ const Header = React.memo(() => {
     { to: isAuthenticated ? '/profile' : '/auth', label: isAuthenticated ? 'Account' : 'Sign In', icon: isAuthenticated ? Settings : LogIn },
   ];
 
-  // Handle search input focus to prevent keyboard on mobile
   const handleSearchFocus = (e) => {
     if (window.innerWidth <= 768) {
-      e.preventDefault();
-      e.target.blur();
+      e.preventDefault(); // Prevent keyboard jump on some mobiles if needed
     }
   };
 
@@ -414,146 +295,156 @@ const Header = React.memo(() => {
           <Link 
             to="/" 
             className="flex items-center gap-2 group z-[60]"
-            onMouseEnter={handleLogoHover}
-            onMouseLeave={handleLogoLeave}
+            onMouseEnter={() => setLogoAnimating(true)}
           >
-             <img src="/logo-m.png" alt="M" className="w-8 h-8 object-contain drop-shadow-md group-hover:rotate-12 transition-transform duration-300" />
+             <div className="relative">
+                <img src="/logo-m.png" alt="M" className="w-8 h-8 object-contain drop-shadow-md group-hover:rotate-12 transition-transform duration-300" />
+                {/* Glow effect behind logo */}
+                <div className="absolute inset-0 bg-yellow-400 blur-xl opacity-0 group-hover:opacity-40 transition-opacity duration-300"></div>
+             </div>
+             
              <span 
-               ref={logoRef}
-               className="text-2xl brand-font gold-text-3d cursor-pointer relative"
+               ref={logoTextRef}
+               className={`text-2xl brand-font cursor-pointer ${logoGradient}`}
+               style={!isLight || !scrolled ? { textShadow: '0px 2px 10px rgba(0,0,0,0.5)' } : {}}
              >
-               <span 
-                 ref={logoTextRef}
-                 className={logoAnimating ? 'logo-spread' : ''}
-               >
-                 MIRAE
-               </span>
+               MIRAE
              </span>
           </Link>
 
           {/* CONTROLS */}
           <div className="flex items-center gap-3 z-[60]">
             
-            {/* Search Toggle - Fixed visibility in light mode */}
+            {/* Search Toggle */}
             <NeonButton 
-              onClick={handleSearchClick} 
-              className={`w-10 h-10 ${buttonBgClass}`}
-              isLightMode={isLight}
-              isScrolled={scrolled}
-              isHovering={isHoveringSearch}
-              isClicked={isSearchClicked}
-              onMouseEnter={() => setIsHoveringSearch(true)}
-              onMouseLeave={() => setIsHoveringSearch(false)}
+              onClick={() => setSearchOpen(!searchOpen)} 
+              className="w-10 h-10"
+              isLightMode={isLight && scrolled}
+              active={searchOpen}
             >
-              {searchOpen ? (
-                <X className={`w-5 h-5 ${iconColorClass}`} />
-              ) : (
-                <Search className={`w-5 h-5 ${iconColorClass}`} />
-              )}
+              {searchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
             </NeonButton>
 
-            {/* Menu Toggle - Fixed visibility in light mode */}
+            {/* Menu Toggle */}
             <NeonButton 
-              onClick={handleMenuClick} 
-              className={`w-10 h-10 ${buttonBgClass}`}
+              onClick={() => setMenuOpen(true)} 
+              className="w-10 h-10"
               badge={itemCount > 0 ? itemCount : null}
-              isLightMode={isLight}
-              isScrolled={scrolled}
-              isHovering={isHoveringMenu}
-              isClicked={isMenuClicked}
-              onMouseEnter={() => setIsHoveringMenu(true)}
-              onMouseLeave={() => setIsHoveringMenu(false)}
+              isLightMode={isLight && scrolled}
             >
-              <MenuIcon className={`w-5 h-5 ${iconColorClass}`} />
+              <MenuIcon className="w-5 h-5" />
             </NeonButton>
 
           </div>
         </div>
 
-        {/* SEARCH BAR - Fixed with proper visibility */}
-        <div className={`absolute top-full left-0 right-0 overflow-hidden transition-all duration-300 ease-out ${searchOpen ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
-           <div className={`p-4 backdrop-blur-xl border-b ${isLight ? 'bg-white/95 border-gray-200' : 'bg-black/95 border-white/10'}`}>
-              <div className="container mx-auto max-w-2xl">
+        {/* SEARCH BAR - Smooth Dropdown */}
+        <div className={`absolute top-full left-0 right-0 overflow-hidden transition-all duration-300 ease-in-out ${searchOpen ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
+           <div className={`p-4 backdrop-blur-xl border-b ${isLight ? 'bg-white/95 border-gray-200' : 'bg-black/90 border-white/10'}`}>
+              <div className="container mx-auto max-w-2xl relative">
                  <input 
                    ref={searchInputRef}
                    type="text" 
-                   placeholder="Search..." 
-                   className={`w-full bg-transparent border-b-2 py-2 text-lg focus:outline-none ${isLight ? 'border-gray-300 text-black placeholder-gray-500' : 'border-gray-700 text-white placeholder-gray-400'} focus:border-yellow-500 transition-colors`}
-                   autoFocus
-                   onFocus={handleSearchFocus}
+                   placeholder="Search products..." 
+                   className={`w-full bg-transparent border-b-2 py-3 px-2 text-lg focus:outline-none rounded-t-md
+                     ${isLight ? 'border-gray-300 text-black placeholder-gray-500' : 'border-gray-700 text-white placeholder-gray-400'} 
+                     focus:border-yellow-500 transition-colors`}
+                   autoFocus={searchOpen}
                  />
+                 <Search className={`absolute right-2 top-3 w-6 h-6 ${isLight ? 'text-gray-400' : 'text-gray-500'}`} />
               </div>
            </div>
         </div>
       </header>
 
-      {/* --- 3D MENU MODAL --- */}
+      {/* --- 3D MENU WINDOW (PORTAL) --- */}
       {menuOpen && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-start justify-end p-4 sm:p-6">
+        <div className="fixed inset-0 z-[100] flex items-start justify-end p-4 pt-20 sm:p-6">
           
+          {/* Dark Overlay */}
           <div 
             ref={overlayRef}
             onClick={() => setMenuOpen(false)}
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 transition-opacity"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 transition-opacity"
           />
 
+          {/* The Window Itself - Rounded, Glassy, Pop Effect */}
           <div 
             ref={menuRef}
             className={`
-              gpu-accelerated relative w-full max-w-sm mt-16 window-neon-border neon-border-all opacity-0
-              ${isLight ? 'bg-white/90 shadow-xl' : 'bg-[#0f0f0f]/95 shadow-2xl shadow-black/50'}
-              backdrop-blur-xl overflow-hidden
+              gpu-accelerated relative w-full max-w-sm menu-window neon-border-all opacity-0 flex flex-col
+              ${isLight ? 'bg-white/80' : 'bg-[#121212]/80'} 
+              backdrop-blur-2xl shadow-2xl border border-white/10
+              max-h-[85vh] overflow-y-auto no-scrollbar
             `}
           >
-            {/* Menu Header */}
-            <div className="flex items-center justify-between p-6 pb-2">
+            {/* Window Header */}
+            <div className={`flex items-center justify-between p-6 pb-4 border-b ${isLight ? 'border-black/5' : 'border-white/10'}`}>
               <div className="flex flex-col">
-                <span className={`text-2xl font-black tracking-tighter ${isLight ? 'text-black' : 'text-white'}`}>MENU</span>
-                <span className="text-[10px] font-bold tracking-widest bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse">
+                <div className="flex items-center gap-2">
+                    <span className={`text-2xl brand-font ${isLight ? 'text-black' : 'text-white'}`}>MENU</span>
+                    <span className="px-2 py-0.5 rounded border border-yellow-500/30 bg-yellow-500/10 text-[10px] text-yellow-500 font-bold">V1.0</span>
+                </div>
+                {/* ROMEO SIGNATURE */}
+                <span className="romeo-signature mt-1">
                   Created By @ROMEO
                 </span>
               </div>
               
               <button 
                 onClick={() => setMenuOpen(false)}
-                className={`p-2 rounded-full transition-colors neon-border-all ${isLight ? 'hover:bg-black/5 text-black' : 'hover:bg-white/10 text-white'}`}
+                className={`p-2 rounded-full transition-transform hover:rotate-90 hover:bg-red-500 hover:text-white ${isLight ? 'text-black bg-black/5' : 'text-white bg-white/10'}`}
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-gray-500/20 to-transparent my-2"></div>
-
-            {/* Menu Grid - Cards with RGB borders */}
-            <div className="p-4 grid grid-cols-2 gap-3">
+            {/* Menu Grid - Cards with Pop & Tilt */}
+            <div className="p-5 grid grid-cols-2 gap-4">
               {menuItems.map((item, idx) => {
                 const isActive = location.pathname === item.to;
-                const itemBg = isActive 
-                    ? (isLight ? 'dim-gradient-light border-yellow-500/30' : 'dim-gradient-dark border-yellow-500/30')
-                    : (isLight ? 'bg-gray-100 hover:bg-white' : 'bg-white/5 hover:bg-white/10');
                 
-                const itemText = isLight ? 'text-gray-800' : 'text-gray-200';
+                // Card Styles based on Light/Dark
+                const cardBase = `
+                  menu-card relative flex flex-col items-center justify-center p-6 rounded-2xl 
+                  transition-all duration-300 border pop-tilt neon-border-all
+                `;
+                
+                const cardColors = isActive
+                  ? (isLight ? 'bg-yellow-50 border-yellow-500' : 'bg-yellow-500/20 border-yellow-500')
+                  : (isLight ? 'bg-white/50 border-gray-100 hover:bg-white' : 'bg-white/5 border-white/5 hover:bg-white/10');
+
+                const iconColor = isActive 
+                    ? 'text-yellow-600' 
+                    : (isLight ? 'text-gray-700' : 'text-gray-300');
 
                 return (
                   <Link 
                     key={idx} 
                     to={item.to}
                     onClick={() => setMenuOpen(false)}
-                    className={`
-                      menu-item-anim neon-border-all flex flex-col items-center justify-center p-5 rounded-2xl border border-transparent transition-all duration-300
-                      ${itemBg}
-                    `}
+                    className={`${cardBase} ${cardColors}`}
                   >
+                    {/* Icon Bubble */}
                     <div className={`
-                      p-3 rounded-full mb-2 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6
-                      ${isActive ? 'bg-yellow-500 text-black' : (isLight ? 'bg-white shadow-sm text-black' : 'bg-black/40 text-white')}
+                      p-3 rounded-full mb-3 shadow-sm transition-transform duration-300 group-hover:scale-110
+                      ${isActive ? 'bg-yellow-500 text-black' : (isLight ? 'bg-gray-100' : 'bg-black/40')}
+                      ${iconColor}
                     `}>
-                      <item.icon className="w-5 h-5" />
+                      <item.icon className="w-6 h-6" />
                     </div>
-                    <span className={`text-sm font-bold ${itemText}`}>{item.label}</span>
+                    
+                    <span className={`text-sm font-bold tracking-wide ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                      {item.label}
+                    </span>
+
+                    {/* Active Indicator Dot */}
+                    {isActive && (
+                        <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-yellow-500 animate-pulse shadow-[0_0_10px_#eab308]"></span>
+                    )}
                     
                     {item.badge && item.badge > 0 && (
-                       <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-md">
+                       <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-lg border-2 border-white dark:border-black animate-bounce">
                          {item.badge}
                        </span>
                     )}
@@ -562,22 +453,30 @@ const Header = React.memo(() => {
               })}
             </div>
 
-            {/* Footer / Theme Toggle - Animated toggle */}
-            <div className="p-6 pt-2">
+            {/* Footer / Theme Toggle */}
+            <div className="p-6 mt-auto">
                <button 
-                 onClick={handleThemeToggleClick}
-                 onMouseEnter={() => setIsThemeToggleHovering(true)}
-                 onMouseLeave={() => setIsThemeToggleHovering(false)}
+                 onClick={toggleTheme}
                  className={`
-                   theme-toggle-button neon-border-all w-full flex items-center justify-center gap-3 py-3 rounded-xl border transition-all
+                   menu-card w-full flex items-center justify-between px-6 py-4 rounded-xl border pop-tilt neon-border-all
                    ${isLight 
-                     ? 'light-icon-bg text-black' 
+                     ? 'bg-gray-50 border-gray-200 text-black' 
                      : 'bg-white/5 border-white/10 text-white'}
-                   ${isThemeToggleHovering ? 'scale-105' : ''}
                  `}
                >
-                 {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                 <span className="font-bold text-sm">{isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}</span>
+                 <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-full ${isLight ? 'bg-white shadow-sm' : 'bg-black/40'}`}>
+                        {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4 text-yellow-400" />}
+                    </div>
+                    <span className="font-bold text-sm">
+                        {isLight ? 'Dark Mode' : 'Light Mode'}
+                    </span>
+                 </div>
+                 
+                 {/* Custom Toggle Switch Graphic */}
+                 <div className={`w-10 h-5 rounded-full relative transition-colors ${isLight ? 'bg-gray-300' : 'bg-yellow-500/50'}`}>
+                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-white shadow-md transition-all duration-300 ${isLight ? 'left-1' : 'left-6'}`}></div>
+                 </div>
                </button>
             </div>
 
