@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Heart, ShoppingBag, Minus, Plus, Star, Truck, Shield, RotateCcw, Check, Box, ArrowRight, Share2, ChevronLeft, Zap } from 'lucide-react';
+import { Heart, ShoppingBag, Minus, Plus, Star, Truck, Shield, RotateCcw, Check, ArrowRight, Share2, ChevronLeft, Zap, Sparkles } from 'lucide-react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
-import Product3DViewer from '@/components/Product3DViewer';
-import ProductReviews from '@/components/ProductReviews';
+import ProductReviews from '@/components/ProductReviews'; // Ensure this exists
 import { useProduct, useProducts } from '@/hooks/useApi';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
@@ -21,10 +20,11 @@ const ProductDetailPage: React.FC = () => {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   
-  // Refs
+  // Refs for Animations
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
+  const stickyBarRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const productCardsRef = useRef<(HTMLDivElement | null)[]>([]);
   
@@ -34,54 +34,59 @@ const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState(0);
   const [activeTab, setActiveTab] = useState('description');
-  const [show3D, setShow3D] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
 
-  // Animations
+  // 1. Entrance Animations (Premium Feel)
   useEffect(() => {
     if (!product || !containerRef.current) return;
 
-    // Background Blobs Float Animation
+    // Background Golden Blobs Animation
     gsap.to('.bg-blob', {
-      y: 'random(-50, 50)',
-      x: 'random(-50, 50)',
-      duration: 10,
+      y: 'random(-40, 40)',
+      x: 'random(-40, 40)',
+      scale: 'random(0.9, 1.1)',
+      duration: 8,
       repeat: -1,
       yoyo: true,
       ease: 'sine.inOut',
       stagger: 2
     });
 
-    // Content Entry
+    // Content Slide Up Animation
     const tl = gsap.timeline();
     
     tl.fromTo(imageRef.current, 
-      { opacity: 0, x: -50, scale: 0.9 },
-      { opacity: 1, x: 0, scale: 1, duration: 0.8, ease: 'power3.out' }
+      { opacity: 0, y: 50, scale: 0.95 },
+      { opacity: 1, y: 0, scale: 1, duration: 1, ease: 'power3.out' }
     )
     .fromTo(infoRef.current?.children || [],
-      { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'back.out(1.2)' },
+      { opacity: 0, x: 30 },
+      { opacity: 1, x: 0, duration: 0.8, stagger: 0.1, ease: 'power3.out' },
+      '-=0.6'
+    )
+    .fromTo(stickyBarRef.current,
+      { y: 100, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.8, ease: 'back.out(1.2)' },
       '-=0.4'
     );
 
   }, [product]);
 
-  // Wave Animation for Suggestions
+  // 2. Suggestions Scroll Animation
   useEffect(() => {
     if (suggestionsRef.current && productCardsRef.current.length > 0) {
       ScrollTrigger.create({
         trigger: suggestionsRef.current,
-        start: 'top 75%',
+        start: 'top 80%',
         onEnter: () => {
           gsap.fromTo(productCardsRef.current.filter(Boolean),
-            { y: 100, opacity: 0 },
+            { y: 80, opacity: 0 },
             { 
               y: 0, 
               opacity: 1, 
               duration: 0.8, 
               stagger: 0.1, 
-              ease: 'elastic.out(1, 0.75)' 
+              ease: 'power3.out' 
             }
           );
         },
@@ -92,10 +97,8 @@ const ProductDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background/50 backdrop-blur-xl">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-16 h-16 rounded-full border-4 border-amber-500/30 border-t-amber-500 animate-spin" />
       </div>
     );
   }
@@ -110,7 +113,8 @@ const ProductDetailPage: React.FC = () => {
     ? Math.round((1 - product.price / product.originalPrice) * 100) 
     : 0;
 
-  const productImages = [product.image, product.image, product.image];
+  // Use array of images if available, otherwise fallback
+  const productImages = product.images || [product.image, product.image, product.image];
 
   const handleAddToCart = () => {
     addToCart({
@@ -148,78 +152,66 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
+  // Helper to format currency to PKR
+  const formatPrice = (price: number) => {
+    return `Rs. ${price.toLocaleString()}`;
+  };
+
   return (
     <Layout>
-      {/* BACKGROUND BLOBS FOR LIQUID EFFECT */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="bg-blob absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[100px] opacity-40 mix-blend-multiply" />
-        <div className="bg-blob absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[100px] opacity-40 mix-blend-multiply" />
-        <div className="bg-blob absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[80px]" />
+      {/* GOLDEN LIQUID BACKGROUND */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 bg-background">
+        <div className="bg-blob absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[100px] opacity-60 mix-blend-screen" />
+        <div className="bg-blob absolute bottom-0 left-0 w-[400px] h-[400px] bg-yellow-600/10 rounded-full blur-[100px] opacity-50 mix-blend-screen" />
       </div>
 
-      <div ref={containerRef} className="container mx-auto px-4 pb-32 pt-4 md:pt-8 min-h-screen">
+      <div ref={containerRef} className="container mx-auto px-4 pb-40 pt-4 md:pt-8 min-h-screen relative z-10">
         
-        {/* Mobile Navigation Header */}
+        {/* Mobile Header (Glass) */}
         <div className="flex items-center justify-between mb-6 md:hidden sticky top-4 z-40">
-          <button onClick={() => navigate(-1)} className="p-3 rounded-full bg-white/40 dark:bg-black/40 backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 transition-transform">
-            <ChevronLeft className="w-5 h-5" />
+          <button onClick={() => navigate(-1)} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-white/20 shadow-lg hover:scale-105 transition-transform active:scale-95">
+            <ChevronLeft className="w-5 h-5 text-foreground" />
           </button>
-          <div className="flex gap-2">
-            <button onClick={handleWishlist} className="p-3 rounded-full bg-white/40 dark:bg-black/40 backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 transition-transform">
-              <Heart className={`w-5 h-5 ${isInWishlist(product.id) ? 'fill-rose-500 text-rose-500' : ''}`} />
+          <div className="flex gap-3">
+            <button onClick={handleWishlist} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-white/20 shadow-lg hover:scale-105 transition-transform active:scale-95">
+              <Heart className={`w-5 h-5 ${isInWishlist(product.id) ? 'fill-rose-500 text-rose-500' : 'text-foreground'}`} />
             </button>
-            <button onClick={handleShare} className="p-3 rounded-full bg-white/40 dark:bg-black/40 backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 transition-transform">
-              <Share2 className="w-5 h-5" />
+            <button onClick={handleShare} className="p-3 rounded-full bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-white/20 shadow-lg hover:scale-105 transition-transform active:scale-95">
+              <Share2 className="w-5 h-5 text-foreground" />
             </button>
           </div>
         </div>
 
         {/* Desktop Breadcrumbs */}
-        <nav className="hidden md:flex items-center gap-2 text-sm text-muted-foreground mb-8 p-4 rounded-2xl bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/10 w-fit">
-          <Link to="/" className="hover:text-primary transition-colors">Home</Link>
+        <nav className="hidden md:flex items-center gap-2 text-sm text-muted-foreground mb-8 p-4 rounded-2xl bg-white/5 dark:bg-black/5 backdrop-blur-md border border-white/10 w-fit">
+          <Link to="/" className="hover:text-amber-500 transition-colors">Home</Link>
           <span>/</span>
-          <Link to="/products" className="hover:text-primary transition-colors">Products</Link>
+          <Link to="/products" className="hover:text-amber-500 transition-colors">Products</Link>
           <span>/</span>
           <span className="text-foreground font-medium">{product.name}</span>
         </nav>
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
           
-          {/* LEFT: IMAGE GALLERY (GLASS CARD) */}
+          {/* LEFT: IMAGE GALLERY (NO 3D) */}
           <div ref={imageRef} className="space-y-4">
-            <div className="relative aspect-[4/5] md:aspect-square w-full rounded-[2.5rem] overflow-hidden bg-white/30 dark:bg-black/30 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl group">
+            <div className="relative aspect-[4/5] md:aspect-square w-full rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-white/40 to-white/10 dark:from-white/10 dark:to-transparent backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-2xl group">
               
-              {/* Discount Badge */}
+              {/* Discount Badge (Golden) */}
               {discount > 0 && (
-                <div className="absolute top-6 left-6 z-20 px-4 py-2 rounded-2xl bg-black/80 dark:bg-white/90 backdrop-blur-md text-white dark:text-black font-bold text-sm shadow-xl">
-                  SAVE {discount}%
+                <div className="absolute top-6 left-6 z-20 px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-600 text-white font-bold text-sm shadow-lg shadow-amber-500/30 animate-pulse">
+                  -{discount}% OFF
                 </div>
               )}
 
-              {/* 3D / Image View */}
+              {/* Main Image */}
               <div className="absolute inset-0 flex items-center justify-center p-8">
-                {show3D ? (
-                  <Product3DViewer 
-                    productImage={product.image} 
-                    color={product.colors?.[selectedColor] || '#8B5CF6'} 
-                  />
-                ) : (
-                  <img
-                    src={productImages[selectedImage]}
-                    alt={product.name}
-                    className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-110 drop-shadow-2xl"
-                  />
-                )}
+                <img
+                  src={productImages[selectedImage]}
+                  alt={product.name}
+                  className="w-full h-full object-contain transition-transform duration-700 ease-in-out group-hover:scale-110 drop-shadow-2xl"
+                />
               </div>
-
-              {/* 3D Toggle Button */}
-              <button
-                onClick={() => setShow3D(!show3D)}
-                className="absolute bottom-6 right-6 z-20 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/60 dark:bg-black/60 backdrop-blur-md border border-white/20 shadow-lg hover:bg-primary hover:text-white transition-all duration-300"
-              >
-                <Box className="w-5 h-5" />
-                <span className="font-semibold text-sm">{show3D ? '2D View' : '3D View'}</span>
-              </button>
             </div>
 
             {/* Thumbnails (Glass Pills) */}
@@ -228,10 +220,10 @@ const ProductDetailPage: React.FC = () => {
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`relative flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all duration-300 backdrop-blur-md bg-white/20 dark:bg-black/20 ${
+                  className={`relative flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all duration-300 backdrop-blur-md bg-white/30 dark:bg-black/30 ${
                     selectedImage === index 
-                      ? 'border-primary shadow-lg scale-105' 
-                      : 'border-transparent hover:border-white/30'
+                      ? 'border-amber-500 shadow-lg shadow-amber-500/20 scale-105' 
+                      : 'border-transparent hover:border-amber-500/50'
                   }`}
                 >
                   <img src={img} alt="" className="w-full h-full object-contain p-2" />
@@ -240,18 +232,19 @@ const ProductDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* RIGHT: PRODUCT INFO (GLASS PANELS) */}
+          {/* RIGHT: PRODUCT INFO */}
           <div ref={infoRef} className="space-y-6">
             
             {/* Title & Price Card */}
-            <div className="p-6 md:p-8 rounded-[2rem] bg-white/30 dark:bg-black/30 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-[60px] rounded-full -mr-10 -mt-10" />
+            <div className="p-6 md:p-8 rounded-[2rem] bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl relative overflow-hidden">
+              {/* Golden Glow effect inside card */}
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/20 blur-[50px] rounded-full pointer-events-none" />
               
               <div className="flex justify-between items-start mb-4">
-                <span className="px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+                <span className="px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
                   {product.category}
                 </span>
-                <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full">
+                <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
                   <Star className="w-4 h-4 fill-current" />
                   <span className="font-bold text-sm">{product.rating}</span>
                 </div>
@@ -261,23 +254,27 @@ const ProductDetailPage: React.FC = () => {
                 {product.name}
               </h1>
 
-              <div className="flex items-end gap-3 mb-2">
-                <span className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">
-                  ${product.price}
+              <div className="flex items-baseline gap-3 mb-3">
+                <span className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 drop-shadow-sm">
+                  {formatPrice(product.price)}
                 </span>
                 {product.originalPrice && (
-                  <span className="text-xl text-muted-foreground line-through mb-1.5 decoration-2">
-                    ${product.originalPrice}
+                  <span className="text-lg text-muted-foreground line-through decoration-2 decoration-rose-500/50">
+                    {formatPrice(product.originalPrice)}
                   </span>
                 )}
               </div>
-              <p className="text-sm text-green-500 font-medium flex items-center gap-1">
-                <Zap className="w-4 h-4 fill-current" /> Fast Delivery Available
+              <p className="text-sm text-emerald-500 font-bold flex items-center gap-1.5">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                In Stock & Ready to Ship
               </p>
             </div>
 
-            {/* Selectors Card (Color & Quantity) */}
-            <div className="p-6 rounded-[2rem] bg-white/20 dark:bg-black/20 backdrop-blur-lg border border-white/10 dark:border-white/5 shadow-lg space-y-6">
+            {/* Selectors Card */}
+            <div className="p-6 rounded-[2rem] bg-white/30 dark:bg-black/30 backdrop-blur-lg border border-white/10 dark:border-white/5 shadow-lg space-y-6">
               
               {/* Colors */}
               {product.colors && (
@@ -290,7 +287,7 @@ const ProductDetailPage: React.FC = () => {
                         onClick={() => setSelectedColor(index)}
                         className={`w-12 h-12 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center border-2 ${
                           selectedColor === index 
-                            ? 'border-primary scale-110 shadow-lg shadow-primary/20' 
+                            ? 'border-amber-500 scale-110 shadow-lg shadow-amber-500/20' 
                             : 'border-transparent hover:scale-105'
                         }`}
                         style={{ backgroundColor: color }}
@@ -305,17 +302,17 @@ const ProductDetailPage: React.FC = () => {
               {/* Quantity */}
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quantity</h3>
-                <div className="flex items-center gap-4 bg-white/40 dark:bg-black/40 rounded-2xl w-fit p-1.5 border border-white/10 shadow-inner">
+                <div className="flex items-center gap-4 bg-white/50 dark:bg-black/50 rounded-2xl w-fit p-1.5 border border-white/20 shadow-inner">
                   <button 
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 rounded-xl bg-background shadow-sm flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
+                    className="w-10 h-10 rounded-xl bg-background shadow-sm flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors"
                   >
                     <Minus className="w-4 h-4" />
                   </button>
                   <span className="w-12 text-center font-bold text-lg">{quantity}</span>
                   <button 
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 rounded-xl bg-background shadow-sm flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
+                    className="w-10 h-10 rounded-xl bg-background shadow-sm flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -323,19 +320,20 @@ const ProductDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Desktop Actions (Hidden on Mobile) */}
+            {/* Desktop Actions */}
             <div className="hidden md:flex gap-4">
               <Button 
                 onClick={handleAddToCart}
-                className="flex-1 h-16 text-lg rounded-2xl bg-white/80 dark:bg-black/80 hover:bg-white text-foreground border border-white/20 shadow-xl backdrop-blur-md transition-all hover:scale-[1.02]"
+                className="flex-1 h-16 text-lg rounded-2xl bg-white/80 dark:bg-black/80 hover:bg-white text-foreground border border-amber-500/20 hover:border-amber-500 shadow-xl backdrop-blur-md transition-all hover:scale-[1.02]"
               >
                 Add to Cart
               </Button>
               <Button 
                 onClick={() => { handleAddToCart(); navigate('/checkout'); }}
-                className="flex-[2] h-16 text-lg rounded-2xl bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/30 transition-all hover:scale-[1.02]"
+                className="flex-[2] h-16 text-lg rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-white shadow-xl shadow-amber-500/30 transition-all hover:scale-[1.02] border-0"
               >
-                Buy Now <ArrowRight className="w-5 h-5 ml-2" />
+                <Sparkles className="w-5 h-5 mr-2 animate-pulse" />
+                Buy Now
               </Button>
               <button 
                 onClick={handleWishlist}
@@ -350,13 +348,15 @@ const ProductDetailPage: React.FC = () => {
             {/* Features Grid */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { icon: Truck, label: 'Free Ship', desc: 'On orders $50+' },
-                { icon: Shield, label: 'Warranty', desc: '2 Years Full' },
-                { icon: RotateCcw, label: 'Returns', desc: '30 Days' },
+                { icon: Truck, label: 'Free Delivery', desc: 'All over Pakistan' },
+                { icon: Shield, label: 'Warranty', desc: '1 Year Brand' },
+                { icon: RotateCcw, label: 'Returns', desc: '7 Days Check' },
               ].map(({ icon: Icon, label, desc }, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-white/10 dark:bg-black/10 backdrop-blur-md border border-white/5 text-center hover:bg-white/20 transition-colors">
-                  <Icon className="w-6 h-6 mx-auto mb-2 text-primary" />
-                  <p className="font-bold text-xs md:text-sm">{label}</p>
+                <div key={i} className="p-4 rounded-2xl bg-white/20 dark:bg-black/20 backdrop-blur-md border border-white/10 text-center hover:bg-white/30 transition-colors group">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+                    <Icon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <p className="font-bold text-xs md:text-sm text-foreground">{label}</p>
                   <p className="text-[10px] md:text-xs text-muted-foreground">{desc}</p>
                 </div>
               ))}
@@ -364,17 +364,17 @@ const ProductDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* DETAILS TABS (Glass Style) */}
+        {/* DETAILS TABS */}
         <div className="mt-16 md:mt-24">
           <div className="flex gap-4 mb-8 overflow-x-auto pb-4 no-scrollbar">
             {['description', 'specifications', 'reviews'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 rounded-2xl font-bold text-sm uppercase tracking-wide transition-all duration-300 whitespace-nowrap ${
+                className={`px-6 py-3 rounded-2xl font-bold text-sm uppercase tracking-wide transition-all duration-300 whitespace-nowrap border ${
                   activeTab === tab 
-                    ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105' 
-                    : 'bg-white/10 dark:bg-black/10 text-muted-foreground hover:bg-white/20 backdrop-blur-md'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-transparent shadow-lg shadow-amber-500/30 scale-105' 
+                    : 'bg-white/10 dark:bg-black/10 text-muted-foreground border-white/10 hover:bg-white/20 backdrop-blur-md'
                 }`}
               >
                 {tab}
@@ -393,16 +393,30 @@ const ProductDetailPage: React.FC = () => {
             {activeTab === 'reviews' && (
               <ProductReviews productId={product.id} productRating={product.rating || 4.5} reviewCount={product.reviews || 0} />
             )}
-            {/* Specs Tab Content... (Simpler version for brevity) */}
+             {/* Specs placeholder */}
+             {activeTab === 'specifications' && (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="flex justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                   <span className="text-muted-foreground">Brand</span>
+                   <span className="font-semibold">Basit Shop</span>
+                 </div>
+                 <div className="flex justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                    <span className="text-muted-foreground">SKU</span>
+                    <span className="font-semibold">{product.id.substring(0,8).toUpperCase()}</span>
+                 </div>
+               </div>
+             )}
           </div>
         </div>
 
-        {/* RELATED PRODUCTS (Wave Animation) */}
+        {/* RELATED PRODUCTS */}
         <section ref={suggestionsRef} className="mt-20">
-          <h2 className="text-2xl md:text-3xl font-bold mb-8 pl-4 border-l-4 border-primary">You May Also Like</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-8 pl-4 border-l-4 border-amber-500">You May Also Like</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {relatedProducts.map((p, index) => (
               <div key={p.id} ref={el => productCardsRef.current[index] = el} className="opacity-0">
+                {/* Note: ProductCard needs to handle currency separately or via context, 
+                    but layout here ensures it fits */}
                 <ProductCard product={p} />
               </div>
             ))}
@@ -411,27 +425,34 @@ const ProductDetailPage: React.FC = () => {
 
       </div>
 
-      {/* MOBILE STICKY ACTION BAR (Floating Glass) */}
-      <div className="fixed bottom-24 left-4 right-4 z-50 md:hidden animate-in slide-in-from-bottom-10 duration-500">
-        <div className="p-2 rounded-[2rem] bg-black/80 dark:bg-white/90 backdrop-blur-xl border border-white/10 shadow-2xl flex items-center gap-2">
-          <div className="pl-4 pr-2 flex flex-col">
-            <span className="text-[10px] text-gray-400 font-medium uppercase">Total</span>
-            <span className="text-lg font-bold text-white dark:text-black leading-none">${(product.price * quantity).toFixed(0)}</span>
+      {/* MOBILE STICKY ACTION BAR (FLOATING ABOVE BOTTOM NAV) */}
+      <div 
+        ref={stickyBarRef}
+        className="fixed bottom-[80px] md:bottom-0 left-4 right-4 z-40 md:hidden"
+      >
+        <div className="p-2.5 rounded-[2rem] bg-black/80 dark:bg-white/90 backdrop-blur-xl border border-white/10 shadow-2xl flex items-center gap-3 ring-1 ring-white/10">
+          <div className="pl-4 flex flex-col justify-center">
+            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Total</span>
+            <span className="text-lg font-bold text-white dark:text-black leading-none font-mono">
+              Rs.{(product.price * quantity).toLocaleString()}
+            </span>
           </div>
           
-          <button 
-            onClick={handleAddToCart}
-            className="h-12 w-12 rounded-full bg-gray-700/50 dark:bg-gray-200/50 flex items-center justify-center text-white dark:text-black"
-          >
-            <ShoppingBag className="w-5 h-5" />
-          </button>
+          <div className="flex-1 flex gap-2 justify-end">
+            <button 
+              onClick={handleAddToCart}
+              className="h-12 w-12 rounded-full bg-gray-700/50 dark:bg-gray-200/50 flex items-center justify-center text-white dark:text-black hover:bg-amber-500 hover:text-white transition-colors border border-white/5"
+            >
+              <ShoppingBag className="w-5 h-5" />
+            </button>
 
-          <button 
-            onClick={() => { handleAddToCart(); navigate('/checkout'); }}
-            className="flex-1 h-12 rounded-full bg-primary text-white font-bold text-sm shadow-lg shadow-primary/40 flex items-center justify-center gap-2"
-          >
-            Buy Now <ArrowRight className="w-4 h-4" />
-          </button>
+            <button 
+              onClick={() => { handleAddToCart(); navigate('/checkout'); }}
+              className="flex-1 max-w-[160px] h-12 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+            >
+              Buy Now <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
