@@ -1,12 +1,15 @@
 import { supabase } from '@/integrations/supabase/client';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap, AlertCircle } from 'lucide-react';
+import { Search, Heart, ShoppingCart, User, Sun, Moon, Home, Package, MapPin, LogIn, Settings, Sparkles, X, Zap, AlertCircle, Loader2 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -28,13 +31,81 @@ const Header: React.FC = () => {
   const location = useLocation();
   
   // Refs
+  const headerRef = useRef<HTMLElement>(null);
+  const logoRef = useRef<HTMLAnchorElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
   const menuBackdropRef = useRef<HTMLDivElement>(null);
-  const menuContentRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement>(null);
 
-  // --- 1. Supabase Search Logic (FIXED) ---
+  // --- GSAP Animations for Logo & Header ---
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      // 1. Floating Header Effect on Scroll
+      ScrollTrigger.create({
+        start: 'top -10',
+        onEnter: () => {
+          setScrolled(true);
+          gsap.to(headerRef.current, {
+            y: 8,
+            borderRadius: '24px',
+            backgroundColor: theme === 'dark' ? 'rgba(20, 20, 30, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.1)',
+            width: 'calc(100% - 32px)',
+            left: '16px',
+            duration: 0.4,
+            ease: 'power3.out'
+          });
+        },
+        onLeaveBack: () => {
+          setScrolled(false);
+           gsap.to(headerRef.current, {
+            y: 0,
+            borderRadius: '0px',
+            backgroundColor: 'transparent',
+            backdropFilter: 'blur(0px)',
+            boxShadow: 'none',
+            width: '100%',
+            left: '0px',
+            duration: 0.3,
+            ease: 'power2.inOut'
+          });
+        },
+      });
+
+      // 2. "MIRAE" Golden Glow & Spread Animation
+      if (logoRef.current) {
+        const logoText = logoRef.current.querySelector('.mirae-text');
+        
+        logoRef.current.addEventListener('mouseenter', () => {
+          gsap.to(logoText, {
+            letterSpacing: '0.15em',
+            scale: 1.05,
+            textShadow: '0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.3)',
+            duration: 0.5,
+            ease: 'elastic.out(1, 0.5)'
+          });
+        });
+
+        logoRef.current.addEventListener('mouseleave', () => {
+          gsap.to(logoText, {
+            letterSpacing: '0.05em',
+            scale: 1,
+            textShadow: 'none',
+            duration: 0.3,
+            ease: 'power2.out'
+          });
+        });
+      }
+
+    }, headerRef);
+
+    return () => ctx.revert();
+  }, [theme]);
+
+
+  // --- 1. Supabase Search Logic (REAL DATA) ---
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (!searchTerm.trim()) {
@@ -44,34 +115,26 @@ const Header: React.FC = () => {
 
       setIsSearching(true);
       try {
-        // console.log("Searching for:", searchTerm);
-
-        // FIXED: 'slug' remove kar diya hai kyun ke wo DB me nahi hai
-        // Sirf wo columns select kiye hain jo screenshot me hain
+        // NOTE: Removed 'slug' as requested because it's not in DB structure. Using ID for links.
         const { data, error } = await supabase
           .from('products')
-          .select('id, name, price, image, category, description') 
+          .select('id, name, price, image, category') 
           .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
-          .limit(10);
+          .limit(8); // Limited to 8 for cleaner UI
 
-        if (error) {
-          console.error("Supabase Error:", error.message);
-          throw error;
-        }
-        
-        // console.log("Results found:", data);
+        if (error) throw error;
         setSuggestions(data || []);
         
       } catch (error) {
-        console.error('Search Code Crash:', error);
+        console.error('Search Error:', error);
         setSuggestions([]);
       } finally {
         setIsSearching(false);
       }
     };
 
-    const timeoutId = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(timeoutId);
+    const debounce = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(debounce);
   }, [searchTerm]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -80,47 +143,48 @@ const Header: React.FC = () => {
       setSearchOpen(false);
       navigate(`/products?search=${encodeURIComponent(searchTerm)}`);
       setSearchTerm('');
-      setSuggestions([]);
     }
   };
 
-  // --- UI Effects ---
+  // --- UI Effects & Menu Animation ---
   useEffect(() => {
     if (menuOpen) { document.body.style.overflow = 'hidden'; } 
     else { document.body.style.overflow = ''; }
-    return () => { document.body.style.overflow = ''; };
-  }, [menuOpen]);
-
-  useEffect(() => {
-    const handleScroll = () => { if (!menuOpen) setScrolled(window.scrollY > 10); };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
   }, [menuOpen]);
 
   useEffect(() => {
     setMenuOpen(false); setSearchOpen(false); setSuggestions([]); 
   }, [location.pathname]);
 
-  // Animation
+  // Menu Open/Close Animation
   useEffect(() => {
     if (menuOpen && menuRef.current && menuBackdropRef.current) {
       const tl = gsap.timeline();
-      tl.fromTo(menuBackdropRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out' });
-      tl.fromTo(menuRef.current, { opacity: 0, y: -30, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'back.out(1.7)' }, '-=0.2');
-      tl.fromTo(menuItemsRef.current.filter(Boolean), { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, stagger: 0.05, ease: 'back.out(1.7)' }, '-=0.2');
+      tl.fromTo(menuBackdropRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      tl.fromTo(menuRef.current, { opacity: 0, y: -50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: 'back.out(1.5)' }, '-=0.2');
+      tl.fromTo(menuItemsRef.current.filter(Boolean), 
+        { opacity: 0, y: 50, rotationX: -20 }, 
+        { opacity: 1, y: 0, rotationX: 0, duration: 0.6, stagger: 0.05, ease: 'power3.out' }, 
+        '-=0.3'
+      );
     }
   }, [menuOpen]);
 
   const closeMenu = useCallback(() => {
     if (menuRef.current && menuBackdropRef.current) {
       const tl = gsap.timeline({ onComplete: () => setMenuOpen(false) });
-      tl.to(menuItemsRef.current.filter(Boolean).reverse(), { opacity: 0, y: -20, duration: 0.2, stagger: 0.03 });
-      tl.to(menuRef.current, { opacity: 0, y: -20, scale: 0.95, duration: 0.3 }, '-=0.1');
-      tl.to(menuBackdropRef.current, { opacity: 0, duration: 0.2 }, '-=0.2');
+      tl.to(menuItemsRef.current.filter(Boolean).reverse(), { opacity: 0, y: 20, duration: 0.2, stagger: 0.02 });
+      tl.to(menuRef.current, { opacity: 0, y: -30, scale: 0.95, duration: 0.3, ease: 'power2.in' });
+      tl.to(menuBackdropRef.current, { opacity: 0, duration: 0.3 }, '-=0.3');
     } else {
       setMenuOpen(false);
     }
   }, []);
+
+  // Helper class for Reactive Buttons
+  const reactiveBtnClass = `relative p-2.5 rounded-xl overflow-hidden transition-all duration-300 
+    hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-110 active:scale-95
+    before:absolute before:inset-0 before:bg-gradient-to-tr before:from-white/20 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity`;
 
   const menuItems = [
     { to: '/', label: 'Home', icon: Home, color: 'from-blue-500 to-cyan-500' },
@@ -133,153 +197,170 @@ const Header: React.FC = () => {
   ];
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled && !menuOpen ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' : 'bg-transparent'}`}>
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2 relative z-[60]">
-            <span className="text-xl font-bold">
-              <span className={menuOpen ? 'text-white' : 'text-foreground'}>BASIT</span>
-              <span className="text-primary">SHOP</span>
-            </span>
+    <header 
+      ref={headerRef}
+      className="fixed top-0 z-50 w-full transition-all will-change-transform border-b border-transparent"
+      // Initial styles are handled by GSAP ScrollTrigger above
+    >
+      <div className="container mx-auto px-2 md:px-4 h-16 flex items-center justify-between">
+        
+        {/* --- BRANDING: MIRAE. --- */}
+        <Link ref={logoRef} to="/" className="flex items-center relative z-[60] group">
+          <span className="mirae-text text-2xl md:text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 drop-shadow-sm transition-all">
+            MIRAE.
+          </span>
+        </Link>
+
+        {/* Desktop Nav */}
+        <nav className="hidden md:flex items-center gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-inner">
+          {['/', '/products', '/mepco-bill'].map((path) => {
+            const isActive = location.pathname === path || (path === '/products' && location.pathname.startsWith('/products/'));
+             const label = path === '/' ? 'Home' : path === '/products' ? 'Products' : 'Bill Checker';
+            return (
+              <Link key={path} to={path} className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 overflow-hidden hover:scale-105 active:scale-95 ${isActive ? 'text-slate-900 bg-gradient-to-r from-amber-300 to-yellow-500 shadow-lg shadow-amber-500/20' : 'text-muted-foreground hover:text-foreground hover:bg-white/10'}`}>
+                {label}
+                 {isActive && <div className="absolute inset-0 bg-white/20 mix-blend-overlay animate-pulse rounded-xl"></div>}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Icons Actions */}
+        <div className="flex items-center gap-1 md:gap-2 relative z-[60]">
+          <button 
+            onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100); }} 
+            className={`${reactiveBtnClass} ${menuOpen ? 'text-white' : 'text-foreground'}`}
+          >
+            {searchOpen && !menuOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
+          </button>
+
+          <button 
+            onClick={toggleTheme} 
+            className={`${reactiveBtnClass} ${menuOpen ? 'text-white' : 'text-foreground'}`}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+          
+          {/* Cart Badge */}
+          <Link to="/cart" className={`${reactiveBtnClass} md:hidden ${menuOpen ? 'text-white' : 'text-foreground'}`}>
+             <ShoppingCart className="w-5 h-5" />
+             {itemCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />}
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
-            {['/', '/products'].map((path) => {
-              const isActive = location.pathname === path || (path === '/products' && location.pathname.startsWith('/products/'));
-              return (
-                <Link key={path} to={path} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
-                  {path === '/' ? 'Home' : 'Products'}
-                </Link>
-              );
-            })}
-             <Link to="/mepco-bill" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/mepco-bill' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
-                Bill Checker
-              </Link>
-          </nav>
-
-          <div className="flex items-center gap-2 relative z-[60]">
-            <button onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => document.getElementById('search-input')?.focus(), 100); }} className={`p-2.5 rounded-lg transition-colors ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
-              {searchOpen && !menuOpen ? <X className="w-5 h-5"/> : <Search className="w-5 h-5" />}
-            </button>
-            <button onClick={toggleTheme} className={`p-2.5 rounded-lg transition-colors cursor-pointer relative z-[60] ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-            <button onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)} className={`p-2.5 rounded-lg transition-all relative z-[60] ${menuOpen ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted'}`}>
-              <div className="relative w-5 h-5">
-                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'top-1/2 -translate-y-1/2 rotate-45' : 'top-1'}`} />
-                <span className={`absolute left-0 top-1/2 -translate-y-1/2 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`} />
-                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'top-1/2 -translate-y-1/2 -rotate-45' : 'bottom-1'}`} />
-              </div>
-              {(itemCount > 0 || wishlistCount > 0) && !menuOpen && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />}
-            </button>
-          </div>
+          {/* Menu Toggle */}
+          <button onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)} className={`${reactiveBtnClass} ${menuOpen ? 'text-white' : 'text-foreground'}`}>
+            <div className="relative w-5 h-5 flex flex-col justify-center items-center gap-[5px]">
+              <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-[3.5px]' : ''}`} />
+              <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? 'opacity-0 scale-0' : ''}`} />
+              <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-[3.5px]' : ''}`} />
+            </div>
+            {(itemCount > 0 || wishlistCount > 0) && !menuOpen && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />}
+          </button>
         </div>
+      </div>
 
-        {searchOpen && !menuOpen && (
-          <div className="pb-4 animate-in slide-in-from-top-2 duration-200 relative">
-            <form onSubmit={handleSearchSubmit} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+      {/* --- SEARCH OVERLAY (Real Data) --- */}
+      {searchOpen && !menuOpen && (
+        <div className="px-4 pb-6 animate-in slide-in-from-top-4 duration-300 ease-out">
+          <div className="relative max-w-2xl mx-auto">
+            <form onSubmit={handleSearchSubmit} className="relative z-20 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-amber-500 transition-colors" />
               <input
                 id="search-input"
                 type="text"
-                placeholder="Search products..."
+                placeholder="Search for anything..."
                 autoFocus
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-muted/80 backdrop-blur-sm rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground border border-border/50"
+                className="w-full pl-12 pr-4 py-4 bg-white/10 dark:bg-black/20 backdrop-blur-xl rounded-2xl text-base focus:outline-none border border-white/10 focus:border-amber-500/50 shadow-xl text-foreground placeholder:text-muted-foreground transition-all"
               />
+              <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-r from-amber-500/20 to-purple-500/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
             </form>
 
+            {/* Suggestions Dropdown */}
             {searchTerm.trim() && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+              <div className="absolute top-full left-0 right-0 mt-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] overflow-hidden z-20 animate-in fade-in slide-in-from-top-2">
                 {isSearching ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
-                    <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
-                    <span>Finding best matches...</span>
+                  <div className="p-8 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                    <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                    <span>Searching cosmos...</span>
                   </div>
                 ) : suggestions.length > 0 ? (
-                  <div className="max-h-[60vh] overflow-y-auto">
-                    {suggestions.map((product) => (
+                  <div className="max-h-[60vh] overflow-y-auto p-2">
+                    {suggestions.map((product, idx) => (
                       <Link
-                        key={product.id}
-                        // Fallback to ID if slug is missing
-                        to={`/products/${product.slug || product.id}`}
+                        key={product.id || idx}
+                        // FIX: Using ID because slug was removed from query
+                        to={`/products/${product.id}`}
                         onClick={() => { setSearchOpen(false); setSearchTerm(''); }}
-                        className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
+                        className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/10 dark:hover:bg-white/5 transition-all group border border-transparent hover:border-white/10"
                       >
-                        {product.image ? (
-                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                             <img src={product.image} alt="" className="w-full h-full object-cover" />
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                            <Package className="w-5 h-5 text-muted-foreground" />
-                          </div>
-                        )}
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-muted flex-shrink-0 relative">
+                           {product.image ? <img src={product.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : <Package className="w-6 h-6 m-auto text-muted-foreground" />}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{product.category || 'Product'} • Rs. {product.price?.toLocaleString()}</p>
+                          <p className="font-medium text-foreground truncate group-hover:text-amber-500 transition-colors">{product.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{product.category} • <span className="text-amber-500 font-medium">Rs. {product.price?.toLocaleString()}</span></p>
                         </div>
                       </Link>
                     ))}
                   </div>
                 ) : (
-                  <div className="p-8 text-center flex flex-col items-center gap-2 text-muted-foreground">
-                    <AlertCircle className="w-8 h-8 opacity-20" />
-                    <p className="font-medium text-foreground">No products found</p>
-                    <p className="text-xs">Try searching for "{searchTerm}" in a different way</p>
+                  <div className="p-12 text-center flex flex-col items-center gap-3 text-muted-foreground">
+                    <AlertCircle className="w-10 h-10 opacity-30 text-amber-500" />
+                    <p className="font-medium text-foreground text-lg">Nothing found</p>
+                    <p className="text-sm">We couldn't find anything for "{searchTerm}"</p>
                   </div>
                 )}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
+      {/* --- FULL SCREEN MENU --- */}
       {menuOpen && (
         <>
-          <div ref={menuBackdropRef} className="fixed inset-0 z-40 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900" onClick={closeMenu} />
+          <div ref={menuBackdropRef} className="fixed inset-0 z-40 bg-gradient-to-br from-slate-950 via-[#1a1440] to-slate-950 opacity-0" onClick={closeMenu} />
           
+          {/* Particles Background */}
           <div ref={particlesRef} className="fixed inset-0 z-40 pointer-events-none overflow-hidden">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="absolute rounded-full bg-gradient-to-r from-primary/30 to-violet-500/30 blur-sm" style={{ width: `${Math.random() * 100 + 50}px`, height: `${Math.random() * 100 + 50}px`, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%` }} />
-            ))}
-            <Sparkles className="absolute top-20 right-10 w-8 h-8 text-primary/40" />
-            <Sparkles className="absolute bottom-40 left-10 w-6 h-6 text-violet-400/40" />
+            <Sparkles className="absolute top-[10%] right-[20%] w-12 h-12 text-amber-500/30 animate-pulse" style={{animationDuration: '3s'}} />
+            <Sparkles className="absolute bottom-[20%] left-[10%] w-8 h-8 text-purple-500/30 animate-pulse" style={{animationDuration: '4s'}}/>
+            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/20 rounded-full blur-[100px] mix-blend-screen pointer-events-none"></div>
           </div>
 
-          <div ref={menuRef} className="fixed inset-x-0 top-16 bottom-0 z-50 overflow-hidden flex flex-col pointer-events-auto">
-            <div ref={menuContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <div className="container mx-auto px-4 py-8 pb-24">
-                <nav className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-                  {menuItems.map((item, index) => {
-                    const isActive = location.pathname === item.to;
-                    return (
-                      <Link key={item.to} ref={el => menuItemsRef.current[index] = el} to={item.to} onClick={closeMenu} className={`relative flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 group overflow-hidden ${isActive ? 'bg-white/10 border-white/20 shadow-2xl shadow-primary/20' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:-translate-y-1'}`}>
-                        <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                        <div className={`relative p-4 rounded-2xl bg-gradient-to-br ${item.color} shadow-lg`}>
-                          <item.icon className="w-6 h-6 text-white" />
-                          <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.color} blur-xl opacity-50 -z-10`} />
-                        </div>
-                        <span className="font-semibold text-white text-sm">{item.label}</span>
-                        {item.badge !== undefined && item.badge > 0 && <span className="absolute top-3 right-3 min-w-[24px] h-6 px-2 rounded-full bg-white text-slate-900 text-xs font-bold flex items-center justify-center shadow-lg">{item.badge}</span>}
-                        {isActive && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-transparent via-white to-transparent rounded-full" />}
-                      </Link>
-                    );
-                  })}
-                </nav>
-                <div className="mt-8 max-w-2xl mx-auto">
-                  <div className="p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <h3 className="font-semibold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Need Help?</h3>
-                        <p className="text-sm text-white/60 mt-1">Contact our 24/7 support</p>
+          <div ref={menuRef} className="fixed inset-x-0 top-20 bottom-0 z-50 overflow-hidden flex flex-col pointer-events-auto rounded-t-[3rem] bg-white/5 border-t border-white/20 backdrop-blur-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
+            <div className="flex-1 h-full overflow-y-auto p-6 pb-24">
+              <nav className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-3xl mx-auto pt-8">
+                {menuItems.map((item, index) => {
+                  const isActive = location.pathname === item.to;
+                  return (
+                    <Link 
+                        key={item.to} 
+                        ref={el => menuItemsRef.current[index] = el} 
+                        to={item.to} 
+                        onClick={closeMenu} 
+                        className={`relative flex flex-col items-center gap-3 p-6 rounded-[2rem] border transition-all duration-300 group overflow-hidden perspective-1000
+                            ${isActive ? 'bg-gradient-to-br from-amber-500/20 to-purple-500/20 border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:-translate-y-2'}`
+                        }
+                    >
+                      <div className={`relative p-4 rounded-2xl bg-gradient-to-br ${item.color} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                        <item.icon className="w-7 h-7 text-white relative z-10" />
+                        <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.color} blur-md opacity-70 -z-0 group-hover:blur-xl transition-all`} />
                       </div>
-                      <Link to="/track-order" onClick={closeMenu} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-violet-500 text-white text-sm font-medium hover:shadow-lg hover:shadow-primary/30 transition-all hover:scale-105">Track Order</Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                      <span className={`font-bold text-base ${isActive ? 'text-amber-400' : 'text-white group-hover:text-amber-300'}`}>{item.label}</span>
+                      
+                      {item.badge !== undefined && item.badge > 0 && (
+                          <span className="absolute top-4 right-4 min-w-[28px] h-7 px-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold flex items-center justify-center shadow-lg scale-100 group-hover:scale-110 transition-transform">
+                              {item.badge}
+                          </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
             </div>
           </div>
         </>
