@@ -305,22 +305,22 @@ const HomePage = () => {
         )}
       </section>
 
-      {/* FEATURES SECTION - Moved Below Hero */}
-      <section className="py-12 bg-muted/20 relative z-10">
+      {/* FEATURES SECTION - FIXED GRID (2 Cols on Mobile) */}
+      <section className="py-6 bg-muted/20 relative z-10">
         <div className="container mx-auto px-4">
-          <div ref={featuresRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div ref={featuresRef} className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { icon: Truck, title: 'Free Shipping', desc: 'Orders over $100' },
-              { icon: Shield, title: 'Secure Payment', desc: '100% Protected' },
-              { icon: Clock, title: 'Fast Delivery', desc: 'Worldwide shipping' },
-              { icon: Headphones, title: '24/7 Support', desc: 'Dedicated team' },
+              { icon: Truck, title: 'Free Shipping', desc: 'Over $100' },
+              { icon: Shield, title: 'Secure Pay', desc: '100% Safe' },
+              { icon: Clock, title: 'Fast Delivery', desc: 'Global' },
+              { icon: Headphones, title: '24/7 Support', desc: 'Online' },
             ].map((f, i) => (
-              <div key={i} className="group flex flex-col items-center text-center p-6 rounded-3xl bg-card border border-border/50 hover:border-primary/30 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
-                <div className="p-4 rounded-2xl bg-primary/10 text-primary mb-4 group-hover:scale-110 group-hover:rotate-6 transition-transform">
-                  <f.icon className="w-8 h-8" />
+              <div key={i} className="group flex flex-col items-center text-center p-3 rounded-2xl bg-card border border-border/50 hover:border-primary/30 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary mb-2 group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                  <f.icon className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-lg mb-1">{f.title}</h3>
-                <p className="text-sm text-muted-foreground">{f.desc}</p>
+                <h3 className="font-bold text-xs sm:text-sm mb-0.5">{f.title}</h3>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{f.desc}</p>
               </div>
             ))}
           </div>
