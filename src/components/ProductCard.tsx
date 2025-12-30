@@ -1,11 +1,18 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, Plus, GitCompare, Zap, ShoppingBag } from 'lucide-react';
-import { useCart } from '@/contexts/CartContext';
-import { useWishlist } from '@/contexts/WishlistContext';
-import { useCompare } from '@/contexts/CompareContext';
-import { toast } from 'sonner';
+import { Heart, Star, Plus, ShoppingBag, Lock } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext'; // Tumhara Cart Context
+import { useWishlist } from '@/contexts/WishlistContext'; // Tumhara Wishlist Context
+import { toast } from 'sonner'; // Ya jo bhi toast library use kar rahe ho
 import gsap from 'gsap';
+
+// --- MOCK AUTH HOOK (Isse apne real Auth Context se replace karna) ---
+// Example: const { user } = useAuth();
+const useMockAuth = () => {
+  // Filhal testing ke liye ise false rakho taake redirect check kar sako
+  const user = null; 
+  return { user, isAuthenticated: !!user };
+};
 
 export interface Product {
   id: string;
@@ -15,47 +22,49 @@ export interface Product {
   image: string;
   category: string;
   rating?: number;
-  reviews?: number;
-  description?: string;
-  colors?: string[];
+  dominantColor?: string; // Ye naya hai: Image ke hisab se color (e.g., '#3b82f6')
   inStock?: boolean;
 }
 
 interface ProductCardProps {
   product: Product;
-  index?: number; // Animation stagger ke liye
+  index?: number;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const { addToCompare, removeFromCompare, isInCompare, compareItems } = useCompare();
   const navigate = useNavigate();
+  const { isAuthenticated } = useMockAuth(); // Auth Check yahan se aayega
 
   const cardRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
 
-  // Entrance Animation (Fix for "Late" appearing products)
+  // Default color agar product me na ho
+  const themeColor = product.dominantColor || '#ffffff';
+
+  // --- 1. Entrance Animation ---
   useEffect(() => {
     const card = cardRef.current;
     if (card) {
       gsap.fromTo(card, 
-        { opacity: 0, y: 50, scale: 0.9 },
+        { opacity: 0, y: 80, scale: 0.8, rotateX: -15 },
         { 
           opacity: 1, 
           y: 0, 
           scale: 1, 
-          duration: 0.6, 
-          delay: index * 0.05, // Stagger effect
-          ease: "back.out(1.2)" 
+          rotateX: 0,
+          duration: 0.8, 
+          delay: index * 0.1, 
+          ease: "elastic.out(1, 0.6)" 
         }
       );
     }
   }, [index]);
 
-  // 3D Hover & Glow Effect
+  // --- 2. 3D Hover & Mouse Follow Effect ---
   useEffect(() => {
     const card = cardRef.current;
     const image = imageRef.current;
@@ -69,81 +78,91 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
       const y = e.clientY - rect.top;
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
-      
-      // More aggressive 3D rotation
-      const rotateX = ((y - centerY) / rect.height) * -20;
-      const rotateY = ((x - centerX) / rect.width) * 20;
 
+      // Calculate Rotation
+      const rotateX = ((y - centerY) / centerY) * -12; // Max 12 deg tilt
+      const rotateY = ((x - centerX) / centerX) * 12;
+
+      // Card Tilt
       gsap.to(card, {
         rotateX: rotateX,
         rotateY: rotateY,
+        scale: 1.02,
         duration: 0.4,
         ease: 'power2.out',
         transformPerspective: 1000,
         transformStyle: "preserve-3d"
       });
 
-      // Neon Glow movement
+      // Image Parallax (Image moves more than card)
+      gsap.to(image, {
+        x: (x - centerX) / 10,
+        y: (y - centerY) / 10,
+        duration: 0.4,
+        ease: 'power2.out'
+      });
+
+      // Glow Position
       gsap.to(glow, {
         x: x,
         y: y,
-        opacity: 0.6,
+        opacity: 0.4,
         duration: 0.2,
-        ease: "power1.out"
       });
-
-      // Parallax effect for content
-      if (contentRef.current) {
-        gsap.to(contentRef.current, {
-          x: (x - centerX) / 20,
-          y: (y - centerY) / 20,
-          duration: 0.4
-        });
-      }
-    };
-
-    const handleMouseEnter = () => {
-      gsap.to(image, { scale: 1.15, z: 50, duration: 0.5, ease: 'back.out(1.7)' });
-      gsap.to(card, { boxShadow: "0 20px 40px -10px rgba(var(--primary), 0.3)" });
     };
 
     const handleMouseLeave = () => {
-      gsap.to(card, {
-        rotateX: 0,
-        rotateY: 0,
-        boxShadow: "none",
-        duration: 0.6,
-        ease: 'elastic.out(1, 0.5)',
-      });
-      gsap.to(image, { scale: 1, z: 0, duration: 0.5, ease: 'power2.out' });
-      gsap.to(glow, { opacity: 0, duration: 0.3 });
-      
-      if (contentRef.current) {
-        gsap.to(contentRef.current, { x: 0, y: 0, duration: 0.5 });
-      }
+      // Reset everything
+      gsap.to(card, { rotateX: 0, rotateY: 0, scale: 1, z: 0, duration: 0.6, ease: 'elastic.out(1, 0.5)' });
+      gsap.to(image, { x: 0, y: 0, scale: 1, duration: 0.6, ease: 'power2.out' });
+      gsap.to(glow, { opacity: 0, duration: 0.4 });
+    };
+
+    const handleMouseEnter = () => {
+        gsap.to(image, { scale: 1.1, duration: 0.4, ease: 'back.out(2)' });
     };
 
     card.addEventListener('mousemove', handleMouseMove);
-    card.addEventListener('mouseenter', handleMouseEnter);
     card.addEventListener('mouseleave', handleMouseLeave);
+    card.addEventListener('mouseenter', handleMouseEnter);
 
     return () => {
       card.removeEventListener('mousemove', handleMouseMove);
-      card.removeEventListener('mouseenter', handleMouseEnter);
       card.removeEventListener('mouseleave', handleMouseLeave);
+      card.removeEventListener('mouseenter', handleMouseEnter);
     };
   }, []);
+
+  // --- AUTH CHECK HELPER ---
+  const checkAuth = () => {
+    if (!isAuthenticated) {
+      // Animation for denial
+      if(cardRef.current) {
+        gsap.to(cardRef.current, { x: 10, duration: 0.1, yoyo: true, repeat: 5 });
+      }
+      
+      toast.error("Access Denied", {
+        description: "Please Login or Register first to shop!",
+        icon: <Lock className="w-4 h-4 text-red-500" />
+      });
+      
+      // Delay redirection slightly so user sees the toast
+      setTimeout(() => navigate('/auth'), 1500);
+      return false;
+    }
+    return true;
+  };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Bounce Animation
-    const button = e.currentTarget;
-    gsap.fromTo(button, 
-      { scale: 1 }, 
-      { scale: 0.8, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.inOut' }
-    );
+    // 1. Auth Check
+    if (!checkAuth()) return;
+
+    // 2. Button Animation
+    const btn = e.currentTarget;
+    gsap.fromTo(btn, { scale: 0.8, rotate: -45 }, { scale: 1, rotate: 0, duration: 0.4, ease: "elastic.out(1, 0.3)" });
 
     addToCart({
       productId: product.id,
@@ -159,183 +178,127 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Specific animation for Buy Now
-    const button = e.currentTarget;
-    gsap.to(button, { scale: 0.95, duration: 0.1, onComplete: () => gsap.to(button, { scale: 1, duration: 0.3 }) });
+    // 1. Auth Check
+    if (!checkAuth()) return;
 
-    // Add to cart first
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity: 1
-    });
-
-    // Navigate to checkout (Modify path as per your routing)
-    toast.success("Proceeding to Checkout...");
-    navigate('/checkout'); 
+    // Add logic for Buy Now
+    addToCart({ ...product, quantity: 1 }); // Pehle cart me add karo
+    navigate('/checkout'); // Phir checkout pe le jao
   };
-
-  const handleWishlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Heart Beat Animation
-    const button = e.currentTarget;
-    gsap.fromTo(button, 
-      { scale: 1 }, 
-      { scale: 1.4, duration: 0.2, yoyo: true, repeat: 1, ease: 'elastic.out(1, 0.3)' }
-    );
-
-    if (isInWishlist(product.id)) {
-      removeFromWishlist(product.id);
-      toast.success('Removed from wishlist');
-    } else {
-      addToWishlist({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image
-      });
-      toast.success('Added to wishlist!');
-    }
-  };
-
-  const handleCompare = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const button = e.currentTarget;
-    gsap.fromTo(button, { rotate: 0 }, { rotate: 180, duration: 0.4, ease: "back.out" });
-
-    if (isInCompare(product.id)) {
-      removeFromCompare(product.id);
-      toast.success('Removed from compare');
-    } else {
-      if (compareItems.length >= 4) {
-        toast.error('Compare list is full');
-        return;
-      }
-      addToCompare({ ...product }); // Simplified passing product
-      toast.success('Added to compare!');
-    }
-  };
-
-  // Calculate discount percentage
-  const discount = product.originalPrice 
-    ? Math.round((1 - product.price / product.originalPrice) * 100) 
-    : 0;
 
   return (
-    <Link to={`/products/${product.id}`} className="block h-full perspective-1000">
+    <Link to={`/products/${product.id}`} className="block h-full group perspective-1000 select-none">
       <div 
         ref={cardRef}
-        className="group relative h-full bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-3xl overflow-hidden transition-all duration-300"
-        style={{ transformStyle: 'preserve-3d' }}
+        className="relative h-full bg-[#0a0a0a] border border-white/10 rounded-[30px] overflow-hidden shadow-2xl transition-all duration-300"
+        style={{ 
+          transformStyle: 'preserve-3d',
+          // Dynamic shadow based on product color
+          boxShadow: `0 0 0 1px rgba(255,255,255,0.05), 0 10px 30px -10px ${themeColor}40`
+        }}
       >
-        {/* Dynamic Glowing Orb following mouse */}
+        {/* Dynamic Hover Glow (Mouse follower) */}
         <div 
           ref={glowRef}
-          className="absolute w-64 h-64 rounded-full bg-primary/20 blur-[80px] pointer-events-none opacity-0 -translate-x-1/2 -translate-y-1/2 z-0 mix-blend-screen"
+          className="absolute w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none opacity-0 -translate-x-1/2 -translate-y-1/2 z-0 mix-blend-screen will-change-transform"
+          style={{ backgroundColor: themeColor }}
         />
 
-        {/* Image Area */}
-        <div className="relative aspect-[4/5] p-6 overflow-hidden z-10">
-          <img
-            ref={imageRef}
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-contain drop-shadow-xl will-change-transform"
-          />
-          
-          {/* Badges */}
-          <div className="absolute top-4 left-4 flex flex-col gap-2 translate-z-20">
-            {discount > 0 && (
-              <span className="px-3 py-1 rounded-full bg-rose-500/90 text-white text-[10px] font-bold shadow-lg backdrop-blur-md border border-white/20">
-                -{discount}% OFF
-              </span>
-            )}
-            {product.inStock === false && (
-              <span className="px-3 py-1 rounded-full bg-gray-500/90 text-white text-[10px] font-bold shadow-lg backdrop-blur-md">
-                SOLD OUT
-              </span>
-            )}
-          </div>
+        {/* --- TOP SECTION: Image --- */}
+        <div className="relative p-6 z-10">
+            {/* Top Bar: Discount & Wishlist */}
+            <div className="flex justify-between items-start mb-2 translate-z-20">
+                <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/5 text-[10px] font-bold text-white tracking-wider">
+                    -{Math.round((1 - product.price / (product.originalPrice || product.price)) * 100)}% OFF
+                </span>
+                
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if(isInWishlist(product.id)) removeFromWishlist(product.id);
+                        else addToWishlist(product);
+                    }}
+                    className="p-2 rounded-full bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 transition-colors group/heart"
+                >
+                    <Heart className={`w-4 h-4 transition-colors ${isInWishlist(product.id) ? 'fill-rose-500 text-rose-500' : 'text-white/60 group-hover/heart:text-white'}`} />
+                </button>
+            </div>
 
-          {/* Floating Action Buttons (Right Side) */}
-          <div className="absolute top-4 right-4 flex flex-col gap-2 translate-x-10 group-hover:translate-x-0 transition-transform duration-300 ease-out z-20">
-            <button
-              onClick={handleWishlist}
-              className={`p-2.5 rounded-full backdrop-blur-md border border-white/10 shadow-lg hover:scale-110 transition-all duration-200 ${
-                isInWishlist(product.id)
-                  ? 'bg-rose-500 text-white shadow-rose-500/30'
-                  : 'bg-white/80 dark:bg-black/50 text-foreground hover:bg-rose-500 hover:text-white'
-              }`}
-            >
-              <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
-            </button>
-            <button
-              onClick={handleCompare}
-              className={`p-2.5 rounded-full backdrop-blur-md border border-white/10 shadow-lg hover:scale-110 transition-all duration-200 ${
-                isInCompare(product.id)
-                  ? 'bg-blue-500 text-white shadow-blue-500/30'
-                  : 'bg-white/80 dark:bg-black/50 text-foreground hover:bg-blue-500 hover:text-white'
-              }`}
-            >
-              <GitCompare className="w-4 h-4" />
-            </button>
-          </div>
+            {/* Product Image */}
+            <div className="relative aspect-[4/3] flex items-center justify-center my-2">
+                <img
+                    ref={imageRef}
+                    src={product.image}
+                    alt={product.name}
+                    className="w-[90%] h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)] z-20 will-change-transform"
+                />
+            </div>
+        </div>
 
-          {/* Buy Now Button (Replaces Quick View) - Only visible on hover */}
-          <div className="absolute bottom-4 left-4 right-4 translate-y-20 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 ease-out z-30">
-            <button
+        {/* --- BOTTOM SECTION: Content --- */}
+        <div className="relative px-6 pb-6 pt-2 z-20 flex flex-col gap-3">
+            
+            {/* Category & Rating */}
+            <div className="flex items-center justify-between">
+                <span 
+                    className="text-[10px] font-bold uppercase tracking-[0.2em]" 
+                    style={{ color: themeColor }}
+                >
+                    {product.category}
+                </span>
+                <div className="flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 fill-white text-white" />
+                    <span className="text-sm font-bold text-white">{product.rating || 4.5}</span>
+                </div>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-xl font-bold text-white leading-tight line-clamp-1 group-hover:text-white/90 transition-colors">
+                {product.name}
+            </h3>
+
+            {/* Price & Add Button Row */}
+            <div className="flex items-end justify-between mt-2">
+                <div className="flex flex-col">
+                    <span className="text-xs text-white/40 line-through font-medium">
+                        PKR {product.originalPrice?.toLocaleString()}
+                    </span>
+                    <span className="text-xl font-black text-white tracking-tight">
+                        PKR {product.price.toLocaleString()}
+                    </span>
+                </div>
+
+                {/* THE CIRCLE PLUS BUTTON (Like screenshot) */}
+                <button
+                    ref={buttonRef}
+                    onClick={handleAddToCart}
+                    className="relative group/btn w-12 h-12 rounded-full flex items-center justify-center overflow-hidden transition-transform active:scale-90"
+                    style={{ backgroundColor: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                    {/* Hover Fill Effect */}
+                    <div 
+                        className="absolute inset-0 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"
+                        style={{ backgroundColor: 'white' }}
+                    />
+                    <Plus className="w-6 h-6 text-white group-hover/btn:text-black relative z-10 transition-colors duration-300" />
+                </button>
+            </div>
+        </div>
+
+        {/* --- HIDDEN BUY NOW (Reveals on Hover) --- */}
+        {/* Ye button card ke bottom se slide up karega jaisa tumne pehle manga tha */}
+        <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out z-30 bg-gradient-to-t from-black via-black/90 to-transparent">
+             <button
               onClick={handleBuyNow}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-primary to-violet-600 text-white font-bold shadow-lg shadow-primary/25 hover:shadow-primary/50 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 backdrop-blur-sm"
+              className="w-full py-3 rounded-xl text-black font-bold shadow-lg flex items-center justify-center gap-2 transform active:scale-95 transition-all"
+              style={{ 
+                  backgroundColor: themeColor,
+                  boxShadow: `0 0 20px ${themeColor}60`
+              }}
             >
               <ShoppingBag className="w-4 h-4" />
               BUY NOW
             </button>
-          </div>
-        </div>
-
-        {/* Product Details */}
-        <div ref={contentRef} className="p-5 pt-2 z-20 relative bg-gradient-to-t from-white/50 to-transparent dark:from-black/50">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">
-              {product.category}
-            </p>
-            {product.rating && (
-              <div className="flex items-center gap-1 bg-amber-400/10 px-2 py-0.5 rounded-full">
-                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{product.rating}</span>
-              </div>
-            )}
-          </div>
-
-          <h3 className="font-bold text-foreground text-base line-clamp-1 mb-3 group-hover:text-primary transition-colors">
-            {product.name}
-          </h3>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground line-through ml-1">
-                {product.originalPrice ? `PKR ${product.originalPrice.toLocaleString()}` : ''}
-              </span>
-              <span className="text-xl font-black text-foreground tracking-tight">
-                PKR {product.price.toLocaleString()}
-              </span>
-            </div>
-            
-            {/* Quick Add (Plus Button) */}
-            <button
-              onClick={handleAddToCart}
-              className="group/btn relative p-3 rounded-xl bg-muted/50 hover:bg-primary text-foreground hover:text-white transition-all duration-300 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-primary translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
-              <Plus className="w-5 h-5 relative z-10" />
-            </button>
-          </div>
         </div>
       </div>
     </Link>
