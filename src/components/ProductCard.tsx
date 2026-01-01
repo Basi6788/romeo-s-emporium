@@ -1,12 +1,11 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, Plus, GitCompare } from 'lucide-react';
+import { Heart, ShoppingCart, Star, Plus, GitCompare, Zap } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useCompare } from '@/contexts/CompareContext';
 import { toast } from 'sonner';
 import gsap from 'gsap';
-import * as THREE from 'three';
 
 export interface Product {
   id: string;
@@ -30,89 +29,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { addToCompare, removeFromCompare, isInCompare, compareItems } = useCompare();
+  
   const cardRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
-  const threeRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const meshRef = useRef<THREE.Mesh | null>(null);
+  const borderRef = useRef<HTMLDivElement>(null);
 
-  // Three.js 3D Animation
-  useEffect(() => {
-    if (!threeRef.current) return;
-
-    // Scene Setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    
-    renderer.setSize(300, 300);
-    renderer.setClearColor(0x000000, 0);
-    threeRef.current.appendChild(renderer.domElement);
-
-    // Glass Material
-    const glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      metalness: 0.1,
-      roughness: 0.05,
-      transmission: 0.95,
-      thickness: 0.3,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.1,
-    });
-
-    // Create Geometry
-    const geometry = new THREE.BoxGeometry(2, 2, 2);
-    const mesh = new THREE.Mesh(geometry, glassMaterial);
-    scene.add(mesh);
-    
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 5, 5);
-    scene.add(directionalLight);
-
-    camera.position.z = 5;
-
-    sceneRef.current = scene;
-    cameraRef.current = camera;
-    rendererRef.current = renderer;
-    meshRef.current = mesh;
-
-    // Animation Loop
-    let animationId: number;
-    const animate = () => {
-      animationId = requestAnimationFrame(animate);
-      if (meshRef.current) {
-        meshRef.current.rotation.x += 0.005;
-        meshRef.current.rotation.y += 0.005;
-      }
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      if (rendererRef.current) {
-        rendererRef.current.dispose();
-      }
-      if (threeRef.current && rendererRef.current?.domElement) {
-        threeRef.current.removeChild(rendererRef.current.domElement);
-      }
-    };
-  }, []);
-
-  // GSAP Hover Animation
+  // GSAP Hover Animation (Clean & Performance Optimized)
   useEffect(() => {
     const card = cardRef.current;
     const image = imageRef.current;
     const glow = glowRef.current;
+    const border = borderRef.current;
 
-    if (!card || !image || !glow) return;
+    if (!card || !image || !glow || !border) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = card.getBoundingClientRect();
@@ -121,48 +51,41 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
       
-      const rotateX = (y - centerY) / 15;
-      const rotateY = (centerX - x) / 15;
+      // Calculate rotation
+      const rotateX = (y - centerY) / 20;
+      const rotateY = (centerX - x) / 20;
 
       gsap.to(card, {
         rotateX: rotateX,
         rotateY: rotateY,
-        duration: 0.2,
+        duration: 0.3,
         ease: 'power2.out',
-        transformPerspective: 800,
+        transformPerspective: 1000,
       });
 
+      // Glow following mouse
       gsap.to(glow, {
-        x: x - rect.width / 2,
-        y: y - rect.height / 2,
-        opacity: 0.4,
+        x: x,
+        y: y,
+        opacity: 0.6,
         duration: 0.2,
       });
-
-      // Three.js interaction
-      if (meshRef.current) {
-        gsap.to(meshRef.current.rotation, {
-          x: rotateX * 0.3,
-          y: rotateY * 0.3,
-          duration: 0.3,
-        });
-      }
     };
 
     const handleMouseEnter = () => {
       gsap.to(card, {
         scale: 1.02,
         duration: 0.3,
-        ease: 'back.out(1.7)',
+        ease: 'back.out(1.5)',
       });
-      gsap.to(image, { scale: 1.15, duration: 0.4, ease: 'power2.out' });
-      
-      // Card lift effect
-      gsap.to(card, {
+      gsap.to(image, { 
+        scale: 1.15, 
         y: -10,
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
-        duration: 0.3,
+        duration: 0.4, 
+        ease: 'power2.out' 
       });
+      // Show Neon Border
+      gsap.to(border, { opacity: 1, duration: 0.3 });
     };
 
     const handleMouseLeave = () => {
@@ -170,31 +93,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         rotateX: 0,
         rotateY: 0,
         scale: 1,
-        y: 0,
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
         duration: 0.5,
         ease: 'power2.out',
       });
-      gsap.to(image, { scale: 1, duration: 0.4, ease: 'power2.out' });
+      gsap.to(image, { 
+        scale: 1, 
+        y: 0, 
+        duration: 0.4, 
+        ease: 'power2.out' 
+      });
       gsap.to(glow, { opacity: 0, duration: 0.3 });
-      
-      if (meshRef.current) {
-        gsap.to(meshRef.current.rotation, {
-          x: 0,
-          y: 0,
-          duration: 0.5,
-        });
-      }
+      // Hide Neon Border
+      gsap.to(border, { opacity: 0, duration: 0.3 });
     };
-
-    // Initial animation
-    gsap.from(card, {
-      opacity: 0,
-      y: 30,
-      duration: 0.6,
-      ease: 'power2.out',
-      delay: Math.random() * 0.2,
-    });
 
     card.addEventListener('mousemove', handleMouseMove);
     card.addEventListener('mouseenter', handleMouseEnter);
@@ -207,27 +118,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     };
   }, []);
 
+  // --- Handlers (Add to Cart, etc.) ---
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const button = e.currentTarget;
-    gsap.fromTo(button, 
-      { scale: 1 }, 
-      { scale: 0.8, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.inOut' }
-    );
-
-    // Button ripple effect
-    const ripple = document.createElement('span');
-    const rect = button.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    ripple.style.width = ripple.style.height = `${size}px`;
-    ripple.style.left = `${e.clientX - rect.left - size/2}px`;
-    ripple.style.top = `${e.clientY - rect.top - size/2}px`;
-    ripple.classList.add('ripple');
-    button.appendChild(ripple);
-    
-    setTimeout(() => ripple.remove(), 600);
+    // Simple bump animation
+    gsap.fromTo(e.currentTarget, { scale: 1 }, { scale: 0.9, duration: 0.1, yoyo: true, repeat: 1 });
 
     addToCart({
       productId: product.id,
@@ -237,21 +134,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       quantity: 1
     });
     
-    toast.success('Added to cart!', {
-      description: product.name,
-    });
+    toast.success('Added to cart!', { description: product.name });
   };
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const button = e.currentTarget;
-    gsap.fromTo(button, 
-      { scale: 1 }, 
-      { scale: 1.3, duration: 0.2, yoyo: true, repeat: 1, ease: 'elastic.out(1, 0.3)' }
-    );
-
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id);
       toast.success('Removed from wishlist');
@@ -270,240 +159,145 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const button = e.currentTarget;
-    gsap.fromTo(button, 
-      { scale: 1 }, 
-      { scale: 1.2, duration: 0.15, yoyo: true, repeat: 1, ease: 'power2.inOut' }
-    );
-
     if (isInCompare(product.id)) {
       removeFromCompare(product.id);
       toast.success('Removed from compare');
     } else {
-      if (compareItems.length >= 4) {
-        toast.error('Compare list is full', {
-          description: 'Maximum 4 products can be compared'
-        });
-        return;
-      }
-      addToCompare({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        category: product.category,
-        rating: product.rating,
-        description: product.description
-      });
+      if (compareItems.length >= 4) return toast.error('Compare full');
+      addToCompare({ ...product, originalPrice: product.originalPrice || 0 });
       toast.success('Added to compare!');
     }
   };
 
-  const handleBuyNow = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const button = e.currentTarget;
-    gsap.fromTo(button, 
-      { scale: 1 }, 
-      { scale: 0.9, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.inOut' }
-    );
-
-    // Add to cart first
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity: 1
-    });
-    
-    // Redirect to checkout
-    setTimeout(() => {
-      window.location.href = '/checkout';
-    }, 300);
-  };
-
+  // Calculations
   const discount = product.originalPrice 
     ? Math.round((1 - product.price / product.originalPrice) * 100) 
     : 0;
 
-  // Convert USD to PKR (current rate approx 280)
+  // PRICE CONVERSION: Assuming input is in USD, converting to PKR.
+  // If your DB is already in PKR, remove the (* 280) part.
   const priceInPKR = product.price * 280;
   const originalPriceInPKR = product.originalPrice ? product.originalPrice * 280 : null;
 
   return (
     <>
-      <Link to={`/products/${product.id}`} className="group block relative">
-        {/* 3D Glass Effect Background */}
-        <div 
-          ref={threeRef} 
-          className="absolute inset-0 w-full h-full rounded-3xl pointer-events-none"
-        />
+      <Link to={`/products/${product.id}`} className="group block relative w-full h-full p-2">
         
+        {/* Main Card Container */}
         <div 
           ref={cardRef}
-          className="relative bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-lg rounded-3xl overflow-hidden border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.1)] transition-all duration-300"
-          style={{ 
-            transformStyle: 'preserve-3d',
-            transform: 'translateZ(0)'
-          }}
+          className="relative h-full bg-[#121212]/80 backdrop-blur-xl rounded-2xl overflow-hidden border border-white/5 transition-all duration-300"
+          style={{ transformStyle: 'preserve-3d' }}
         >
-          {/* 3D Glow Effect */}
+          {/* NEON RUNNING BORDER - Animated Gradient */}
+          <div 
+            ref={borderRef}
+            className="absolute inset-0 opacity-0 transition-opacity duration-300 pointer-events-none z-0"
+          >
+            <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_340deg,white_360deg)] animate-spin-slow opacity-20" />
+            <div className="absolute inset-[1px] bg-[#121212] rounded-2xl" /> {/* Inner mask */}
+          </div>
+
+          {/* Mouse Follow Glow */}
           <div 
             ref={glowRef}
-            className="absolute w-40 h-40 rounded-full bg-gradient-to-r from-primary/30 via-secondary/30 to-accent/30 blur-3xl pointer-events-none opacity-0"
+            className="absolute w-[200px] h-[200px] bg-primary/20 rounded-full blur-[80px] pointer-events-none opacity-0 z-10"
             style={{ transform: 'translate(-50%, -50%)' }}
           />
 
-          {/* Grid Pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_1px,transparent_1px),linear-gradient(0deg,transparent_1px,transparent_1px)] bg-[size:20px_20px] opacity-10" />
+          {/* Grid Pattern (Subtle Tech Look) */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:20px_20px] z-0" />
 
-          {/* Image Container */}
-          <div className="relative aspect-square bg-gradient-to-br from-muted/20 to-transparent overflow-hidden">
+          {/* Image Area */}
+          <div className="relative aspect-square z-20 overflow-hidden bg-gradient-to-b from-white/5 to-transparent p-6">
             <img
               ref={imageRef}
               src={product.image}
               alt={product.name}
-              className="w-full h-full object-contain p-8 transition-transform will-change-transform"
+              className="w-full h-full object-contain drop-shadow-2xl will-change-transform"
             />
             
-            {/* Discount Badge */}
-            {discount > 0 && (
-              <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold shadow-lg animate-pulse">
-                -{discount}% OFF
-              </div>
-            )}
+            {/* Badges */}
+            <div className="absolute top-3 left-3 flex flex-col gap-2">
+              {discount > 0 && (
+                <span className="px-2 py-1 text-[10px] font-bold bg-rose-500 text-white rounded-md shadow-lg shadow-rose-500/20">
+                  -{discount}%
+                </span>
+              )}
+              {product.category === 'New' && (
+                <span className="px-2 py-1 text-[10px] font-bold bg-blue-500 text-white rounded-md shadow-lg shadow-blue-500/20">
+                  NEW
+                </span>
+              )}
+            </div>
 
-            {/* Stock Status */}
-            {!product.inStock && (
-              <div className="absolute top-4 right-4 px-3 py-1.5 rounded-full bg-amber-500/90 text-white text-xs font-bold backdrop-blur-sm">
-                Out of Stock
-              </div>
-            )}
-
-            {/* Quick Actions - Glass Morphic Buttons */}
-            <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0">
-              <button
-                onClick={handleWishlist}
-                className={`p-3 rounded-2xl backdrop-blur-md border border-white/20 transition-all shadow-lg ${
-                  isInWishlist(product.id)
-                    ? 'bg-gradient-to-r from-rose-500/90 to-pink-500/90 text-white'
-                    : 'bg-white/10 hover:bg-white/20 text-white hover:scale-110'
-                }`}
-              >
-                <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
+            {/* Hover Actions (Glassmorphism) */}
+            <div className="absolute right-3 top-3 flex flex-col gap-2 translate-x-10 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300 ease-out">
+              <button onClick={handleWishlist} className={`p-2 rounded-xl backdrop-blur-md border border-white/10 ${isInWishlist(product.id) ? 'bg-rose-500 text-white' : 'bg-black/40 text-white hover:bg-white hover:text-black'}`}>
+                <Heart size={16} className={isInWishlist(product.id) ? 'fill-current' : ''} />
               </button>
-              <button
-                onClick={handleCompare}
-                className={`p-3 rounded-2xl backdrop-blur-md border border-white/20 transition-all shadow-lg ${
-                  isInCompare(product.id)
-                    ? 'bg-gradient-to-r from-primary/90 to-blue-500/90 text-white'
-                    : 'bg-white/10 hover:bg-white/20 text-white hover:scale-110'
-                }`}
-              >
-                <GitCompare className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleAddToCart}
-                className="p-3 rounded-2xl backdrop-blur-md border border-white/20 bg-white/10 hover:bg-white/20 text-white hover:scale-110 transition-all shadow-lg"
-              >
-                <ShoppingCart className="w-4 h-4" />
+              <button onClick={handleCompare} className={`p-2 rounded-xl backdrop-blur-md border border-white/10 ${isInCompare(product.id) ? 'bg-blue-500 text-white' : 'bg-black/40 text-white hover:bg-white hover:text-black'}`}>
+                <GitCompare size={16} />
               </button>
             </div>
 
-            {/* Buy Now Button - Bottom */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 opacity-0 group-hover:opacity-100 translate-y-full group-hover:translate-y-0 transition-all duration-500">
-              <button
-                onClick={handleBuyNow}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white font-semibold text-sm hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 backdrop-blur-md border border-white/20"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                BUY NOW
-              </button>
-            </div>
+            {/* Quick Add Button (Bottom Right of Image) */}
+            <button 
+              onClick={handleAddToCart}
+              className="absolute bottom-3 right-3 p-3 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 translate-y-10 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 delay-75 hover:scale-110 active:scale-95"
+            >
+              <ShoppingCart size={18} />
+            </button>
           </div>
 
-          {/* Content */}
-          <div className="p-5">
-            <div className="flex justify-between items-start mb-2">
-              <p className="text-[10px] text-muted-foreground/80 uppercase tracking-wider font-semibold">
-                {product.category}
-              </p>
+          {/* Product Details */}
+          <div className="p-4 relative z-20">
+            {/* Category & Rating */}
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">{product.category}</span>
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] text-emerald-500 font-medium">In Stock</span>
+                <Star size={10} className="fill-amber-400 text-amber-400" />
+                <span className="text-xs text-muted-foreground font-medium">{product.rating || 4.5}</span>
               </div>
             </div>
-            
-            <h3 className="font-semibold text-foreground text-base line-clamp-1 mb-3">
+
+            {/* Title */}
+            <h3 className="text-sm font-semibold text-foreground mb-3 line-clamp-1 group-hover:text-primary transition-colors">
               {product.name}
             </h3>
-            
-            {/* Rating */}
-            {product.rating && (
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      className={`w-3.5 h-3.5 ${
-                        i < Math.floor(product.rating!) 
-                          ? 'fill-amber-400 text-amber-400' 
-                          : 'fill-muted text-muted'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="text-xs font-medium text-foreground">{product.rating}</span>
-                <span className="text-xs text-muted-foreground">({product.reviews} reviews)</span>
-              </div>
-            )}
 
-            {/* Price & Add Button */}
-            <div className="flex items-center justify-between">
+            {/* Price Section - ONLY PKR */}
+            <div className="flex items-end justify-between border-t border-white/5 pt-3">
               <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground mb-0.5">Price</span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold text-foreground">
-                    ₨ {priceInPKR.toLocaleString('en-PK')}
+                  <span className="text-lg font-bold text-foreground">
+                    Rs {priceInPKR.toLocaleString()}
                   </span>
                   {originalPriceInPKR && (
-                    <span className="text-sm text-muted-foreground line-through">
-                      ₨ {originalPriceInPKR.toLocaleString('en-PK')}
+                    <span className="text-xs text-muted-foreground line-through decoration-rose-500/50">
+                      {originalPriceInPKR.toLocaleString()}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] text-muted-foreground mt-1">
-                  (${product.price.toFixed(0)} USD)
-                </span>
               </div>
-              <button
-                onClick={handleAddToCart}
-                className="p-3 rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 text-primary hover:from-primary/20 hover:to-secondary/20 transition-all duration-300 hover:scale-110 border border-primary/20"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
+              
+              {/* Fake 'Buy Now' visual indicator */}
+              <div className="h-8 w-8 rounded-full border border-white/10 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/10 transition-colors">
+                <Zap size={14} className="text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
             </div>
           </div>
         </div>
       </Link>
 
-      {/* Add CSS for ripple effect */}
       <style jsx>{`
-        .ripple {
-          position: absolute;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.6);
-          transform: scale(0);
-          animation: ripple 0.6s linear;
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
-        
-        @keyframes ripple {
-          to {
-            transform: scale(4);
-            opacity: 0;
-          }
+        .animate-spin-slow {
+          animation: spin-slow 4s linear infinite;
         }
       `}</style>
     </>
