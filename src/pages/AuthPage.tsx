@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, Navigate } from 'react-router-dom'; // Navigate import kiya
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; // Sirf Context use karenge
 import { toast } from 'sonner';
-import { useUser } from "@clerk/clerk-react"; // Direct Clerk check ke liye
 
 const AuthPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -18,37 +17,42 @@ const AuthPage: React.FC = () => {
     confirmPassword: ''
   });
 
-  // Context se data uthaya
-  const { login, register, loginWithSocial, isAuthenticated, isAdmin, loading: authLoading } = useAuth();
-  
-  // 🔥 Direct Clerk User Check (Ye loop rokne ke liye sabse best hai)
-  const { isSignedIn, isLoaded: isClerkLoaded } = useUser();
+  // Context se data uthaya (Consistency ke liye yahi use karo)
+  const { 
+    login, 
+    register, 
+    loginWithSocial, 
+    isAuthenticated, 
+    isAdmin, 
+    loading: authLoading 
+  } = useAuth();
   
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // 🔥 FAST REDIRECT: Agar login hai to form render hi mat karo, seedha bhej do
-  if (isClerkLoaded && isSignedIn) {
-    const target = isAdmin ? '/admin' : '/';
-    return <Navigate to={target} replace />;
-  }
+  // 🔥 SAFE REDIRECT: useEffect ka use karein taa ke render conflicts na hon
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      // Agar user login hai, tu usay wapas bhej do
+      // location.state se check karte hain agar wo kisi specific page se aya tha
+      // @ts-ignore
+      const from = location.state?.from?.pathname || (isAdmin ? '/admin' : '/');
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, authLoading, isAdmin, navigate, location]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Social Login Handler
   const handleSocialLogin = async (strategy: 'oauth_google' | 'oauth_apple' | 'oauth_facebook') => {
     try {
       setFormLoading(true);
-      // Toast dikha do taake user ko lage process shuru ho gaya
-      toast.info("Redirecting to secure login...");
-      
+      toast.info("Connecting to secure login...");
       await loginWithSocial(strategy);
-      
-      // Note: Yahan loading false karne ki zaroorat nahi kyunke page redirect ho jayega
     } catch (error: any) {
       console.error("Social login error", error);
-      toast.error(error.message || "Social login failed. Please try again.");
+      toast.error("Login failed. Please try again.");
       setFormLoading(false);
     }
   };
@@ -62,10 +66,9 @@ const AuthPage: React.FC = () => {
     try {
       if (isLogin) {
         const result = await login(formData.email, formData.password);
-        
         if (result.success) {
           toast.success('Welcome back!');
-          // Redirect useEffect ya upar wala check sambhal lega
+          // Redirect useEffect sambhal lega
         } else {
           toast.error(result.error || 'Invalid credentials');
           setFormLoading(false);
@@ -79,8 +82,7 @@ const AuthPage: React.FC = () => {
 
         const result = await register(formData.name, formData.email, formData.password);
         if (result.success) {
-          toast.success('Account created successfully!');
-          // Registration ke baad verify email waghera ka scene ho sakta hai context me
+          toast.success('Account created! Logging in...');
         } else {
           toast.error(result.error || 'Registration failed');
           setFormLoading(false);
@@ -92,13 +94,18 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  // Loading State
-  if (authLoading || !isClerkLoaded) {
+  // Loading State (Jab tak pata na chale banda login hai ya nahi)
+  if (authLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
+      <div className="h-screen w-full flex items-center justify-center bg-background">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // Agar banda login hai tu form render mat karo (Flicker bachane ke liye)
+  if (isAuthenticated) {
+    return null; 
   }
 
   return (
@@ -267,7 +274,6 @@ const AuthPage: React.FC = () => {
               </button>
             </form>
 
-            {/* Toggle Login/Signup */}
             <p className="text-center mt-6 text-muted-foreground">
               {isLogin ? "Don't have an account?" : 'Already have an account?'}
               <button
