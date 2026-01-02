@@ -52,7 +52,7 @@ const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXY
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading, isAuthenticated } = useAuth();
   if (loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
-  if (!isAuthenticated || !isAdmin) return <Navigate to="/auth" replace />;
+  if (!isAuthenticated || !isAdmin) return <Navigate to="/auth/sign-in" replace />;
   return <>{children}</>;
 };
 
@@ -68,26 +68,9 @@ const MainContent = () => {
   const { isAdmin } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
-  // 🔥 FINAL FIX: 
-  // 1. startsWith use kia taake trailing slash issue na kare.
-  // 2. Isay humne baki puri app se 'return' karke alag kar dia hai.
-  // Is route par na PageTransition chalega, na Navbar ayega. Pure Clerk Handshake.
-  if (location.pathname.startsWith('/sso-callback')) {
-    return (
-       <div className="min-h-screen w-full flex items-center justify-center bg-background">
-          <AuthenticateWithRedirectCallback 
-             signInForceRedirectUrl="/"
-             signUpForceRedirectUrl="/"
-             continueSignUpUrl="/"
-          />
-       </div>
-    );
-  }
-
   return (
     <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background">
       <main className="flex-1 w-full">
-        {/* PageTransition sirf normal pages ke liye */}
         <PageTransition key={location.pathname}>
           <Routes location={location}>
             {/* Public */}
@@ -97,8 +80,24 @@ const MainContent = () => {
             <Route path="/mepco-bill" element={<MepcoBill />} />
             <Route path="/help" element={<HelpCenter />} />
 
-            {/* Auth */}
-            <Route path="/auth/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
+            {/* 🔥 IMPORTANT FIX: Clerk Callback Route inside Routes */}
+            <Route 
+              path="/sso-callback" 
+              element={
+                <div className="h-screen flex items-center justify-center">
+                  <AuthenticateWithRedirectCallback 
+                    signInForceRedirectUrl="/"
+                    signUpForceRedirectUrl="/"
+                  />
+                </div>
+              } 
+            />
+
+            {/* 🔥 AUTH ROUTES FIXED: Specific paths for Sign-in and Sign-up to match Dashboard */}
+            <Route path="/auth/sign-in/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
+            <Route path="/auth/sign-up/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
+            {/* Fallback for simple /auth */}
+            <Route path="/auth/*" element={<Navigate to="/auth/sign-in" replace />} />
 
             {/* Protected */}
             <Route path="/cart" element={<CartPage />} />
@@ -125,7 +124,6 @@ const MainContent = () => {
         </PageTransition>
       </main>
 
-      {/* Admin Button */}
       {isAdmin && !isAdminRoute && (
         <div className="fixed bottom-24 right-4 z-50">
           <Link to="/admin" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl hover:scale-105 transition-transform">
@@ -134,7 +132,6 @@ const MainContent = () => {
         </div>
       )}
 
-      {/* Navigation Bars (Admin routes par hide rahenge) */}
       {!isAdminRoute && (
         <>
           <BottomNavigation />
@@ -150,12 +147,10 @@ const MainContent = () => {
 const App = () => (
   <ClerkProvider 
     publishableKey={PUBLISHABLE_KEY}
-    signInUrl="/auth"
-    signUpUrl="/auth"
+    // 👇 MATCHING DASHBOARD PATHS EXACTLY
+    signInUrl="/auth/sign-in"
+    signUpUrl="/auth/sign-up"
     afterSignOutUrl="/"
-    // Clerk Router Push/Replace (Optional but good for custom routing)
-    routerPush={(to) => window.history.pushState(null, "", to)}
-    routerReplace={(to) => window.history.replaceState(null, "", to)}
   >
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
