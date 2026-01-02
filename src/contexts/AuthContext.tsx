@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { useUser, useSession, useClerk, useSignIn } from '@clerk/clerk-react';
-import { supabase } from '@/integrations/supabase/client'; // Sirf DB role check ke liye
+import { useUser, useClerk, useSignIn } from '@clerk/clerk-react';
+import { supabase } from '@/integrations/supabase/client';
 import gsap from 'gsap';
 import * as THREE from 'three';
 
@@ -18,7 +18,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   loading: boolean;
-  // Clerk handles login, but we wrap it for custom forms if needed
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithSocial: (strategy: 'oauth_google' | 'oauth_apple' | 'oauth_facebook') => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -27,9 +26,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com', 'Romeo786@gmail.com']; // Email format sahi kar lena
+const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com', 'Romeo786@gmail.com']; 
 
-// --- Three.js Particle System (Same as before) ---
+// --- Three.js Particle System (No changes here, keeping it same) ---
 class ParticleSystem {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -136,11 +135,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize Particles
   useEffect(() => {
     const container = document.getElementById('auth-particle-container');
-    if (container) particleSystemRef.current = new ParticleSystem(container);
-    return () => particleSystemRef.current?.cleanup();
+    if (container && !particleSystemRef.current) {
+        particleSystemRef.current = new ParticleSystem(container);
+    }
+    return () => {
+        // Strict Mode me double render se bachne ke liye cleanup dhyan se karein
+        if (particleSystemRef.current) {
+            particleSystemRef.current.cleanup();
+            particleSystemRef.current = null;
+        }
+    };
   }, []);
 
-  // Admin Check Logic (Updated for Clerk)
+  // Admin Check Logic
   const checkAdminRole = useCallback(async () => {
     if (!clerkUser) return false;
     
@@ -149,15 +156,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. Email Check
     if (email && ADMIN_EMAILS.includes(email)) return true;
 
-    // 2. Metadata Check (Clerk Dashboard se set kar sakte ho)
+    // 2. Metadata Check
     if (clerkUser.publicMetadata?.role === 'admin') return true;
 
-    // 3. Supabase RPC fallback (Optional)
+    // 3. Supabase RPC fallback
     try {
-       // Note: Iske liye Clerk user ID Supabase me sync honi chahiye
        const { data } = await supabase.rpc('has_role', { _user_id: clerkUser.id, _role: 'admin' });
        if (data) return true;
-    } catch (e) { console.log("Supabase Admin Check Failed", e) }
+    } catch (e) { 
+        // Silent fail is fine here
+    }
 
     return false;
   }, [clerkUser]);
@@ -167,46 +175,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isLoaded) {
       if (isSignedIn) {
         checkAdminRole().then(setIsAdmin);
-        animateLoginEffect();
+        // Sirf tab animate kare jab pehli baar load ho ya login ho
+        animateLoginEffect(); 
       } else {
         setIsAdmin(false);
-        // Sirf tab implode kare jab logout explicitly hua ho, page load par nahi
-        if (particleSystemRef.current) {
-            // Optional: reset particles if needed
-        }
       }
     }
   }, [isLoaded, isSignedIn, checkAdminRole]);
 
   // --- Animation Functions ---
   const animateLoginEffect = () => {
-    gsap.fromTo('.auth-success', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' });
-    particleSystemRef.current?.explode();
-    
-    // Confetti
-    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
-    for (let i = 0; i < 50; i++) {
-      const el = document.createElement('div');
-      el.style.cssText = `position:fixed;width:10px;height:10px;background:${colors[Math.floor(Math.random()*colors.length)]};top:-10px;left:${Math.random()*100}vw;border-radius:50%;z-index:9999;`;
-      document.body.appendChild(el);
-      gsap.to(el, { y: window.innerHeight+10, x: Math.random()*100-50, rotation: Math.random()*360, duration: 1+Math.random()*2, onComplete:()=>el.remove() });
+    // Check if elements exist before animating to avoid errors
+    if(document.querySelector('.auth-success')) {
+        gsap.fromTo('.auth-success', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' });
     }
+    
+    particleSystemRef.current?.explode();
   };
 
   const animateLogoutEffect = () => {
-    gsap.to('.auth-container', { opacity: 0, scale: 0.8, duration: 0.3, ease: 'power2.in' });
+    if(document.querySelector('.auth-container')) {
+        gsap.to('.auth-container', { opacity: 0, scale: 0.8, duration: 0.3, ease: 'power2.in' });
+    }
     particleSystemRef.current?.implode();
   };
 
   // --- Actions ---
 
-  // 1. Social Login (Google, Apple, Facebook)
+  // 1. Social Login (FIXED)
   const loginWithSocial = async (strategy: 'oauth_google' | 'oauth_apple' | 'oauth_facebook') => {
     if (!signInLoaded) return;
     try {
         await signIn.authenticateWithRedirect({
             strategy,
-            redirectUrl: "/auth/callback", // Redirect path match karna
+            // IMPORTANT: Agar '/auth/callback' route nahi hai, tu seedha '/' use karo
+            redirectUrl: "/", 
             redirectUrlComplete: "/"
         });
     } catch (err) {
@@ -214,11 +217,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 2. Email/Pass Login (Custom Form ke liye)
+  // 2. Email/Pass Login
   const login = async (email: string, password: string) => {
     if (!signInLoaded) return { success: false, error: "Clerk not loaded" };
     try {
-      gsap.to('.login-button', { scale: 0.9, duration: 0.1, yoyo: true, repeat: 1 }); // Animation
+      if(document.querySelector('.login-button')) {
+          gsap.to('.login-button', { scale: 0.9, duration: 0.1, yoyo: true, repeat: 1 });
+      }
       
       const result = await signIn.create({ identifier: email, password });
       
@@ -228,27 +233,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: "Verification required" };
       }
     } catch (err: any) {
-      gsap.fromTo('.error-message', { x: -10 }, { x: 10, duration: 0.1, repeat: 5, yoyo: true });
+      if(document.querySelector('.error-message')) {
+         gsap.fromTo('.error-message', { x: -10 }, { x: 10, duration: 0.1, repeat: 5, yoyo: true });
+      }
       return { success: false, error: err.errors?.[0]?.message || err.message };
     }
   };
 
-  // 3. Register (Custom Form)
+  // 3. Register
   const register = async (name: string, email: string, password: string) => {
-     // Clerk ka useSignUp hook use karna behtar hai, lakin agar tum chaho
-     // tu user ko seedha Clerk ke hosted page par bhej sakte ho.
-     // Filhal main custom error return kar raha hun kyunke useSignUp hook required hai
-     return { success: false, error: "Please use Social Login or Clerk Hosted Page for now" };
+     return { success: false, error: "Please use Social Login" };
   };
 
   const logout = async () => {
     animateLogoutEffect();
-    await new Promise(resolve => setTimeout(resolve, 500)); // Wait for animation
+    await new Promise(resolve => setTimeout(resolve, 500));
     await signOut();
     setIsAdmin(false);
   };
 
-  // Formatting User for App
+  // Formatting User
   const extendedUser: ExtendedUser | null = clerkUser ? {
     id: clerkUser.id,
     name: clerkUser.fullName || clerkUser.firstName || "User",
@@ -260,9 +264,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{
       user: extendedUser,
-      isAuthenticated: isSignedIn || false,
+      isAuthenticated: !!isSignedIn, // Ensure strictly boolean
       isAdmin,
-      loading: !isLoaded,
+      loading: !isLoaded, // Yeh sab se eham hai
       login,
       loginWithSocial,
       register,
@@ -280,4 +284,3 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
-
