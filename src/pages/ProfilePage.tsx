@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, Camera, LogOut, Package, Heart, Settings, Loader2, ChevronRight, ExternalLink } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom'; // Navigate import kia
+import { User, Mail, LogOut, Package, Heart, Settings, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -15,11 +15,15 @@ interface OrderSummary {
 }
 
 const ProfilePage: React.FC = () => {
-  const { user, logout, isAuthenticated, loading: authLoading } = useAuth(); // Auth Loading bhi nikala
+  // AuthContext se data lia
+  const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
+  
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [fetchingOrders, setFetchingOrders] = useState(false);
 
   // Form Data State
@@ -30,7 +34,7 @@ const ProfilePage: React.FC = () => {
     address: '',
   });
 
-  // User Data Sync (Jab user load ho jaye tab form fill karo)
+  // User Data Sync
   useEffect(() => {
     if (user) {
       setFormData({
@@ -42,30 +46,12 @@ const ProfilePage: React.FC = () => {
     }
   }, [user]);
 
-  // Auth Protection
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/auth');
-    }
-  }, [authLoading, isAuthenticated, navigate]);
-
-  // --- SAFE ORDER FETCHING (Supabase Dependency Hata Di Filhal) ---
-  // Agar tum Clerk use kar rahe ho tu Supabase se orders lana complex hai.
-  // Filhal hum dummy orders dikhayenge ya empty state taake page crash na ho.
-  useEffect(() => {
-    if (activeTab === 'orders' && user) {
-        // Future mein yahan API call ayegi
-        setFetchingOrders(false); 
-    }
-  }, [activeTab, user]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSave = async () => {
     setLoading(true);
-    // Simulation
     setTimeout(() => {
         toast.success('Profile updated successfully!');
         setLoading(false);
@@ -75,16 +61,17 @@ const ProfilePage: React.FC = () => {
   const handleLogout = async () => {
     try {
         await logout();
-        navigate('/');
+        // Redirect ki zaroorat nahi, AuthContext update hoga 
+        // aur neechay wala logic khud bhej dega
         toast.success('Logged out successfully');
     } catch (e) {
         console.error("Logout Error", e);
     }
   };
 
-  // --- RENDER SAFEGUARDS ---
+  // --- 🔒 RENDER SAFEGUARDS (Yehi fix hai) ---
   
-  // 1. Agar Auth Loading hai -> Spinner Dikhao
+  // 1. Jab tak Clerk check kar raha hai, Loading dikhao
   if (authLoading) {
     return (
         <Layout>
@@ -95,8 +82,22 @@ const ProfilePage: React.FC = () => {
     );
   }
 
-  // 2. Agar User null hai (Redirect se pehle) -> Kuch mat dikhao
-  if (!user) return null;
+  // 2. Agar Loading khatam aur Banda Login NAHI hai -> Login page par phenk do
+  // useEffect ki bajaye seedha Return me Navigate use karna 100% safe hai
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // 3. Agar Login hai par User data abhi sync nahi hua -> Loading dikhao (Crash se bachne ke liye)
+  if (!user) {
+     return (
+        <Layout>
+            <div className="h-[60vh] flex items-center justify-center">
+                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            </div>
+        </Layout>
+    );
+  }
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -193,14 +194,13 @@ const ProfilePage: React.FC = () => {
               </div>
             )}
             
-            {/* Other tabs placeholders (Orders, Wishlist etc) can remain same or simplified */}
-             {activeTab === 'orders' && (
+            {activeTab === 'orders' && (
               <div className="text-center py-20 bg-muted/20 rounded-2xl border border-dashed border-border">
                 <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="text-lg font-medium mb-2">No orders yet</h3>
                 <p className="text-muted-foreground">Orders functionality coming soon!</p>
               </div>
-             )}
+            )}
           </main>
         </div>
       </div>
@@ -209,4 +209,3 @@ const ProfilePage: React.FC = () => {
 };
 
 export default ProfilePage;
-
