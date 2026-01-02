@@ -2,11 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { useAuth } from '@/contexts/AuthContext'; // Sirf Context use karenge
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const AuthPage: React.FC = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // 🔥 1. URL SE STATE SET KARO (Taake Clerk Paths Match Hon)
+  // Agar URL me 'sign-up' hai, to Login false hoga, warna true
+  const isSignUpPage = location.pathname.includes('sign-up');
+  const [isLogin, setIsLogin] = useState(!isSignUpPage);
+
   const [showPassword, setShowPassword] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   
@@ -17,7 +24,6 @@ const AuthPage: React.FC = () => {
     confirmPassword: ''
   });
 
-  // Context se data uthaya (Consistency ke liye yahi use karo)
   const { 
     login, 
     register, 
@@ -26,15 +32,18 @@ const AuthPage: React.FC = () => {
     isAdmin, 
     loading: authLoading 
   } = useAuth();
-  
-  const navigate = useNavigate();
-  const location = useLocation();
 
-  // 🔥 SAFE REDIRECT: useEffect ka use karein taa ke render conflicts na hon
+  // 🔥 2. URL Change par State update karo
+  useEffect(() => {
+    const isSignUp = location.pathname.includes('sign-up');
+    setIsLogin(!isSignUp);
+    // Form reset on switch
+    setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+  }, [location.pathname]);
+
+  // 🔥 3. Safe Redirect (Redirect Loop Fix)
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      // Agar user login hai, tu usay wapas bhej do
-      // location.state se check karte hain agar wo kisi specific page se aya tha
       // @ts-ignore
       const from = location.state?.from?.pathname || (isAdmin ? '/admin' : '/');
       navigate(from, { replace: true });
@@ -68,7 +77,6 @@ const AuthPage: React.FC = () => {
         const result = await login(formData.email, formData.password);
         if (result.success) {
           toast.success('Welcome back!');
-          // Redirect useEffect sambhal lega
         } else {
           toast.error(result.error || 'Invalid credentials');
           setFormLoading(false);
@@ -94,7 +102,7 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  // Loading State (Jab tak pata na chale banda login hai ya nahi)
+  // Loading Screen
   if (authLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">
@@ -103,7 +111,7 @@ const AuthPage: React.FC = () => {
     );
   }
 
-  // Agar banda login hai tu form render mat karo (Flicker bachane ke liye)
+  // Already Logged In
   if (isAuthenticated) {
     return null; 
   }
@@ -274,17 +282,15 @@ const AuthPage: React.FC = () => {
               </button>
             </form>
 
+            {/* Toggle Login/Signup - 🔥 THIS IS FIXED WITH LINK */}
             <p className="text-center mt-6 text-muted-foreground">
               {isLogin ? "Don't have an account?" : 'Already have an account?'}
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-                }}
+              <Link
+                to={isLogin ? '/auth/sign-up' : '/auth/sign-in'}
                 className="text-primary hover:underline ml-2 font-medium"
               >
                 {isLogin ? 'Sign Up' : 'Sign In'}
-              </button>
+              </Link>
             </p>
           </div>
         </div>
