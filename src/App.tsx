@@ -47,13 +47,22 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// 🔥 APNI KEY CHECK KARO (Environment variable se uthana behtar hai, lakin ye bhi chalega)
 const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXYk"; 
 
+// --- 1. Admin Route (Protects Admin Pages) ---
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading, isAuthenticated } = useAuth();
   if (loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
   if (!isAuthenticated || !isAdmin) return <Navigate to="/auth" replace />;
+  return <>{children}</>;
+};
+
+// --- 2. Guest Route (Protects Login Page from Logged-in Users) ---
+// Agar user pehle se login hai, tu usay Auth page par na aanay do, seedha Home bhejo
+const GuestRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
+  if (isAuthenticated) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
@@ -62,32 +71,33 @@ const AnimatedRoutes = () => {
   const { isAdmin } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
   
-  // 🔥 Handle Clerk Redirects properly
-  if (location.pathname.includes('/sso-callback') || location.pathname.includes('/auth/callback')) {
-     return (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-background">
-           <AuthenticateWithRedirectCallback 
-              signInForceRedirectUrl="/"
-              signUpForceRedirectUrl="/"
-           />
-        </div>
-     );
-  }
-
   return (
     <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background">
       <main className="flex-1 w-full">
         <PageTransition key={location.pathname}>
           <Routes location={location}>
+            {/* --- Public Routes --- */}
             <Route path="/" element={<HomePage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
-            
-            {/* 🔥 IMPORTANT: Wildcard route for nested auth pages (sign-in/sign-up) */}
-            <Route path="/auth/*" element={<AuthPage />} />
-            
             <Route path="/mepco-bill" element={<MepcoBill />} />
             <Route path="/help" element={<HelpCenter />} />
+            
+            {/* --- Clerk Special Routes (Important for Redirects) --- */}
+            <Route 
+              path="/sso-callback" 
+              element={<AuthenticateWithRedirectCallback signInForceRedirectUrl="/" signUpForceRedirectUrl="/" />} 
+            />
+            
+            {/* --- Auth Route (Wrapped in GuestRoute) --- */}
+            <Route path="/auth/*" element={
+              <GuestRoute>
+                <AuthPage />
+              </GuestRoute>
+            } />
+            
+            {/* --- User Protected Routes (Access allowed but handled by page logic or optional auth) --- */}
+            {/* Note: Inko "ProtectedRoute" me wrap kar sakte ho agar login lazmi chahiye */}
             <Route path="/cart" element={<CartPage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
@@ -97,7 +107,7 @@ const AnimatedRoutes = () => {
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/track-order" element={<TrackOrderPage />} />
 
-            {/* Admin Routes */}
+            {/* --- Admin Routes --- */}
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
             <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
@@ -107,7 +117,7 @@ const AnimatedRoutes = () => {
             <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
             <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
 
-            {/* Catch All */}
+            {/* --- Catch All --- */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </PageTransition>
@@ -136,9 +146,9 @@ const AnimatedRoutes = () => {
 const App = () => (
   <ClerkProvider 
     publishableKey={PUBLISHABLE_KEY}
-    // 👇 FIXED: Exact paths taake Clerk confuse na ho
-    signInUrl="/auth/sign-in"
-    signUpUrl="/auth/sign-up"
+    // Agar custom AuthPage use kar rahe ho tu routerPush/routerReplace clerk ko sambhalne do
+    signInUrl="/auth"
+    signUpUrl="/auth"
     signInForceRedirectUrl="/"
     signUpForceRedirectUrl="/"
     afterSignOutUrl="/"
@@ -152,7 +162,6 @@ const App = () => (
                 <TooltipProvider>
                   <Toaster />
                   <Sonner />
-                  {/* Lenis Smooth Scroll Setup */}
                   <ReactLenis root options={{ lerp: 0.1, duration: 1.2, smoothWheel: true }}>
                     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                       <ScrollToTop />
