@@ -68,14 +68,17 @@ const MainContent = () => {
   const { isAdmin } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
-  // 🔥 CRITICAL FIX: Agar Callback route hai, tu PageTransition use MAT karo
-  // Is se process toot jata hai. Isay alag return karo.
-  if (location.pathname === '/sso-callback') {
+  // 🔥 FINAL FIX: 
+  // 1. startsWith use kia taake trailing slash issue na kare.
+  // 2. Isay humne baki puri app se 'return' karke alag kar dia hai.
+  // Is route par na PageTransition chalega, na Navbar ayega. Pure Clerk Handshake.
+  if (location.pathname.startsWith('/sso-callback')) {
     return (
-       <div className="min-h-screen flex items-center justify-center bg-background">
+       <div className="min-h-screen w-full flex items-center justify-center bg-background">
           <AuthenticateWithRedirectCallback 
              signInForceRedirectUrl="/"
              signUpForceRedirectUrl="/"
+             continueSignUpUrl="/"
           />
        </div>
     );
@@ -122,6 +125,7 @@ const MainContent = () => {
         </PageTransition>
       </main>
 
+      {/* Admin Button */}
       {isAdmin && !isAdminRoute && (
         <div className="fixed bottom-24 right-4 z-50">
           <Link to="/admin" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl hover:scale-105 transition-transform">
@@ -130,6 +134,7 @@ const MainContent = () => {
         </div>
       )}
 
+      {/* Navigation Bars (Admin routes par hide rahenge) */}
       {!isAdminRoute && (
         <>
           <BottomNavigation />
@@ -148,6 +153,9 @@ const App = () => (
     signInUrl="/auth"
     signUpUrl="/auth"
     afterSignOutUrl="/"
+    // Clerk Router Push/Replace (Optional but good for custom routing)
+    routerPush={(to) => window.history.pushState(null, "", to)}
+    routerReplace={(to) => window.history.replaceState(null, "", to)}
   >
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
