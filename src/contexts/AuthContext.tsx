@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useUser, useClerk, useSignIn } from '@clerk/clerk-react';
 import { supabase } from '@/integrations/supabase/client';
+import gsap from 'gsap';
+import * as THREE from 'three';
 
 // --- Types ---
 interface ExtendedUser {
@@ -24,58 +26,186 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Admin Emails List
 const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com', 'Romeo786@gmail.com']; 
 
+// --- Three.js Particle System ---
+class ParticleSystem {
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  private renderer: THREE.WebGLRenderer;
+  private particles: THREE.Points;
+  private geometry: THREE.BufferGeometry;
+  private material: THREE.PointsMaterial;
+  private count = 2000;
+  private frameId: number | null = null;
+
+  constructor(container: HTMLElement) {
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setClearColor(0x000000, 0);
+    container.appendChild(this.renderer.domElement);
+
+    this.geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(this.count * 3);
+    const colors = new Float32Array(this.count * 3);
+
+    for (let i = 0; i < this.count * 3; i += 3) {
+      positions[i] = (Math.random() - 0.5) * 10;
+      positions[i + 1] = (Math.random() - 0.5) * 10;
+      positions[i + 2] = (Math.random() - 0.5) * 10;
+
+      colors[i] = Math.random();
+      colors[i + 1] = Math.random();
+      colors[i + 2] = Math.random();
+    }
+
+    this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    this.material = new THREE.PointsMaterial({
+      size: 0.05,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+    });
+
+    this.particles = new THREE.Points(this.geometry, this.material);
+    this.scene.add(this.particles);
+
+    this.camera.position.z = 5;
+
+    this.animate();
+  }
+
+  animate = () => {
+    this.frameId = requestAnimationFrame(this.animate);
+    if(this.particles) {
+      this.particles.rotation.x += 0.001;
+      this.particles.rotation.y += 0.002;
+    }
+    this.renderer.render(this.scene, this.camera);
+  };
+
+  explode() {
+    const positions = this.geometry.attributes.position.array as Float32Array;
+    gsap.to(this.particles.rotation, { x: Math.PI * 2, y: Math.PI * 2, duration: 2, ease: 'power4.out' });
+    for (let i = 0; i < positions.length; i += 3) {
+      gsap.to(positions, {
+        [i]: positions[i] * 2,
+        [i + 1]: positions[i + 1] * 2,
+        [i + 2]: positions[i + 2] * 2,
+        duration: 1.5,
+        ease: 'power3.out',
+        delay: Math.random() * 0.5,
+      });
+    }
+  }
+
+  implode() {
+    const positions = this.geometry.attributes.position.array as Float32Array;
+    for (let i = 0; i < positions.length; i += 3) {
+      gsap.to(positions, {
+        [i]: 0, [i + 1]: 0, [i + 2]: 0, duration: 1, ease: 'power3.in', delay: Math.random() * 0.3,
+      });
+    }
+  }
+
+  cleanup() {
+    if (this.frameId) cancelAnimationFrame(this.frameId);
+    this.renderer.dispose();
+    this.geometry.dispose();
+    this.material.dispose();
+    if (this.renderer.domElement.parentNode) {
+      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+    }
+  }
+}
+
+// --- Main Auth Provider ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Clerk Hooks
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerk();
   const { signIn, isLoaded: signInLoaded } = useSignIn();
-  
-  // Local state sirf Admin role ke liye (kyun ke wo async check ho sakta hai)
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  // --- Admin Logic ---
+  // Local State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const particleSystemRef = useRef<ParticleSystem | null>(null);
+  
+  // 1. Initialize Particles (Background)
   useEffect(() => {
-    const checkAdmin = async () => {
+    const container = document.getElementById('auth-particle-container');
+    if (container && !particleSystemRef.current) {
+        particleSystemRef.current = new ParticleSystem(container);
+    }
+    return () => {
+        if (particleSystemRef.current) {
+            particleSystemRef.current.cleanup();
+            particleSystemRef.current = null;
+        }
+    };
+  }, []);
+
+  // 2. Admin Check Logic
+  useEffect(() => {
+    const checkAdminRole = async () => {
       if (!clerkUser || !isSignedIn) {
         setIsAdmin(false);
         return;
       }
-
+      
       const email = clerkUser.primaryEmailAddress?.emailAddress;
-
-      // 1. Instant Check (Email or Metadata)
+      
+      // Email Check
       if (email && ADMIN_EMAILS.includes(email)) {
-        setIsAdmin(true);
-        return;
-      }
-      if (clerkUser.publicMetadata?.role === 'admin') {
-        setIsAdmin(true);
-        return;
+          setIsAdmin(true);
+          return;
       }
 
-      // 2. Database Check (Supabase)
+      // Metadata Check
+      if (clerkUser.publicMetadata?.role === 'admin') {
+          setIsAdmin(true);
+          return;
+      }
+
+      // Supabase RPC fallback
       try {
          const { data } = await supabase.rpc('has_role', { _user_id: clerkUser.id, _role: 'admin' });
          if (data) setIsAdmin(true);
-      } catch (e) {
-         // Ignore error
+      } catch (e) { 
+        // Silent fail
       }
     };
 
     if (isLoaded) {
-      checkAdmin();
+        checkAdminRole();
+        // Animation Trigger on Login
+        if (isSignedIn) {
+            if(document.querySelector('.auth-success')) {
+                gsap.fromTo('.auth-success', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' });
+            }
+            particleSystemRef.current?.explode();
+        }
     }
   }, [clerkUser, isLoaded, isSignedIn]);
 
 
   // --- Actions ---
+
+  // 1. Social Login (UPDATED: Absolute URL Fix)
   const loginWithSocial = async (strategy: 'oauth_google' | 'oauth_apple' | 'oauth_facebook') => {
     if (!signInLoaded) return;
     try {
+        // Absolute URL is critical for avoiding redirection issues
+        const redirectUrl = `${window.location.origin}/sso-callback`;
+        
         await signIn.authenticateWithRedirect({
             strategy,
-            redirectUrl: "/sso-callback", 
+            redirectUrl: redirectUrl, 
             redirectUrlComplete: "/"
         });
     } catch (err) {
@@ -83,31 +213,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // 2. Email/Pass Login
   const login = async (email: string, password: string) => {
     if (!signInLoaded) return { success: false, error: "Clerk not loaded" };
     try {
+      if(document.querySelector('.login-button')) {
+          gsap.to('.login-button', { scale: 0.9, duration: 0.1, yoyo: true, repeat: 1 });
+      }
+      
       const result = await signIn.create({ identifier: email, password });
+      
       if (result.status === "complete") {
         return { success: true };
       } else {
         return { success: false, error: "Verification required" };
       }
     } catch (err: any) {
+      if(document.querySelector('.error-message')) {
+         gsap.fromTo('.error-message', { x: -10 }, { x: 10, duration: 0.1, repeat: 5, yoyo: true });
+      }
       return { success: false, error: err.errors?.[0]?.message || err.message };
     }
   };
 
-  const register = async () => {
-     return { success: false, error: "Please use Social Login" };
+  // 3. Register
+  const register = async (name: string, email: string, password: string) => {
+     return { success: false, error: "Please use Social Login for now" };
   };
 
+  // 4. Logout
   const logout = async () => {
+    if(document.querySelector('.auth-container')) {
+        gsap.to('.auth-container', { opacity: 0, scale: 0.8, duration: 0.3, ease: 'power2.in' });
+    }
+    particleSystemRef.current?.implode();
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
     await signOut();
     setIsAdmin(false);
   };
 
-  // --- DERIVED STATE (No useEffect delay) ---
-  // Yeh line sab se important hai fix ke liye:
+  // Formatting User Object
   const extendedUser: ExtendedUser | null = clerkUser ? {
     id: clerkUser.id,
     name: clerkUser.fullName || clerkUser.firstName || "User",
@@ -119,7 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{
       user: extendedUser,
-      isAuthenticated: !!isSignedIn, // Direct Boolean (No Delay)
+      isAuthenticated: !!isSignedIn, // No Delay, Direct Value
       isAdmin,
       loading: !isLoaded, 
       login,
@@ -127,6 +273,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       register,
       logout
     }}>
+      <div id="auth-particle-container" className="fixed inset-0 pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none" />
       {children}
     </AuthContext.Provider>
   );
