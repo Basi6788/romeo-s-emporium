@@ -18,7 +18,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import CompareBar from "@/components/CompareBar";
 import CompareModal from "@/components/CompareModal";
 
-// Pages imports
+// Pages
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -34,7 +34,7 @@ import TrackOrderPage from "./pages/TrackOrderPage";
 import MepcoBill from "./pages/MepcoBill";
 import HelpCenter from "./pages/HelpCenter";
 
-// Admin Pages
+// Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -46,10 +46,9 @@ import AdminInventory from "./pages/admin/AdminInventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
-
 const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXYk"; 
 
-// --- 1. Admin Route (Protects Admin Pages) ---
+// --- Components ---
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading, isAuthenticated } = useAuth();
   if (loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
@@ -57,8 +56,6 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// --- 2. Guest Route (Protects Login Page from Logged-in Users) ---
-// Agar user pehle se login hai, tu usay Auth page par na aanay do, seedha Home bhejo
 const GuestRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
@@ -66,38 +63,41 @@ const GuestRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const AnimatedRoutes = () => {
+const MainContent = () => {
   const location = useLocation();
   const { isAdmin } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
-  
+
+  // 🔥 CRITICAL FIX: Agar Callback route hai, tu PageTransition use MAT karo
+  // Is se process toot jata hai. Isay alag return karo.
+  if (location.pathname === '/sso-callback') {
+    return (
+       <div className="min-h-screen flex items-center justify-center bg-background">
+          <AuthenticateWithRedirectCallback 
+             signInForceRedirectUrl="/"
+             signUpForceRedirectUrl="/"
+          />
+       </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background">
       <main className="flex-1 w-full">
+        {/* PageTransition sirf normal pages ke liye */}
         <PageTransition key={location.pathname}>
           <Routes location={location}>
-            {/* --- Public Routes --- */}
+            {/* Public */}
             <Route path="/" element={<HomePage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/mepco-bill" element={<MepcoBill />} />
             <Route path="/help" element={<HelpCenter />} />
-            
-            {/* --- Clerk Special Routes (Important for Redirects) --- */}
-            <Route 
-              path="/sso-callback" 
-              element={<AuthenticateWithRedirectCallback signInForceRedirectUrl="/" signUpForceRedirectUrl="/" />} 
-            />
-            
-            {/* --- Auth Route (Wrapped in GuestRoute) --- */}
-            <Route path="/auth/*" element={
-              <GuestRoute>
-                <AuthPage />
-              </GuestRoute>
-            } />
-            
-            {/* --- User Protected Routes (Access allowed but handled by page logic or optional auth) --- */}
-            {/* Note: Inko "ProtectedRoute" me wrap kar sakte ho agar login lazmi chahiye */}
+
+            {/* Auth */}
+            <Route path="/auth/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
+
+            {/* Protected */}
             <Route path="/cart" element={<CartPage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
@@ -107,7 +107,7 @@ const AnimatedRoutes = () => {
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/track-order" element={<TrackOrderPage />} />
 
-            {/* --- Admin Routes --- */}
+            {/* Admin */}
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
             <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
@@ -117,12 +117,11 @@ const AnimatedRoutes = () => {
             <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
             <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
 
-            {/* --- Catch All --- */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </PageTransition>
       </main>
-      
+
       {isAdmin && !isAdminRoute && (
         <div className="fixed bottom-24 right-4 z-50">
           <Link to="/admin" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl hover:scale-105 transition-transform">
@@ -146,11 +145,8 @@ const AnimatedRoutes = () => {
 const App = () => (
   <ClerkProvider 
     publishableKey={PUBLISHABLE_KEY}
-    // Agar custom AuthPage use kar rahe ho tu routerPush/routerReplace clerk ko sambhalne do
     signInUrl="/auth"
     signUpUrl="/auth"
-    signInForceRedirectUrl="/"
-    signUpForceRedirectUrl="/"
     afterSignOutUrl="/"
   >
     <QueryClientProvider client={queryClient}>
@@ -165,7 +161,7 @@ const App = () => (
                   <ReactLenis root options={{ lerp: 0.1, duration: 1.2, smoothWheel: true }}>
                     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                       <ScrollToTop />
-                      <AnimatedRoutes />
+                      <MainContent />
                     </BrowserRouter>
                   </ReactLenis>
                 </TooltipProvider>
