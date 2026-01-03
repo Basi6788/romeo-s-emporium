@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { useUser, useClerk, useSignIn } from '@clerk/clerk-react';
+import { useUser, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { supabase } from '@/integrations/supabase/client';
 import gsap from 'gsap';
 import * as THREE from 'three';
@@ -18,9 +18,13 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  // Login ab 'status' return karega taa ke UI ko pata chale ke OTP dikhana hai
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; status?: string }>;
   loginWithSocial: (strategy: 'oauth_google' | 'oauth_apple' | 'oauth_facebook') => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  // Register ab actual SignUp create karega
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string; status?: string }>;
+  // New: OTP Verify karne ke liye function
+  verifyOtp: (code: string, isLoginFlow: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -29,7 +33,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Admin Emails List
 const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com', 'Romeo786@gmail.com']; 
 
-// --- Three.js Particle System ---
+// --- Three.js Particle System (UNCHANGED - As per your design) ---
 class ParticleSystem {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -129,14 +133,15 @@ class ParticleSystem {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Clerk Hooks
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
-  const { signOut } = useClerk();
+  const { signOut, setActive } = useClerk(); // setActive is crucial for Custom Flows
   const { signIn, isLoaded: signInLoaded } = useSignIn();
+  const { signUp, isLoaded: signUpLoaded } = useSignUp(); // 🔥 Added SignUp Hook
 
   // Local State
   const [isAdmin, setIsAdmin] = useState(false);
   const particleSystemRef = useRef<ParticleSystem | null>(null);
   
-  // 1. Initialize Particles (Background)
+  // 1. Initialize Particles
   useEffect(() => {
     const container = document.getElementById('auth-particle-container');
     if (container && !particleSystemRef.current) {
@@ -160,19 +165,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const email = clerkUser.primaryEmailAddress?.emailAddress;
       
-      // Email Check
       if (email && ADMIN_EMAILS.includes(email)) {
           setIsAdmin(true);
           return;
       }
 
-      // Metadata Check
       if (clerkUser.publicMetadata?.role === 'admin') {
           setIsAdmin(true);
           return;
       }
 
-      // Supabase RPC fallback
       try {
          const { data } = await supabase.rpc('has_role', { _user_id: clerkUser.id, _role: 'admin' });
          if (data) setIsAdmin(true);
@@ -183,7 +185,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isLoaded) {
         checkAdminRole();
-        // Animation Trigger on Login
         if (isSignedIn) {
             if(document.querySelector('.auth-success')) {
                 gsap.fromTo('.auth-success', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' });
@@ -196,13 +197,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- Actions ---
 
-  // 1. Social Login (UPDATED: Absolute URL Fix)
+  // 1. Social Login
   const loginWithSocial = async (strategy: 'oauth_google' | 'oauth_apple' | 'oauth_facebook') => {
     if (!signInLoaded) return;
     try {
-        // Absolute URL is critical for avoiding redirection issues
         const redirectUrl = `${window.location.origin}/sso-callback`;
-        
         await signIn.authenticateWithRedirect({
             strategy,
             redirectUrl: redirectUrl, 
@@ -213,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 2. Email/Pass Login
+  // 2. Custom Login Logic (Updated for OTP)
   const login = async (email: string, password: string) => {
     if (!signInLoaded) return { success: false, error: "Clerk not loaded" };
     try {
@@ -221,12 +220,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           gsap.to('.login-button', { scale: 0.9, duration: 0.1, yoyo: true, repeat: 1 });
       }
       
+      // Step 1: Create Sign In
       const result = await signIn.create({ identifier: email, password });
       
+      // Step 2: Check Status
       if (result.status === "complete") {
-        return { success: true };
+        // Login Successful
+        await setActive({ session: result.createdSessionId });
+        return { success: true, status: 'complete' };
+      } else if (result.status === "needs_first_factor") {
+        // 🔥 Password sahi hai, lekin OTP chahiye (Custom Flow)
+        return { success: true, status: 'needs_code' };
       } else {
-        return { success: false, error: "Verification required" };
+        return { success: false, error: "Verification required", status: result.status };
       }
     } catch (err: any) {
       if(document.querySelector('.error-message')) {
@@ -236,12 +242,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 3. Register
+  // 3. Custom Register Logic (Implemented)
   const register = async (name: string, email: string, password: string) => {
-     return { success: false, error: "Please use Social Login for now" };
+    if (!signUpLoaded) return { success: false, error: "Clerk not loaded" };
+    
+    try {
+        // Step 1: Create Sign Up
+        const [firstName, ...lastNameParts] = name.split(" ");
+        const lastName = lastNameParts.join(" ");
+
+        await signUp.create({
+            emailAddress: email,
+            password,
+            firstName,
+            lastName
+        });
+
+        // Step 2: Send Email OTP
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+
+        // Step 3: Tell UI to show OTP Input
+        return { success: true, status: 'needs_code' };
+
+    } catch (err: any) {
+        return { success: false, error: err.errors?.[0]?.message || err.message };
+    }
   };
 
-  // 4. Logout
+  // 4. 🔥 New: Verify OTP (Handles both Login & Register)
+  const verifyOtp = async (code: string, isLoginFlow: boolean) => {
+    try {
+        let result;
+        if (isLoginFlow) {
+            // Verify for Login
+            if (!signInLoaded) return { success: false };
+            result = await signIn.attemptFirstFactor({ strategy: "email_code", code });
+        } else {
+            // Verify for Sign Up
+            if (!signUpLoaded) return { success: false };
+            result = await signUp.attemptEmailAddressVerification({ code });
+        }
+
+        if (result.status === "complete") {
+            await setActive({ session: result.createdSessionId });
+            return { success: true };
+        } else {
+            return { success: false, error: "Verification failed or incomplete." };
+        }
+    } catch (err: any) {
+        return { success: false, error: err.errors?.[0]?.message || "Invalid Code" };
+    }
+  };
+
+  // 5. Logout
   const logout = async () => {
     if(document.querySelector('.auth-container')) {
         gsap.to('.auth-container', { opacity: 0, scale: 0.8, duration: 0.3, ease: 'power2.in' });
@@ -253,7 +306,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAdmin(false);
   };
 
-  // Formatting User Object
   const extendedUser: ExtendedUser | null = clerkUser ? {
     id: clerkUser.id,
     name: clerkUser.fullName || clerkUser.firstName || "User",
@@ -265,12 +317,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{
       user: extendedUser,
-      isAuthenticated: !!isSignedIn, // No Delay, Direct Value
+      isAuthenticated: !!isSignedIn,
       isAdmin,
       loading: !isLoaded, 
       login,
       loginWithSocial,
       register,
+      verifyOtp, // Exposed to UI
       logout
     }}>
       <div id="auth-particle-container" className="fixed inset-0 pointer-events-none z-0" />
