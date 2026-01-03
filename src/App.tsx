@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate, Link, useNavigate } from "react-router-dom";
 import { ReactLenis } from "lenis/react";
 // Clerk Imports
-import { ClerkProvider, AuthenticateWithRedirectCallback } from "@clerk/clerk-react"; 
+import { ClerkProvider } from "@clerk/clerk-react"; // Note: AuthenticateWithRedirectCallback yahan se hata diya kyun ke ab SSOCallback page me hai
 // Context Imports
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -20,7 +20,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import CompareBar from "@/components/CompareBar";
 import CompareModal from "@/components/CompareModal";
 
-// Pages Imports... (Same as yours)
+// Pages Imports
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -36,6 +36,9 @@ import TrackOrderPage from "./pages/TrackOrderPage";
 import MepcoBill from "./pages/MepcoBill";
 import HelpCenter from "./pages/HelpCenter";
 
+// 👇 NEW IMPORT (Make sure to create the file first)
+import SSOCallback from "./pages/SSOCallback"; 
+
 // Admin Imports... (Same as yours)
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
@@ -48,7 +51,6 @@ import AdminInventory from "./pages/admin/AdminInventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
-// Tip: Best practice ye hai ke is key ko .env file me rakho (VITE_CLERK_PUBLISHABLE_KEY)
 const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXYk"; 
 
 // --- Protected Route Components ---
@@ -74,7 +76,6 @@ const GuestRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (isAuthenticated) {
-    // Agar user logged in hai, tu wapis home bhej do
     return <Navigate to="/" replace />;
   }
   
@@ -82,7 +83,6 @@ const GuestRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 // --- Helper Component to bridge Clerk & Router ---
-// ClerkProvider needs to know how to navigate
 const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   return (
@@ -116,19 +116,17 @@ const MainContent = () => {
             <Route path="/mepco-bill" element={<MepcoBill />} />
             <Route path="/help" element={<HelpCenter />} />
 
-            {/* 🔥 Clerk SSO Callback Handler */}
-            {/* Jab Google/Social login se wapis ayega tu ye handle karega */}
+            {/* 🔥 UPDATED: Clerk SSO Callback Handler with Custom UI */}
+            {/* Ab ye hamara naya Custom Page use karega */}
             <Route 
               path="/sso-callback" 
-              element={<AuthenticateWithRedirectCallback signInForceRedirectUrl="/" signUpForceRedirectUrl="/" />} 
+              element={<SSOCallback />} 
             />
 
             {/* 🔥 Auth Routes for Custom UI */}
-            {/* "/*" zaroori hai taa ke nested routes (jaise /factor-one) bhi handle hon */}
             <Route path="/auth/sign-in/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
             <Route path="/auth/sign-up/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
             
-            {/* Redirect /auth to /auth/sign-in */}
             <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
 
             {/* Protected User Routes */}
@@ -178,12 +176,10 @@ const MainContent = () => {
 
 // Main App Component
 const App = () => (
-  // Router sab se bahar hona chahiye taa ke Clerk navigation use kar sake
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
     <ClerkRouterBridge>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          {/* AuthProvider ab Clerk ke andar hai, jo ke correct hai */}
           <AuthProvider>
             <CartProvider>
               <WishlistProvider>
