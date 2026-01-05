@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
@@ -12,40 +12,42 @@ import * as THREE from 'three';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// --- 1. Three.js Background (Optimized) ---
+// --- 1. Three.js Background (Subtle & Optimized) ---
 const ParticleBackground = () => {
   const mountRef = useRef(null);
 
   useEffect(() => {
     if (!mountRef.current || window.innerWidth < 768) return; 
 
+    // Cleanup previous scene if exists
     while(mountRef.current.firstChild) mountRef.current.removeChild(mountRef.current.firstChild);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); 
     mountRef.current.appendChild(renderer.domElement);
 
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 1200;
+    const particlesCount = 800; // Optimized count
     const posArray = new Float32Array(particlesCount * 3);
     
     for(let i = 0; i < particlesCount * 3; i+=3) {
-      posArray[i] = (Math.random() - 0.5) * 25; 
-      posArray[i+1] = (Math.random() - 0.5) * 15;
-      posArray[i+2] = (Math.random() - 0.5) * 10;
+      posArray[i] = (Math.random() - 0.5) * 20; 
+      posArray[i+1] = (Math.random() - 0.5) * 12;
+      posArray[i+2] = (Math.random() - 0.5) * 8;
     }
 
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     
+    // Theme aware color (using generic violet/blue that works on both)
     const material = new THREE.PointsMaterial({
-      size: 0.03,
-      color: 0x6d28d9, 
+      size: 0.04,
+      color: 0x8b5cf6, 
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.4,
       blending: THREE.AdditiveBlending,
     });
 
@@ -58,8 +60,8 @@ const ParticleBackground = () => {
     
     const animate = () => {
       const elapsedTime = clock.getElapsedTime();
-      particlesMesh.position.y = Math.sin(elapsedTime * 0.5) * 0.2; 
-      particlesMesh.rotation.z += 0.0005;
+      particlesMesh.rotation.y = elapsedTime * 0.05;
+      particlesMesh.rotation.x = elapsedTime * 0.02;
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(animate);
     };
@@ -84,45 +86,50 @@ const ParticleBackground = () => {
     };
   }, []);
 
-  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none hidden md:block opacity-60" />;
+  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none hidden md:block opacity-50" />;
 };
 
-// --- 2. Enhanced Hero Card Component (New Rounded Style) ---
+// --- 2. Enhanced Hero Card Component (Fixed Height & Bleed) ---
 const HeroCard = ({ slide, index, slideRefs, contentRefs, imageRefs, isActive }) => {
   return (
     <div
       key={slide.id || index}
       ref={el => slideRefs.current[index] = el}
-      className="absolute inset-0 overflow-hidden flex items-center md:items-end pb-16 md:pb-28"
+      // Added flex items-end to position text properly
+      className="absolute inset-0 overflow-hidden flex items-center md:items-end pb-12 md:pb-20"
       style={{ visibility: isActive ? 'visible' : 'hidden', zIndex: isActive ? 10 : 0 }}
     >
+      {/* Background Image Container */}
       <div className="absolute inset-0 z-[-1]">
         <img
           ref={el => imageRefs.current[index] = el}
           src={slide.image}
           alt={slide.title}
-          className="w-full h-[115%] object-cover brightness-[0.85] dark:brightness-75 transition-all duration-700"
+          // Changed brightness and added object-cover with h-full
+          className="w-full h-full object-cover scale-105 brightness-[0.90] dark:brightness-75 transition-all duration-700"
           loading={index === 0 ? 'eager' : 'lazy'}
         />
-        <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-50 mix-blend-multiply`} />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+        {/* Gradients to fix the "White/Dark" bleed issue */}
+        <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-40 mix-blend-multiply`} />
+        {/* Bottom fade to blend with next section */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent" />
       </div>
 
-      <div className="container mx-auto px-4 relative z-10">
-        <div ref={el => contentRefs.current[index] = el} className="max-w-2xl">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-sm font-semibold mb-4 text-white shadow-lg">
-            <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" />
+      <div className="container mx-auto px-4 relative z-10 pl-6 md:pl-12">
+        <div ref={el => contentRefs.current[index] = el} className="max-w-xl backdrop-blur-sm bg-black/5 p-6 rounded-3xl border border-white/10 shadow-lg">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-xs font-bold mb-4 text-white shadow-sm">
+            <Sparkles className="w-3 h-3 text-yellow-300 animate-pulse" />
             {slide.badge || 'Trending'}
           </span>
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold mb-4 text-white drop-shadow-xl tracking-tight leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold mb-3 text-white drop-shadow-xl tracking-tight leading-tight">
             {slide.title}
           </h1>
-          <p className="text-lg sm:text-xl text-white/90 mb-8 font-medium max-w-lg drop-shadow-md leading-relaxed">
+          <p className="text-base sm:text-lg text-white/90 mb-6 font-medium leading-relaxed line-clamp-2">
             {slide.subtitle}
           </p>
-          <Button asChild size="lg" className="h-14 px-8 text-lg rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105 transition-all duration-300 transform-gpu">
+          <Button asChild size="lg" className="h-12 px-8 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105 transition-all duration-300">
             <Link to={slide.link || '/products'}>
-              Shop Now <ArrowRight className="ml-2 w-5 h-5" />
+              Shop Now <ArrowRight className="ml-2 w-4 h-4" />
             </Link>
           </Button>
         </div>
@@ -131,35 +138,19 @@ const HeroCard = ({ slide, index, slideRefs, contentRefs, imageRefs, isActive })
   );
 };
 
-// --- 3. Custom Loading Component with Better UI ---
-const LoadingSpinner = () => (
-  <div className="col-span-full flex flex-col items-center justify-center py-20 min-h-[400px]">
-    <div className="relative">
-      <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-      </div>
-    </div>
-    <p className="mt-8 text-lg font-medium text-muted-foreground animate-pulse tracking-wide">
-      Products loading...
-    </p>
-    <p className="text-sm text-muted-foreground/70 mt-2">Please wait a moment</p>
-  </div>
-);
-
-// --- 4. Product Skeleton Cards ---
+// --- 3. Optimized Skeleton ---
 const ProductSkeletonCard = () => (
-  <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-4 animate-pulse">
-    <div className="aspect-square w-full bg-muted rounded-xl mb-4"></div>
+  <div className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 shadow-sm p-4 animate-pulse">
+    <div className="aspect-square w-full bg-muted/50 rounded-xl mb-4"></div>
     <div className="space-y-2">
-      <div className="h-4 bg-muted rounded-full w-3/4"></div>
-      <div className="h-4 bg-muted rounded-full w-1/2"></div>
-      <div className="h-6 bg-muted rounded-lg w-1/3 mt-3"></div>
+      <div className="h-4 bg-muted/50 rounded-full w-3/4"></div>
+      <div className="h-4 bg-muted/50 rounded-full w-1/2"></div>
+      <div className="h-6 bg-muted/50 rounded-lg w-1/3 mt-3"></div>
     </div>
   </div>
 );
 
-// --- 5. Main HomePage Component ---
+// --- 4. Main HomePage Component ---
 const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -172,7 +163,7 @@ const HomePage = () => {
   const imageRefs = useRef([]);
   const featuresRef = useRef(null);
   
-  // Touch Handling State
+  // Touch
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
 
@@ -181,6 +172,7 @@ const HomePage = () => {
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
 
+  // Hero Slides
   const heroSlides = useMemo(() => {
     if (dbHeroImages && dbHeroImages.length > 0) return dbHeroImages;
     if (!heroLoading) {
@@ -208,44 +200,56 @@ const HomePage = () => {
     return [];
   }, [dbHeroImages, heroLoading]);
 
+  // FIX: Moved setProductsLoaded to useEffect to prevent slow rendering/lag
   const featuredProducts = useMemo(() => {
     if (products.length > 0) {
-      setProductsLoaded(true);
       return products.slice(0, 8);
     }
     return [];
   }, [products]);
 
+  useEffect(() => {
+    if (products.length > 0) {
+      setProductsLoaded(true);
+      // Force refresh scroll trigger once products load
+      ScrollTrigger.refresh();
+    }
+  }, [products]);
+
   // --- Animations ---
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Parallax
+      // Parallax effect on Hero Image
       if (window.innerWidth > 768) {
         gsap.to(imageRefs.current, {
-          yPercent: 15,
+          yPercent: 10, // Reduced from 15 to prevent background bleed
           ease: "none",
           scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true }
         });
       }
-      // Features Reveal
+
+      // Quick Features Reveal
       if(featuresRef.current) {
         gsap.fromTo(featuresRef.current.children,
-          { y: 50, opacity: 0, scale: 0.9 },
-          { y: 0, opacity: 1, scale: 1, duration: 0.6, stagger: 0.1, ease: 'back.out(1.5)',
-            scrollTrigger: { trigger: featuresRef.current, start: 'top 85%' }
+          { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, stagger: 0.1, ease: 'power2.out',
+            scrollTrigger: { trigger: featuresRef.current, start: 'top 95%' } // Triggers earlier
           }
         );
       }
-      // General Reveal
-      gsap.utils.toArray('.anim-up').forEach(el => {
-        gsap.fromTo(el,
-           { y: 30, opacity: 0 },
-           { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 90%' }}
-        );
-      });
+      
+      // Faster Product Reveal
+      if (productsLoaded) {
+        gsap.utils.toArray('.anim-up').forEach(el => {
+          gsap.fromTo(el,
+             { y: 20, opacity: 0 },
+             { y: 0, opacity: 1, duration: 0.4, ease: 'power1.out', scrollTrigger: { trigger: el, start: 'top 95%' }}
+          );
+        });
+      }
     });
     return () => ctx.revert();
-  }, [heroSlides.length, categories, products]);
+  }, [heroSlides.length, categories, productsLoaded]); // Added productsLoaded dependency
 
   // --- 3D Tilt ---
   const handleTilt = (e, card) => {
@@ -253,17 +257,17 @@ const HomePage = () => {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const rotateX = ((y - rect.height/2) / rect.height) * -8;
-    const rotateY = ((x - rect.width/2) / rect.width) * 8;
-    gsap.to(card, { rotateX, rotateY, scale: 1.02, boxShadow: "0 20px 30px -10px rgba(0,0,0,0.2)", duration: 0.3 });
+    const rotateX = ((y - rect.height/2) / rect.height) * -5; // Reduced intensity
+    const rotateY = ((x - rect.width/2) / rect.width) * 5;
+    gsap.to(card, { rotateX, rotateY, scale: 1.02, duration: 0.3 });
   };
 
   const resetTilt = (card) => {
     if(!card) return;
-    gsap.to(card, { rotateX: 0, rotateY: 0, scale: 1, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", duration: 0.5, ease: "elastic.out(1, 0.5)" });
+    gsap.to(card, { rotateX: 0, rotateY: 0, scale: 1, duration: 0.5, ease: "power2.out" });
   };
 
-  // --- Slide Animation Logic ---
+  // --- Slide Logic ---
   const animateSlide = useCallback((newIndex) => {
     if (isAnimating || !slideRefs.current[newIndex]) return;
     setIsAnimating(true);
@@ -272,13 +276,13 @@ const HomePage = () => {
 
     const tl = gsap.timeline({ onComplete: () => { setCurrentSlide(newIndex); setIsAnimating(false); }});
     
-    tl.to(curr.content, { y: -30, opacity: 0, duration: 0.4 }, 0)
+    tl.to(curr.content, { y: -20, opacity: 0, duration: 0.4 }, 0)
       .to(curr.img, { scale: 1.1, opacity: 0, duration: 0.4 }, 0)
       .set(curr.el, { visibility: 'hidden', zIndex: 0 });
 
     tl.set(next.el, { visibility: 'visible', zIndex: 10 }, 0)
-      .fromTo(next.img, { scale: 1.15, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.8, ease: 'power2.out' }, 0.1)
-      .fromTo(next.content, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'back.out' }, 0.3);
+      .fromTo(next.img, { scale: 1.1, opacity: 0 }, { scale: 1.05, opacity: 1, duration: 0.8, ease: 'power2.out' }, 0.1)
+      .fromTo(next.content, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out' }, 0.3);
   }, [currentSlide, isAnimating]);
 
   const nextSlide = useCallback(() => {
@@ -291,35 +295,17 @@ const HomePage = () => {
     animateSlide(prev);
   }, [currentSlide, heroSlides.length, animateSlide]);
 
-  // --- FIXED SWIPE LOGIC ---
-  const onTouchStart = (e) => {
-    touchStartX.current = e.targetTouches[0].clientX;
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
-  const onTouchMove = (e) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
+  // Touch Swipe
+  const onTouchStart = (e) => { touchStartX.current = e.targetTouches[0].clientX; touchEndX.current = e.targetTouches[0].clientX; };
+  const onTouchMove = (e) => { touchEndX.current = e.targetTouches[0].clientX; };
   const onTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
-    
     const distance = touchStartX.current - touchEndX.current;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe) {
-      nextSlide();
-    } else if (isRightSwipe) {
-      prevSlide();
-    }
-    
-    // Reset
-    touchStartX.current = null;
-    touchEndX.current = null;
+    if (distance > 50) nextSlide();
+    else if (distance < -50) prevSlide();
+    touchStartX.current = null; touchEndX.current = null;
   };
 
-  // Autoplay
   useEffect(() => {
     if (heroSlides.length <= 1) return;
     const interval = setInterval(() => { if(!isAnimating) nextSlide(); }, 6000);
@@ -328,10 +314,13 @@ const HomePage = () => {
 
   return (
     <Layout>
-      {/* HERO SECTION with Enhanced Rounded Cards */}
+      {/* HERO SECTION:
+        - Height Reduced to h-[400px] md:h-[500px]
+        - Added overflow-hidden properly
+      */}
       <section 
         ref={heroRef} 
-        className="relative overflow-hidden bg-background"
+        className="relative overflow-hidden bg-background pb-6"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -339,18 +328,9 @@ const HomePage = () => {
         <ParticleBackground />
         
         {heroLoading || heroSlides.length === 0 ? (
-          <div className="relative h-[500px] md:h-[600px] w-full bg-muted/20 animate-pulse flex items-center justify-center">
-            <div className="container mx-auto px-4 flex flex-col justify-end h-full pb-20">
-              <div className="max-w-xl space-y-4">
-                <div className="h-8 w-32 bg-muted-foreground/10 rounded-full" />
-                <div className="h-14 w-3/4 bg-muted-foreground/10 rounded-3xl" />
-                <div className="h-6 w-1/2 bg-muted-foreground/10 rounded-xl" />
-                <div className="h-12 w-36 bg-muted-foreground/10 rounded-full mt-4" />
-              </div>
-            </div>
-          </div>
+          <div className="relative h-[400px] md:h-[500px] w-full bg-muted/20 animate-pulse rounded-b-3xl" />
         ) : (
-          <div className="relative h-[500px] md:h-[600px] rounded-3xl overflow-hidden mx-4 mt-4 md:mx-8 md:mt-6 shadow-2xl">
+          <div className="relative h-[400px] md:h-[500px] rounded-3xl overflow-hidden mx-3 mt-3 md:mx-6 md:mt-4 shadow-2xl border border-white/10">
             {heroSlides.map((slide, index) => (
               <HeroCard
                 key={slide.id || index}
@@ -363,19 +343,18 @@ const HomePage = () => {
               />
             ))}
             
-            {/* Dots with new style */}
+            {/* Dots */}
             {heroSlides.length > 1 && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
                 {heroSlides.map((_, i) => (
                   <button 
                     key={i} 
                     onClick={() => i !== currentSlide && animateSlide(i)}
-                    className={`h-2 rounded-full transition-all duration-300 hover:scale-110 ${
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
                       i === currentSlide 
-                        ? 'w-10 bg-gradient-to-r from-primary to-purple-500 shadow-[0_0_12px_theme(colors.primary.DEFAULT)]' 
-                        : 'w-4 bg-white/60 hover:bg-white'
+                        ? 'w-8 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' 
+                        : 'w-2 bg-white/40 hover:bg-white/80'
                     }`}
-                    aria-label={`Slide ${i + 1}`} 
                   />
                 ))}
               </div>
@@ -384,121 +363,90 @@ const HomePage = () => {
         )}
       </section>
 
-      {/* FEATURES SECTION with Rounded Cards */}
-      <section className="py-8 bg-gradient-to-b from-background to-muted/10 relative z-10">
+      {/* FEATURES - Glassmorphism */}
+      <section className="py-6 relative z-10 -mt-2">
         <div className="container mx-auto px-4">
-          <div ref={featuresRef} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div ref={featuresRef} className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {[
-              { icon: Truck, title: 'Free Shipping', desc: 'Over $100', color: 'from-blue-500 to-cyan-500' },
-              { icon: Shield, title: 'Secure Pay', desc: '100% Safe', color: 'from-green-500 to-emerald-500' },
-              { icon: Clock, title: 'Fast Delivery', desc: 'Global', color: 'from-orange-500 to-red-500' },
-              { icon: Headphones, title: '24/7 Support', desc: 'Online', color: 'from-purple-500 to-pink-500' },
+              { icon: Truck, title: 'Free Shipping', desc: 'Over $100', color: 'text-blue-500' },
+              { icon: Shield, title: 'Secure Pay', desc: '100% Safe', color: 'text-green-500' },
+              { icon: Clock, title: 'Fast Delivery', desc: 'Global', color: 'text-orange-500' },
+              { icon: Headphones, title: '24/7 Support', desc: 'Online', color: 'text-purple-500' },
             ].map((f, i) => (
               <div 
                 key={i} 
-                className="group flex flex-col items-center text-center p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/30 shadow-md hover:shadow-xl transition-all duration-300 active:scale-95 hover:scale-[1.02] bg-gradient-to-br from-card to-card/50 backdrop-blur-sm"
+                className="flex flex-col items-center text-center p-4 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 dark:border-white/5 shadow-lg hover:shadow-xl transition-all hover:bg-white/10"
               >
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${f.color} text-white mb-3 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-md`}>
-                  <f.icon className="w-6 h-6" />
+                <div className={`p-2.5 rounded-xl bg-background/50 backdrop-blur-sm ${f.color} mb-2 shadow-sm`}>
+                  <f.icon className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors">{f.title}</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">{f.desc}</p>
+                <h3 className="font-bold text-sm">{f.title}</h3>
+                <p className="text-xs text-muted-foreground">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CATEGORIES with Improved Grid */}
-      <section className="py-16">
+      {/* CATEGORIES - Clean & Transparent */}
+      <section className="py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-end justify-between mb-10">
-            <div>
-              <span className="text-primary font-bold tracking-wider text-xs uppercase">Collections</span>
-              <h2 className="text-3xl font-bold mt-1">Browse Categories</h2>
-            </div>
-            <Link to="/products" className="text-sm font-medium text-primary hover:underline flex items-center gap-1 group">
-              View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              Browse Categories
+            </h2>
+            <Link to="/products" className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1">
+              View All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
           
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 md:gap-6">
-            {categoriesLoading ? [...Array(8)].map((_, i) => (
-              <div key={i} className="aspect-square bg-muted rounded-2xl animate-pulse" />
-            )) : categories.slice(0, 8).map((cat) => (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+            {categoriesLoading ? [...Array(6)].map((_, i) => (
+              <div key={i} className="aspect-square bg-muted/30 rounded-2xl animate-pulse" />
+            )) : categories.slice(0, 6).map((cat) => (
               <Link 
                 key={cat.id} 
                 to={`/products?category=${cat.id}`} 
-                className="anim-up group flex flex-col items-center gap-3"
+                className="anim-up group flex flex-col items-center gap-2"
               >
-                <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-transparent group-hover:border-primary/30 transition-all duration-300 shadow-md group-hover:shadow-xl bg-gradient-to-br from-background to-accent/20">
+                <div className="relative w-full aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-md group-hover:shadow-lg transition-all bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-sm">
                   {cat.image_url ? (
-                    <img 
-                      src={cat.image_url} 
-                      alt={cat.name} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                    />
+                    <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent to-accent/70 text-2xl text-accent-foreground">
-                      {cat.icon || '📦'}
-                    </div>
+                    <div className="w-full h-full flex items-center justify-center text-3xl">{cat.icon || '✨'}</div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
                 </div>
-                <span className="text-sm font-semibold group-hover:text-primary transition-colors text-center px-2">{cat.name}</span>
+                <span className="text-xs sm:text-sm font-medium text-center">{cat.name}</span>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* TRENDING PRODUCTS - Fixed Click Issue & Better Loading */}
-      <section className="py-16 bg-gradient-to-b from-muted/10 to-background">
+      {/* TRENDING PRODUCTS - Fast Load & Better UI */}
+      <section className="py-12 bg-gradient-to-b from-transparent to-muted/20">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-3">Trending Now</h2>
-            <div className="w-20 h-1 bg-gradient-to-r from-primary to-purple-500 mx-auto rounded-full" />
-            <p className="text-muted-foreground mt-4 max-w-md mx-auto">
-              Discover our most popular products loved by thousands of customers
-            </p>
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold">Trending Now</h2>
+            <p className="text-muted-foreground mt-2 text-sm">Most popular picks for you</p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 min-h-[450px]">
-            {/* Loading State */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 min-h-[400px]">
             {productsLoading && !productsLoaded ? (
-              [...Array(8)].map((_, i) => (
-                <div key={i} className="anim-up">
-                  <ProductSkeletonCard />
-                </div>
-              ))
+              [...Array(8)].map((_, i) => <ProductSkeletonCard key={i} />)
             ) : productsError ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-20">
-                <div className="text-destructive text-lg mb-4">Failed to load products</div>
-                <Button variant="outline" onClick={() => window.location.reload()}>
-                  Try Again
-                </Button>
-              </div>
-            ) : featuredProducts.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-20">
-                <div className="text-muted-foreground text-lg mb-4">No products available</div>
-                <Button asChild>
-                  <Link to="/products">Browse All Products</Link>
-                </Button>
-              </div>
+              <div className="col-span-full text-center py-10 text-destructive">Failed to load products</div>
             ) : (
-              // Products Grid with Link fix
               featuredProducts.map((product) => (
-                <Link 
-                  key={product.id} 
-                  to={`/product/${product.id}`}
-                  className="anim-up block"
-                >
+                <Link key={product.id} to={`/product/${product.id}`} className="anim-up block h-full">
                   <div 
-                    className="h-full transform-style-3d transition-transform duration-100 ease-out will-change-transform rounded-2xl hover:shadow-xl transition-shadow duration-300"
+                    className="h-full transform-style-3d transition-transform duration-200"
                     onMouseMove={(e) => handleTilt(e, e.currentTarget)}
                     onMouseLeave={(e) => resetTilt(e.currentTarget)}
                   >
-                    <div className="bg-card rounded-2xl border border-border/50 overflow-hidden h-full hover:border-primary/20 transition-all duration-300">
+                    {/* Added Glassmorphism to Product Card Container */}
+                    <div className="bg-white/5 backdrop-blur-md dark:bg-black/20 rounded-2xl border border-white/10 overflow-hidden h-full hover:border-primary/30 hover:shadow-2xl transition-all duration-300 group">
                       <ProductCard product={product} />
                     </div>
                   </div>
@@ -509,10 +457,8 @@ const HomePage = () => {
 
           {!productsLoading && featuredProducts.length > 0 && (
             <div className="text-center mt-12">
-              <Button asChild size="lg" className="rounded-full px-8 py-6 text-base">
-                <Link to="/products" className="flex items-center gap-2">
-                  View All Products <ArrowRight className="w-5 h-5" />
-                </Link>
+              <Button asChild variant="outline" size="lg" className="rounded-full border-primary/20 hover:bg-primary/5">
+                <Link to="/products">Explore Store</Link>
               </Button>
             </div>
           )}
