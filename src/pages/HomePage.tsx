@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, Loader2, Grid } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
@@ -12,7 +12,7 @@ import * as THREE from 'three';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// --- 1. Three.js Background (Optimized) ---
+// --- 1. Three.js Background (Subtle for this design) ---
 const ParticleBackground = () => {
   const mountRef = useRef(null);
 
@@ -30,11 +30,11 @@ const ParticleBackground = () => {
     mountRef.current.appendChild(renderer.domElement);
 
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 1200;
+    const particlesCount = 800; // Thora kam kiya taake clean look rahe
     const posArray = new Float32Array(particlesCount * 3);
     
     for(let i = 0; i < particlesCount * 3; i+=3) {
-      posArray[i] = (Math.random() - 0.5) * 25; 
+      posArray[i] = (Math.random() - 0.5) * 20; 
       posArray[i+1] = (Math.random() - 0.5) * 15;
       posArray[i+2] = (Math.random() - 0.5) * 10;
     }
@@ -42,10 +42,10 @@ const ParticleBackground = () => {
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     
     const material = new THREE.PointsMaterial({
-      size: 0.03,
-      color: 0x6d28d9, 
+      size: 0.02,
+      color: 0x4f46e5, // Indigo tone
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.4,
       blending: THREE.AdditiveBlending,
     });
 
@@ -58,8 +58,7 @@ const ParticleBackground = () => {
     
     const animate = () => {
       const elapsedTime = clock.getElapsedTime();
-      particlesMesh.position.y = Math.sin(elapsedTime * 0.5) * 0.2; 
-      particlesMesh.rotation.z += 0.0005;
+      particlesMesh.rotation.y = elapsedTime * 0.05;
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(animate);
     };
@@ -84,51 +83,41 @@ const ParticleBackground = () => {
     };
   }, []);
 
-  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none hidden md:block opacity-60" />;
+  return <div ref={mountRef} className="fixed inset-0 z-0 pointer-events-none hidden md:block opacity-40" />;
 };
 
 // --- 2. Custom Loading Component ---
 const LoadingSpinner = () => (
   <div className="col-span-full flex flex-col items-center justify-center py-20 min-h-[300px]">
     <div className="relative">
-      <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Sparkles className="w-6 h-6 text-primary animate-pulse" />
-      </div>
+      <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-600 rounded-full animate-spin"></div>
     </div>
-    <p className="mt-6 text-muted-foreground font-medium animate-pulse tracking-wide">
-      Please wait loading......
-    </p>
   </div>
 );
 
-// --- 3. Hero Skeleton ---
+// --- 3. Hero Skeleton (Matches Card Shape) ---
 const HeroSkeleton = () => (
-  <div className="relative h-[400px] md:h-[500px] w-full bg-gradient-to-r from-slate-200/50 via-gray-200/50 to-zinc-200/50 dark:from-slate-800/50 dark:via-gray-800/50 dark:to-zinc-800/50 animate-pulse flex items-center justify-center">
-    <div className="container mx-auto px-4 flex flex-col justify-center h-full">
-      <div className="max-w-xl space-y-4">
-        <div className="h-8 w-40 bg-slate-300/50 dark:bg-slate-600/50 rounded-full" />
-        <div className="h-10 w-3/4 bg-slate-300/50 dark:bg-slate-600/50 rounded-2xl" />
-        <div className="h-5 w-1/2 bg-slate-300/50 dark:bg-slate-600/50 rounded-xl" />
-        <div className="h-11 w-32 bg-slate-300/50 dark:bg-slate-600/50 rounded-full mt-6" />
-      </div>
+  <div className="w-full aspect-[16/9] md:aspect-[2.5/1] bg-muted/50 rounded-3xl animate-pulse flex items-center p-8">
+    <div className="space-y-4 w-1/2">
+      <div className="h-6 w-24 bg-muted-foreground/10 rounded-full" />
+      <div className="h-10 w-3/4 bg-muted-foreground/10 rounded-xl" />
+      <div className="h-10 w-1/2 bg-muted-foreground/10 rounded-xl" />
+      <div className="h-10 w-32 bg-muted-foreground/10 rounded-full mt-4" />
     </div>
   </div>
 );
 
-// --- 4. Main HomePage Component (Image Design Updated) ---
+// --- 4. Main HomePage Component ---
 const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   
   // Refs
-  const heroRef = useRef(null);
   const slideRefs = useRef([]);
   const contentRefs = useRef([]);
   const imageRefs = useRef([]);
-  const featuresRef = useRef(null);
   
-  // Touch Handling
+  // Touch Handling State
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
 
@@ -137,79 +126,34 @@ const HomePage = () => {
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
 
-  // Fixed hero slides as per image design
   const heroSlides = useMemo(() => {
     if (dbHeroImages && dbHeroImages.length > 0) return dbHeroImages;
-    
-    return [{
-      id: 'def-1',
-      title: 'iPhone 16 Pro',
-      subtitle: 'Extraordinary Visual Experience',
-      image: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?q=80&w=2070&auto=format&fit=crop',
-      gradient: 'from-slate-900/70 via-gray-900/60 to-black/60',
-      badge: 'New Launch',
-      link: '/products',
-    }, {
-      id: 'def-2',
-      title: 'Premium Audio',
-      subtitle: 'Immerse in Crystal Clear Sound',
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=2070&auto=format&fit=crop',
-      gradient: 'from-indigo-900/70 via-purple-900/60 to-violet-900/60',
-      badge: 'Flash Deal',
-      link: '/products',
-    }];
-  }, [dbHeroImages]);
+    if (!heroLoading) {
+      return [{
+        id: 'def-1',
+        title: 'iPhone 16 Pro',
+        subtitle: 'Extraordinary Visual & Exceptional Power',
+        image: 'https://images.unsplash.com/photo-1696446701796-da61225697cc?q=80&w=2070&auto=format&fit=crop', // Updated to look more like a phone promo
+        gradient: 'from-blue-600 to-indigo-600', // Matches screenshot blue
+        badge: 'New Arrival',
+        link: '/products',
+      },
+      {
+        id: 'def-2',
+        title: 'Sony Headphones',
+        subtitle: 'Pure Bass. Zero Noise.',
+        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=2070&auto=format&fit=crop',
+        gradient: 'from-purple-600 to-pink-600',
+        badge: 'Best Seller',
+        link: '/products?category=headphones',
+      }]; 
+    }
+    return [];
+  }, [dbHeroImages, heroLoading]);
 
   const featuredProducts = products.slice(0, 8);
 
-  // --- Animations ---
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Parallax
-      if (window.innerWidth > 768) {
-        gsap.to(imageRefs.current, {
-          yPercent: 15,
-          ease: "none",
-          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true }
-        });
-      }
-      // Features Reveal
-      if(featuresRef.current) {
-        gsap.fromTo(featuresRef.current.children,
-          { y: 50, opacity: 0, scale: 0.9 },
-          { y: 0, opacity: 1, scale: 1, duration: 0.6, stagger: 0.1, ease: 'back.out(1.5)',
-            scrollTrigger: { trigger: featuresRef.current, start: 'top 85%' }
-          }
-        );
-      }
-      // General Reveal
-      gsap.utils.toArray('.anim-up').forEach(el => {
-        gsap.fromTo(el,
-           { y: 30, opacity: 0 },
-           { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 90%' }}
-        );
-      });
-    });
-    return () => ctx.revert();
-  }, [heroSlides.length, categories, products]);
-
-  // --- 3D Tilt ---
-  const handleTilt = (e, card) => {
-    if(window.innerWidth < 768 || !card) return;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const rotateX = ((y - rect.height/2) / rect.height) * -8;
-    const rotateY = ((x - rect.width/2) / rect.width) * 8;
-    gsap.to(card, { rotateX, rotateY, scale: 1.02, boxShadow: "0 20px 30px -10px rgba(0,0,0,0.2)", duration: 0.3 });
-  };
-
-  const resetTilt = (card) => {
-    if(!card) return;
-    gsap.to(card, { rotateX: 0, rotateY: 0, scale: 1, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", duration: 0.5, ease: "elastic.out(1, 0.5)" });
-  };
-
-  // --- Slide Animation ---
+  // --- Slide Animation Logic (Optimized for Card) ---
   const animateSlide = useCallback((newIndex) => {
     if (isAnimating || !slideRefs.current[newIndex]) return;
     setIsAnimating(true);
@@ -218,13 +162,15 @@ const HomePage = () => {
 
     const tl = gsap.timeline({ onComplete: () => { setCurrentSlide(newIndex); setIsAnimating(false); }});
     
-    tl.to(curr.content, { y: -30, opacity: 0, duration: 0.4 }, 0)
-      .to(curr.img, { scale: 1.1, opacity: 0, duration: 0.4 }, 0)
+    // Fade out current
+    tl.to(curr.content, { x: -20, opacity: 0, duration: 0.3 }, 0)
+      .to(curr.img, { x: 20, opacity: 0, duration: 0.3 }, 0)
       .set(curr.el, { visibility: 'hidden', zIndex: 0 });
 
+    // Fade in next
     tl.set(next.el, { visibility: 'visible', zIndex: 10 }, 0)
-      .fromTo(next.img, { scale: 1.15, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.8, ease: 'power2.out' }, 0.1)
-      .fromTo(next.content, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'back.out' }, 0.3);
+      .fromTo(next.img, { x: 30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.1)
+      .fromTo(next.content, { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.2);
   }, [currentSlide, isAnimating]);
 
   const nextSlide = useCallback(() => {
@@ -237,7 +183,7 @@ const HomePage = () => {
     animateSlide(prev);
   }, [currentSlide, heroSlides.length, animateSlide]);
 
-  // --- Swipe Logic ---
+  // --- SWIPE LOGIC ---
   const onTouchStart = (e) => {
     touchStartX.current = e.targetTouches[0].clientX;
     touchEndX.current = e.targetTouches[0].clientX;
@@ -249,207 +195,164 @@ const HomePage = () => {
 
   const onTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
-    
     const distance = touchStartX.current - touchEndX.current;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe) {
-      nextSlide();
-    } else if (isRightSwipe) {
-      prevSlide();
-    }
-    
+    if (distance > 50) nextSlide();
+    else if (distance < -50) prevSlide();
     touchStartX.current = null;
     touchEndX.current = null;
   };
 
-  // Autoplay
   useEffect(() => {
     if (heroSlides.length <= 1) return;
-    const interval = setInterval(() => { if(!isAnimating) nextSlide(); }, 6000);
+    const interval = setInterval(() => { if(!isAnimating) nextSlide(); }, 5000);
     return () => clearInterval(interval);
   }, [heroSlides.length, isAnimating, nextSlide]);
 
+  // --- 3D Tilt for Products ---
+  const handleTilt = (e, card) => {
+    if(window.innerWidth < 768 || !card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const rotateX = ((y - rect.height/2) / rect.height) * -8;
+    const rotateY = ((x - rect.width/2) / rect.width) * 8;
+    gsap.to(card, { rotateX, rotateY, scale: 1.02, duration: 0.3 });
+  };
+  const resetTilt = (card) => {
+    if(!card) return;
+    gsap.to(card, { rotateX: 0, rotateY: 0, scale: 1, duration: 0.5 });
+  };
+
   return (
     <Layout>
-      {/* HERO SECTION - Image Design Updated */}
-      <section 
-        ref={heroRef} 
-        className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
-        <ParticleBackground />
+      <ParticleBackground />
+      
+      <div className="container mx-auto px-4 pt-4 pb-20 relative z-10 space-y-8">
         
-        {heroLoading || heroSlides.length === 0 ? <HeroSkeleton /> : (
-          <div className="relative h-[400px] md:h-[500px]">
-            {heroSlides.map((slide, index) => (
-              <div
-                key={slide.id || index}
-                ref={el => slideRefs.current[index] = el}
-                className="absolute inset-0 overflow-hidden flex items-center"
-                style={{ visibility: index === 0 ? 'visible' : 'hidden', zIndex: index === 0 ? 10 : 0 }}
-              >
-                {/* Background Image with Gradient */}
-                <div className="absolute inset-0 z-[-1]">
-                    <img
-                        ref={el => imageRefs.current[index] = el}
-                        src={slide.image}
-                        alt={slide.title}
-                        className="w-full h-full object-cover object-center"
-                        loading={index === 0 ? 'eager' : 'lazy'}
-                    />
-                    <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient}`} />
-                </div>
-
-                {/* Content Container - Left Aligned as per image */}
-                <div className="container mx-auto px-4 md:px-8">
-                  <div ref={el => contentRefs.current[index] = el} className="max-w-xl md:max-w-2xl">
-                    <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-sm font-semibold mb-4 text-white">
-                      <Sparkles className="w-4 h-4 text-yellow-300" />
-                      {slide.badge || 'Trending'}
-                    </span>
-                    
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 text-white leading-tight">
-                      {slide.title}
-                    </h1>
-                    
-                    <p className="text-lg md:text-xl text-white/90 mb-8 font-medium">
-                      {slide.subtitle}
-                    </p>
-                    
-                    <div className="flex flex-wrap gap-4">
-                      <Button asChild size="lg" className="h-12 px-8 rounded-full bg-white text-slate-900 hover:bg-white/90 hover:scale-105 transition-all duration-300 font-semibold">
-                        <Link to={slide.link || '/products'}>
-                          Shop Now <ArrowRight className="ml-2 w-5 h-5" />
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" size="lg" className="h-12 px-8 rounded-full border-white/50 text-white hover:bg-white/10 hover:scale-105 transition-all duration-300">
-                        <Link to="/categories">
-                          Explore More
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            {/* Navigation Dots */}
-            {heroSlides.length > 1 && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-                {heroSlides.map((_, i) => (
-                    <button key={i} onClick={() => i !== currentSlide && animateSlide(i)}
-                    className={`h-2 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-white' : 'w-2 bg-white/50 hover:bg-white/80'}`}
-                    aria-label={`Slide ${i + 1}`} />
-                ))}
-                </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* QUICK ACCESS CATEGORIES - As per image design */}
-      <section className="py-10 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Shop by Category</h2>
-            <Link to="/categories" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
-              View All <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-            {categoriesLoading ? [...Array(8)].map((_, i) => (
-              <div key={i} className="aspect-square bg-muted rounded-xl animate-pulse" />
-            )) :
-             categories.slice(0, 8).map((cat) => (
-              <Link 
-                key={cat.id} 
-                to={`/products?category=${cat.id}`}
-                className="anim-up group flex flex-col items-center gap-3 hover:scale-105 transition-transform duration-300"
-              >
-                <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm group-hover:shadow-lg transition-all duration-300">
-                  {cat.image_url ? (
-                    <img 
-                      src={cat.image_url} 
-                      alt={cat.name} 
-                      className="w-full h-full object-cover p-2 group-hover:scale-110 transition-transform duration-500" 
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-500 dark:text-slate-400">
-                      <span className="text-2xl">{cat.icon || '📱'}</span>
-                    </div>
-                  )}
-                </div>
-                <span className="text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-primary transition-colors text-center">
-                  {cat.name}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FLASH DEALS SECTION - As per image */}
-      <section className="py-12 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Flash Deals for You</h2>
-              <p className="text-slate-600 dark:text-slate-400">Limited time offers. Grab them before they're gone!</p>
-            </div>
-            <Link to="/deals" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
-              See All <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 min-h-[400px]">
-            {productsLoading ? (
-              <LoadingSpinner />
-            ) : (
-              featuredProducts.map((product) => (
-                <div 
-                  key={product.id} 
-                  className="anim-up perspective-1000"
-                  onMouseMove={(e) => handleTilt(e, e.currentTarget)}
-                  onMouseLeave={(e) => resetTilt(e.currentTarget)}
+        {/* HERO SECTION - REPLICATING THE IMAGE CARD STYLE */}
+        <section 
+          className="relative w-full rounded-3xl overflow-hidden shadow-2xl"
+          onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        >
+          {heroLoading || heroSlides.length === 0 ? <HeroSkeleton /> : (
+            <div className="relative w-full aspect-[16/10] sm:aspect-[2/1] md:aspect-[2.4/1] bg-card">
+              {heroSlides.map((slide, index) => (
+                <div
+                  key={slide.id || index}
+                  ref={el => slideRefs.current[index] = el}
+                  className={`absolute inset-0 w-full h-full bg-gradient-to-br ${slide.gradient}`}
+                  style={{ visibility: index === 0 ? 'visible' : 'hidden', zIndex: index === 0 ? 10 : 0 }}
                 >
-                  <div className="h-full transform-style-3d transition-transform duration-100 ease-out will-change-transform">
-                    <ProductCard product={product} />
+                  {/* Content Container */}
+                  <div className="absolute inset-0 flex items-center justify-between px-6 md:px-12 lg:px-16">
+                    
+                    {/* Text Side (Left) */}
+                    <div ref={el => contentRefs.current[index] = el} className="w-[60%] md:w-1/2 z-20 flex flex-col items-start justify-center h-full space-y-3 md:space-y-5">
+                       <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white leading-tight drop-shadow-md">
+                        {slide.title}
+                      </h2>
+                      <p className="text-xs sm:text-sm md:text-lg text-white/90 font-medium line-clamp-2">
+                        {slide.subtitle}
+                      </p>
+                      <Button asChild className="bg-white text-black hover:bg-white/90 rounded-xl px-6 h-9 sm:h-11 text-xs sm:text-sm font-bold shadow-lg mt-2">
+                        <Link to={slide.link || '/products'}>
+                          Shop Now
+                        </Link>
+                      </Button>
+                    </div>
+
+                    {/* Image Side (Right) */}
+                    <div className="absolute right-0 bottom-0 h-[90%] w-[55%] md:w-1/2 z-10 flex items-end justify-end pointer-events-none">
+                       <img
+                          ref={el => imageRefs.current[index] = el}
+                          src={slide.image}
+                          alt={slide.title}
+                          className="h-full w-full object-contain object-right-bottom drop-shadow-2xl"
+                       />
+                    </div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
+              ))}
 
-      {/* FEATURES SECTION - Clean Design */}
-      <section className="py-12 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-        <div className="container mx-auto px-4">
-          <div ref={featuresRef} className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { icon: Truck, title: 'Free Shipping', desc: 'On orders over $100' },
-              { icon: Shield, title: 'Secure Payment', desc: '100% Protected' },
-              { icon: Clock, title: '24/7 Support', desc: 'Dedicated support' },
-              { icon: Headphones, title: 'Easy Returns', desc: '30-day policy' },
-            ].map((f, i) => (
-              <div key={i} className="group flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300">
-                <div className="p-3 rounded-lg bg-primary/10 text-primary group-hover:scale-110 transition-transform">
-                  <f.icon className="w-6 h-6" />
+              {/* Dots Pagination */}
+              {heroSlides.length > 1 && (
+                <div className="absolute bottom-4 left-6 md:left-12 z-30 flex gap-2">
+                  {heroSlides.map((_, i) => (
+                    <button key={i} onClick={() => i !== currentSlide && animateSlide(i)}
+                      className={`h-2 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-6 bg-white' : 'w-2 bg-white/40'}`}
+                      aria-label={`Slide ${i + 1}`} 
+                    />
+                  ))}
                 </div>
-                <div>
-                  <h3 className="font-bold text-sm md:text-base">{f.title}</h3>
-                  <p className="text-xs text-muted-foreground">{f.desc}</p>
-                </div>
-              </div>
-            ))}
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* CATEGORIES SECTION - MATCHING THE GRID IMAGE */}
+        <section>
+            <h3 className="text-lg font-bold mb-4 px-1">Categories</h3>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 sm:gap-4">
+            {categoriesLoading ? [...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-muted rounded-3xl animate-pulse" />) : (
+                <>
+                {categories.slice(0, 5).map((cat) => (
+                    <Link key={cat.id} to={`/products?category=${cat.id}`} className="group flex flex-col items-center justify-center gap-3 bg-white dark:bg-zinc-900 p-4 rounded-3xl shadow-sm border border-transparent hover:border-indigo-500/30 transition-all duration-300 aspect-square">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+                            {cat.image_url ? (
+                                <img src={cat.image_url} alt={cat.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+                            ) : (
+                                // Fallback icons based on name roughly
+                                cat.name.toLowerCase().includes('phone') ? <div className="text-2xl">📱</div> :
+                                cat.name.toLowerCase().includes('head') ? <Headphones className="w-8 h-8 text-indigo-500" /> :
+                                cat.name.toLowerCase().includes('laptop') ? <div className="text-2xl">💻</div> :
+                                <div className="text-2xl">📦</div>
+                            )}
+                        </div>
+                        <span className="text-xs sm:text-sm font-medium text-center text-zinc-700 dark:text-zinc-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{cat.name}</span>
+                    </Link>
+                ))}
+                {/* 'More' Button replicating the image */}
+                <Link to="/categories" className="group flex flex-col items-center justify-center gap-3 bg-white dark:bg-zinc-900 p-4 rounded-3xl shadow-sm border border-transparent hover:border-indigo-500/30 transition-all duration-300 aspect-square">
+                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-800/50 transition-colors">
+                        <Grid className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400" />
+                     </div>
+                     <span className="text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300">More</span>
+                </Link>
+                </>
+            )}
+            </div>
+        </section>
+
+        {/* FLASH DEALS / TRENDING - MATCHING HEADER STYLE */}
+        <section>
+          <div className="flex items-center justify-between mb-4 px-1">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Flash Deals for You</h2>
+            <Link to="/products" className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700">
+              See All
+            </Link>
           </div>
-        </div>
-      </section>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {productsLoading ? (
+               <LoadingSpinner />
+            ) : (
+             featuredProducts.map((product) => (
+               <div 
+                 key={product.id} 
+                 className="perspective-1000"
+                 onMouseMove={(e) => handleTilt(e, e.currentTarget)}
+                 onMouseLeave={(e) => resetTilt(e.currentTarget)}
+               >
+                 <div className="h-full transform-style-3d transition-transform duration-100 will-change-transform">
+                    {/* Using existing ProductCard but ensuring it fits the new clean theme via props or css */}
+                    <ProductCard product={product} className="bg-white dark:bg-zinc-900 rounded-2xl border-none shadow-sm hover:shadow-md" />
+                 </div>
+               </div>
+            )))}
+          </div>
+        </section>
+
+      </div>
     </Layout>
   );
 };
