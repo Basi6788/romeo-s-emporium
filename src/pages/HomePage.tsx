@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
@@ -8,11 +8,12 @@ import { useHeroImages } from '@/hooks/useHeroImages';
 import { Button } from '@/components/ui/button';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { SplitText } from 'gsap/all'; // Note: If you don't have SplitText (premium), we use a custom manual split below
 import * as THREE from 'three';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// --- 1. Three.js Background (Optimized) ---
+// --- 1. Three.js Background (Kept as is, optimized) ---
 const ParticleBackground = () => {
   const mountRef = useRef(null);
 
@@ -87,47 +88,131 @@ const ParticleBackground = () => {
   return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none hidden md:block opacity-40 dark:opacity-30" />;
 };
 
-// --- 2. Enhanced Hero Card Component with Fixed Colors ---
-const HeroCard = ({ slide, index, slideRefs, contentRefs, imageRefs, isActive }) => {
+// --- Helper: Animated Text Component ---
+// Ye component text ko letters me torega aur animation lagayega
+const AnimatedText = ({ text, className, delay = 0 }) => {
+  const letters = text.split("");
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // 1. Entrance Animation (Writing effect)
+      gsap.fromTo(".char", 
+        { y: 50, opacity: 0, rotateX: -90 },
+        { 
+          y: 0, 
+          opacity: 1, 
+          rotateX: 0, 
+          stagger: 0.03, 
+          duration: 0.8, 
+          ease: "back.out(1.7)",
+          delay: delay 
+        }
+      );
+
+      // 2. Idle Animation (Wave effect)
+      gsap.to(".char", {
+        y: -5,
+        stagger: {
+          each: 0.1,
+          repeat: -1,
+          yoyo: true
+        },
+        duration: 1.5,
+        ease: "sine.inOut",
+        delay: delay + 1
+      });
+    }, containerRef);
+    return () => ctx.revert();
+  }, [text, delay]);
+
+  const handleMouseEnter = () => {
+    // 3. Hover Spread Animation
+    gsap.to(containerRef.current.querySelectorAll(".char"), {
+      letterSpacing: "5px", // Text phail jayega
+      color: "#a855f7", // Purple tint
+      duration: 0.4,
+      ease: "power2.out",
+      stagger: 0.01
+    });
+  };
+
+  const handleMouseLeave = () => {
+    // Back to normal
+    gsap.to(containerRef.current.querySelectorAll(".char"), {
+      letterSpacing: "0px",
+      color: "inherit",
+      duration: 0.4,
+      ease: "power2.in",
+      stagger: 0.01
+    });
+  };
+
+  return (
+    <div 
+      ref={containerRef} 
+      className={`inline-block cursor-default ${className}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {letters.map((char, index) => (
+        <span key={index} className="char inline-block" style={{ minWidth: char === " " ? "0.3em" : "0" }}>
+          {char}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+// --- 2. Enhanced Hero Card Component (Fixed Gradients) ---
+const HeroCard = ({ slide, index, slideRefs, isActive }) => {
   return (
     <div
       key={slide.id || index}
       ref={el => slideRefs.current[index] = el}
-      className="absolute inset-0 overflow-hidden flex items-center md:items-end pb-12 md:pb-20"
-      style={{ visibility: isActive ? 'visible' : 'hidden', zIndex: isActive ? 10 : 0 }}
+      className="absolute inset-0 overflow-hidden flex items-center md:items-end pb-12 md:pb-24"
+      style={{ 
+        visibility: isActive ? 'visible' : 'hidden', 
+        zIndex: isActive ? 10 : 0,
+        transformStyle: 'preserve-3d', // Crucial for 3D effect
+        backfaceVisibility: 'hidden'
+      }}
     >
-      {/* FIXED: Added proper background layer to prevent white/dark bleed-through */}
-      <div className="absolute inset-0 bg-background/30 dark:bg-background/40 z-[-2] rounded-3xl"></div>
-      
-      <div className="absolute inset-0 z-[-1] rounded-3xl overflow-hidden">
+      {/* Background Image without bad fade */}
+      <div className="absolute inset-0 z-[-1]">
         <img
-          ref={el => imageRefs.current[index] = el}
           src={slide.image}
           alt={slide.title}
-          className="w-full h-[115%] object-cover brightness-[0.85] dark:brightness-75 transition-all duration-700"
-          loading={index === 0 ? 'eager' : 'lazy'}
+          className="w-full h-full object-cover transition-all duration-700"
         />
-        <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-60 dark:opacity-70 mix-blend-overlay`} />
-        {/* Enhanced gradient for light/dark mode */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent dark:via-background/60" />
-        {/* Subtle pattern overlay */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1)_0%,transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.05)_0%,transparent_50%)]" />
+        {/* Soft overlay for readability, removed the hard bottom cut */}
+        <div className="absolute inset-0 bg-black/30" />
+        <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-40 mix-blend-overlay`} />
+        
+        {/* Fixed Gradient: Only at very bottom for text legibility, no white flash */}
+        <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
       </div>
 
-      <div className="container mx-auto px-6 relative z-10">
-        <div ref={el => contentRefs.current[index] = el} className="max-w-2xl">
-          {/* Enhanced badge with glass morphism effect */}
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/30 dark:bg-black/30 backdrop-blur-xl border border-white/40 dark:border-white/20 text-sm font-semibold mb-4 text-white shadow-2xl">
-            <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" />
-            {slide.badge || 'Trending'}
-          </span>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 text-white drop-shadow-2xl tracking-tight leading-tight">
-            {slide.title}
+      <div className="container mx-auto px-6 relative z-10 perspective-1000">
+        <div className="max-w-3xl">
+          {/* Badge */}
+          <div className="mb-4 overflow-hidden">
+             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/10 text-sm font-semibold text-white shadow-lg">
+                <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" />
+                {slide.badge || 'New Arrival'}
+             </span>
+          </div>
+
+          {/* Animated Titles */}
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-4 text-white drop-shadow-lg leading-tight">
+            {isActive && <AnimatedText text={slide.title} delay={0.2} />}
           </h1>
-          <p className="text-lg sm:text-xl text-white/95 dark:text-white/90 mb-8 font-medium max-w-lg drop-shadow-lg leading-relaxed backdrop-blur-sm">
-            {slide.subtitle}
-          </p>
-          <Button asChild size="lg" className="h-14 px-8 text-lg rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105 transition-all duration-300 transform-gpu backdrop-blur-sm">
+          
+          <div className="text-lg sm:text-xl text-gray-200 mb-8 font-medium max-w-lg leading-relaxed">
+            {isActive && <AnimatedText text={slide.subtitle} className="text-base md:text-xl" delay={0.4} />}
+          </div>
+
+          <Button asChild size="lg" className="h-14 px-8 text-lg rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-white hover:scale-105 transition-all duration-300 transform-gpu border-none">
             <Link to={slide.link || '/products'}>
               Shop Now <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
@@ -138,23 +223,7 @@ const HeroCard = ({ slide, index, slideRefs, contentRefs, imageRefs, isActive })
   );
 };
 
-// --- 3. Custom Loading Component with Better UI ---
-const LoadingSpinner = () => (
-  <div className="col-span-full flex flex-col items-center justify-center py-20 min-h-[400px]">
-    <div className="relative">
-      <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-      </div>
-    </div>
-    <p className="mt-8 text-lg font-medium text-muted-foreground animate-pulse tracking-wide">
-      Products loading...
-    </p>
-    <p className="text-sm text-muted-foreground/70 mt-2">Please wait a moment</p>
-  </div>
-);
-
-// --- 4. Product Skeleton Cards ---
+// --- Product Skeleton ---
 const ProductSkeletonCard = () => (
   <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-4 animate-pulse">
     <div className="aspect-square w-full bg-muted rounded-xl mb-4"></div>
@@ -175,11 +244,9 @@ const HomePage = () => {
   // Refs
   const heroRef = useRef(null);
   const slideRefs = useRef([]);
-  const contentRefs = useRef([]);
-  const imageRefs = useRef([]);
   const featuresRef = useRef(null);
   
-  // Touch Handling State
+  // Touch Handling
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
 
@@ -190,30 +257,25 @@ const HomePage = () => {
 
   const heroSlides = useMemo(() => {
     if (dbHeroImages && dbHeroImages.length > 0) return dbHeroImages;
-    if (!heroLoading) {
-      return [
-        {
-          id: 'def-1',
-          title: 'Future of Tech',
-          subtitle: 'Experience innovation like never before with our cutting-edge technology.',
-          image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop',
-          gradient: 'from-violet-600/60 via-purple-600/60 to-indigo-800/60',
-          badge: 'New Collection',
-          link: '/products',
-        },
-        {
-          id: 'def-2',
-          title: 'Premium Quality',
-          subtitle: 'Discover products crafted with excellence and attention to detail.',
-          image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=2070&auto=format&fit=crop',
-          gradient: 'from-blue-600/60 via-cyan-600/60 to-teal-800/60',
-          badge: 'Limited Offer',
-          link: '/products',
-        }
-      ]; 
-    }
-    return [];
-  }, [dbHeroImages, heroLoading]);
+    return [
+      {
+        id: 'def-1',
+        title: 'Future Tech',
+        subtitle: 'Experience innovation with our latest collection.',
+        image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop',
+        gradient: 'from-violet-600 to-indigo-900',
+        badge: 'Trending',
+      },
+      {
+        id: 'def-2',
+        title: 'Urban Style',
+        subtitle: 'Redefine your look with premium aesthetics.',
+        image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=2070&auto=format&fit=crop',
+        gradient: 'from-blue-600 to-cyan-900',
+        badge: 'New Season',
+      }
+    ];
+  }, [dbHeroImages]);
 
   const featuredProducts = useMemo(() => {
     if (products.length > 0) {
@@ -223,17 +285,9 @@ const HomePage = () => {
     return [];
   }, [products]);
 
-  // --- Animations ---
+  // --- Initial Page Animations ---
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Parallax
-      if (window.innerWidth > 768) {
-        gsap.to(imageRefs.current, {
-          yPercent: 15,
-          ease: "none",
-          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true }
-        });
-      }
       // Features Reveal
       if(featuresRef.current) {
         gsap.fromTo(featuresRef.current.children,
@@ -252,9 +306,9 @@ const HomePage = () => {
       });
     });
     return () => ctx.revert();
-  }, [heroSlides.length, categories, products]);
+  }, [categories, products]);
 
-  // --- 3D Tilt ---
+  // --- 3D Tilt Logic ---
   const handleTilt = (e, card) => {
     if(window.innerWidth < 768 || !card) return;
     const rect = card.getBoundingClientRect();
@@ -270,35 +324,73 @@ const HomePage = () => {
     gsap.to(card, { rotateX: 0, rotateY: 0, scale: 1, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", duration: 0.5, ease: "elastic.out(1, 0.5)" });
   };
 
-  // --- Slide Animation Logic ---
-  const animateSlide = useCallback((newIndex) => {
+  // --- 3D CARD ANIMATION LOGIC (UPDATED) ---
+  const animateSlide = useCallback((newIndex, direction = 'next') => {
     if (isAnimating || !slideRefs.current[newIndex]) return;
     setIsAnimating(true);
-    const curr = { el: slideRefs.current[currentSlide], content: contentRefs.current[currentSlide], img: imageRefs.current[currentSlide] };
-    const next = { el: slideRefs.current[newIndex], content: contentRefs.current[newIndex], img: imageRefs.current[newIndex] };
-
-    const tl = gsap.timeline({ onComplete: () => { setCurrentSlide(newIndex); setIsAnimating(false); }});
     
-    tl.to(curr.content, { y: -30, opacity: 0, duration: 0.4 }, 0)
-      .to(curr.img, { scale: 1.1, opacity: 0, duration: 0.4 }, 0)
-      .set(curr.el, { visibility: 'hidden', zIndex: 0 });
+    const currentEl = slideRefs.current[currentSlide];
+    const nextEl = slideRefs.current[newIndex];
 
-    tl.set(next.el, { visibility: 'visible', zIndex: 10 }, 0)
-      .fromTo(next.img, { scale: 1.15, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.8, ease: 'power2.out' }, 0.1)
-      .fromTo(next.content, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'back.out' }, 0.3);
+    // Set initial state for next element
+    gsap.set(nextEl, { visibility: 'visible', zIndex: 10 });
+    gsap.set(currentEl, { zIndex: 0 });
+
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        setCurrentSlide(newIndex);
+        setIsAnimating(false);
+        gsap.set(currentEl, { visibility: 'hidden', x: 0, rotationY: 0, opacity: 1, scale: 1 });
+      }
+    });
+
+    // 3D Cube Rotation Effect
+    if (direction === 'next') {
+      // Current slide goes OUT to LEFT
+      timeline
+        .to(currentEl, { 
+          xPercent: -50, 
+          rotationY: 45, 
+          opacity: 0, 
+          scale: 0.8, 
+          duration: 1, 
+          ease: "power3.inOut" 
+        }, 0)
+      // Next slide comes IN from RIGHT
+        .fromTo(nextEl, 
+          { xPercent: 100, rotationY: -45, opacity: 0, scale: 0.8 },
+          { xPercent: 0, rotationY: 0, opacity: 1, scale: 1, duration: 1, ease: "power3.inOut" }, 0
+        );
+    } else {
+      // PREV: Current slide goes OUT to RIGHT
+      timeline
+        .to(currentEl, { 
+          xPercent: 50, 
+          rotationY: -45, 
+          opacity: 0, 
+          scale: 0.8, 
+          duration: 1, 
+          ease: "power3.inOut" 
+        }, 0)
+      // Next slide comes IN from LEFT
+        .fromTo(nextEl, 
+          { xPercent: -100, rotationY: 45, opacity: 0, scale: 0.8 },
+          { xPercent: 0, rotationY: 0, opacity: 1, scale: 1, duration: 1, ease: "power3.inOut" }, 0
+        );
+    }
   }, [currentSlide, isAnimating]);
 
   const nextSlide = useCallback(() => {
     const next = (currentSlide + 1) % heroSlides.length;
-    animateSlide(next);
+    animateSlide(next, 'next');
   }, [currentSlide, heroSlides.length, animateSlide]);
 
   const prevSlide = useCallback(() => {
     const prev = currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1;
-    animateSlide(prev);
+    animateSlide(prev, 'prev');
   }, [currentSlide, heroSlides.length, animateSlide]);
 
-  // --- FIXED SWIPE LOGIC ---
+  // --- Swipe Logic ---
   const onTouchStart = (e) => {
     touchStartX.current = e.targetTouches[0].clientX;
     touchEndX.current = e.targetTouches[0].clientX;
@@ -310,35 +402,28 @@ const HomePage = () => {
 
   const onTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
-    
     const distance = touchStartX.current - touchEndX.current;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe) {
-      nextSlide();
-    } else if (isRightSwipe) {
-      prevSlide();
-    }
     
-    // Reset
+    if (distance > 50) nextSlide();
+    else if (distance < -50) prevSlide();
+    
     touchStartX.current = null;
     touchEndX.current = null;
   };
 
-  // Autoplay
+  // Autoplay (3D Effect enabled)
   useEffect(() => {
     if (heroSlides.length <= 1) return;
-    const interval = setInterval(() => { if(!isAnimating) nextSlide(); }, 6000);
+    const interval = setInterval(() => { if(!isAnimating) nextSlide(); }, 5000);
     return () => clearInterval(interval);
   }, [heroSlides.length, isAnimating, nextSlide]);
 
   return (
     <Layout>
-      {/* HERO SECTION with Enhanced Rounded Cards - REDUCED HEIGHT */}
+      {/* HERO SECTION - 3D Perspective Enabled */}
       <section 
         ref={heroRef} 
-        className="relative overflow-hidden bg-background"
+        className="relative overflow-hidden bg-background pb-10" // Added padding bottom to separate from features
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -346,184 +431,126 @@ const HomePage = () => {
         <ParticleBackground />
         
         {heroLoading || heroSlides.length === 0 ? (
-          <div className="relative h-[400px] md:h-[500px] w-full bg-muted/20 animate-pulse flex items-center justify-center">
-            <div className="container mx-auto px-4 flex flex-col justify-end h-full pb-20">
-              <div className="max-w-xl space-y-4">
-                <div className="h-8 w-32 bg-muted-foreground/10 rounded-full" />
-                <div className="h-14 w-3/4 bg-muted-foreground/10 rounded-3xl" />
-                <div className="h-6 w-1/2 bg-muted-foreground/10 rounded-xl" />
-                <div className="h-12 w-36 bg-muted-foreground/10 rounded-full mt-4" />
-              </div>
-            </div>
+          <div className="relative h-[400px] md:h-[550px] w-full bg-muted/20 animate-pulse flex items-center justify-center">
+            {/* Loading Skeleton */}
+            <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="relative h-[400px] md:h-[500px] rounded-3xl overflow-hidden mx-4 mt-4 md:mx-8 md:mt-6 shadow-2xl">
-            {heroSlides.map((slide, index) => (
-              <HeroCard
-                key={slide.id || index}
-                slide={slide}
-                index={index}
-                slideRefs={slideRefs}
-                contentRefs={contentRefs}
-                imageRefs={imageRefs}
-                isActive={index === currentSlide}
-              />
-            ))}
-            
-            {/* Dots with new style */}
+          // Container needs perspective for 3D effect
+          <div className="relative h-[400px] md:h-[550px] w-full max-w-[95%] mx-auto mt-4 rounded-3xl [perspective:1500px] group">
+            <div className="relative w-full h-full rounded-3xl shadow-2xl overflow-hidden bg-black transform-style-3d">
+              {heroSlides.map((slide, index) => (
+                <HeroCard
+                  key={slide.id || index}
+                  slide={slide}
+                  index={index}
+                  slideRefs={slideRefs}
+                  isActive={index === currentSlide}
+                />
+              ))}
+            </div>
+
+            {/* Controls */}
             {heroSlides.length > 1 && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-                {heroSlides.map((_, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => i !== currentSlide && animateSlide(i)}
-                    className={`h-2 rounded-full transition-all duration-300 hover:scale-110 ${
-                      i === currentSlide 
-                        ? 'w-10 bg-gradient-to-r from-primary to-purple-500 shadow-[0_0_12px_theme(colors.primary.DEFAULT)]' 
-                        : 'w-4 bg-white/60 hover:bg-white'
-                    }`}
-                    aria-label={`Slide ${i + 1}`} 
-                  />
-                ))}
-              </div>
+              <>
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-3">
+                  {heroSlides.map((_, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => i !== currentSlide && animateSlide(i, i > currentSlide ? 'next' : 'prev')}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        i === currentSlide 
+                          ? 'w-12 bg-primary shadow-glow' 
+                          : 'w-3 bg-white/40 hover:bg-white/80'
+                      }`}
+                    />
+                  ))}
+                </div>
+                {/* Side Arrows */}
+                <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/20 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/40">
+                  <ArrowRight className="rotate-180 w-6 h-6" />
+                </button>
+                <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/20 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/40">
+                  <ArrowRight className="w-6 h-6" />
+                </button>
+              </>
             )}
           </div>
         )}
       </section>
 
-      {/* FEATURES SECTION with Enhanced Glass Morphism */}
-      <section className="py-8 bg-gradient-to-b from-background via-background/80 to-background relative z-10">
+      {/* FEATURES SECTION - Gap Fix */}
+      <section className="py-4 relative z-10 -mt-2">
         <div className="container mx-auto px-4">
           <div ref={featuresRef} className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: Truck, title: 'Free Shipping', desc: 'Over $100', color: 'from-blue-500 to-cyan-500' },
-              { icon: Shield, title: 'Secure Pay', desc: '100% Safe', color: 'from-green-500 to-emerald-500' },
-              { icon: Clock, title: 'Fast Delivery', desc: 'Global', color: 'from-orange-500 to-red-500' },
-              { icon: Headphones, title: '24/7 Support', desc: 'Online', color: 'from-purple-500 to-pink-500' },
+              { icon: Truck, title: 'Free Shipping', desc: 'Over $100', color: 'bg-blue-500' },
+              { icon: Shield, title: 'Secure Pay', desc: '100% Safe', color: 'bg-green-500' },
+              { icon: Clock, title: 'Fast Delivery', desc: 'Global', color: 'bg-orange-500' },
+              { icon: Headphones, title: '24/7 Support', desc: 'Online', color: 'bg-purple-500' },
             ].map((f, i) => (
               <div 
                 key={i} 
-                className="group flex flex-col items-center text-center p-4 rounded-2xl bg-gradient-to-br from-card/80 to-card/60 backdrop-blur-xl border border-border/50 hover:border-primary/30 shadow-lg hover:shadow-2xl transition-all duration-300 active:scale-95 hover:scale-[1.02] dark:from-card/90 dark:to-card/70 dark:backdrop-blur-2xl"
+                className="group flex flex-col items-center text-center p-5 rounded-2xl bg-card/50 backdrop-blur-xl border border-border/50 hover:border-primary/30 shadow-sm hover:shadow-xl transition-all duration-300"
               >
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${f.color} text-white mb-3 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-lg group-hover:shadow-xl`}>
-                  <f.icon className="w-6 h-6" />
+                <div className={`p-3 rounded-full ${f.color} bg-opacity-10 text-${f.color.replace('bg-', '')} mb-3 group-hover:scale-110 transition-transform`}>
+                  <f.icon className={`w-6 h-6 text-${f.color.replace('bg-', '')}-500`} />
                 </div>
-                <h3 className="font-bold text-sm sm:text-base mb-1 group-hover:text-primary transition-colors dark:text-white/90">{f.title}</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground dark:text-white/70">{f.desc}</p>
+                <h3 className="font-bold text-sm sm:text-base mb-1">{f.title}</h3>
+                <p className="text-xs text-muted-foreground">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CATEGORIES with Improved Grid and Better Spacing */}
-      <section className="py-16">
+      {/* CATEGORIES SECTION */}
+      <section className="py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-end justify-between mb-10">
-            <div>
-              <span className="text-primary font-bold tracking-wider text-xs uppercase">Collections</span>
-              <h2 className="text-3xl font-bold mt-1 dark:text-white/90">Browse Categories</h2>
-            </div>
-            <Link to="/products" className="text-sm font-medium text-primary hover:underline flex items-center gap-1 group">
-              View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold">Categories</h2>
+            <Link to="/products" className="text-primary text-sm font-medium hover:underline">View All</Link>
           </div>
           
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 md:gap-6">
-            {categoriesLoading ? [...Array(8)].map((_, i) => (
-              <div key={i} className="aspect-square bg-muted/50 dark:bg-muted/30 rounded-2xl animate-pulse backdrop-blur-sm" />
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+            {categoriesLoading ? [...Array(6)].map((_, i) => (
+              <div key={i} className="aspect-square bg-muted rounded-2xl animate-pulse" />
             )) : categories.slice(0, 8).map((cat) => (
-              <Link 
-                key={cat.id} 
-                to={`/products?category=${cat.id}`} 
-                className="anim-up group flex flex-col items-center gap-3"
-              >
-                <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-transparent group-hover:border-primary/30 transition-all duration-300 shadow-lg group-hover:shadow-xl bg-gradient-to-br from-background/80 to-accent/10 dark:from-background/90 dark:to-accent/20 backdrop-blur-sm">
+              <Link key={cat.id} to={`/products?category=${cat.id}`} className="anim-up group flex flex-col items-center gap-2">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary/50 transition-all shadow-md group-hover:shadow-lg bg-muted">
                   {cat.image_url ? (
-                    <img 
-                      src={cat.image_url} 
-                      alt={cat.name} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                    />
+                    <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent to-accent/70 text-2xl text-accent-foreground">
-                      {cat.icon || '📦'}
-                    </div>
+                    <div className="w-full h-full flex items-center justify-center text-2xl">{cat.icon || '📦'}</div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
-                <span className="text-sm font-semibold group-hover:text-primary transition-colors text-center px-2 dark:text-white/80">{cat.name}</span>
+                <span className="text-sm font-medium text-center group-hover:text-primary transition-colors">{cat.name}</span>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* TRENDING PRODUCTS - Fixed Spacing and Enhanced Cards */}
-      <section className="py-16 bg-gradient-to-b from-muted/5 via-background to-background">
+      {/* TRENDING PRODUCTS */}
+      <section className="py-12 bg-secondary/20">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-3 dark:text-white/90">Trending Now</h2>
-            <div className="w-20 h-1 bg-gradient-to-r from-primary to-purple-500 mx-auto rounded-full" />
-            <p className="text-muted-foreground dark:text-white/70 mt-4 max-w-md mx-auto">
-              Discover our most popular products loved by thousands of customers
-            </p>
-          </div>
+          <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">Trending Now</h2>
 
-          {/* FIXED: Adjusted grid gap for better spacing */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-5 md:gap-6 min-h-[450px]">
-            {/* Loading State */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
             {productsLoading && !productsLoaded ? (
-              [...Array(8)].map((_, i) => (
-                <div key={i} className="anim-up">
-                  <ProductSkeletonCard />
-                </div>
-              ))
-            ) : productsError ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-20">
-                <div className="text-destructive text-lg mb-4">Failed to load products</div>
-                <Button variant="outline" onClick={() => window.location.reload()}>
-                  Try Again
-                </Button>
-              </div>
-            ) : featuredProducts.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-20">
-                <div className="text-muted-foreground text-lg mb-4">No products available</div>
-                <Button asChild>
-                  <Link to="/products">Browse All Products</Link>
-                </Button>
-              </div>
-            ) : (
-              // Products Grid with Link fix
-              featuredProducts.map((product) => (
-                <Link 
-                  key={product.id} 
-                  to={`/product/${product.id}`}
-                  className="anim-up block"
+              [...Array(8)].map((_, i) => <div key={i} className="anim-up"><ProductSkeletonCard /></div>)
+            ) : featuredProducts.map((product) => (
+              <Link key={product.id} to={`/product/${product.id}`} className="anim-up block">
+                <div 
+                  className="h-full rounded-2xl transition-all duration-300 hover:-translate-y-2"
+                  onMouseMove={(e) => handleTilt(e, e.currentTarget)}
+                  onMouseLeave={(e) => resetTilt(e.currentTarget)}
                 >
-                  <div 
-                    className="h-full transform-style-3d transition-transform duration-100 ease-out will-change-transform rounded-2xl hover:shadow-2xl transition-shadow duration-300"
-                    onMouseMove={(e) => handleTilt(e, e.currentTarget)}
-                    onMouseLeave={(e) => resetTilt(e.currentTarget)}
-                  >
-                    <div className="bg-gradient-to-br from-card/90 to-card/80 dark:from-card/95 dark:to-card/85 backdrop-blur-sm rounded-2xl border border-border/50 overflow-hidden h-full hover:border-primary/30 transition-all duration-300">
-                      <ProductCard product={product} />
-                    </div>
-                  </div>
-                </Link>
-              ))
-            )}
+                  <ProductCard product={product} />
+                </div>
+              </Link>
+            ))}
           </div>
-
-          {!productsLoading && featuredProducts.length > 0 && (
-            <div className="text-center mt-12">
-              <Button asChild size="lg" className="rounded-full px-8 py-6 text-base bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90">
-                <Link to="/products" className="flex items-center gap-2">
-                  View All Products <ArrowRight className="w-5 h-5" />
-                </Link>
-              </Button>
-            </div>
-          )}
         </div>
       </section>
     </Layout>
