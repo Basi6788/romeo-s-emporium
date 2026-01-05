@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import ReactDOM from 'react-dom/client' // 👈 Ye '/client' bohot zaroori hai React 18 me
 import { Link } from 'react-router-dom';
 import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Layout from '@/components/Layout';
