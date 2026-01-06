@@ -1,11 +1,17 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client' // 👈 Ye '/client' bohot zaroori hai React 18 me
-import App from './App.jsx'
-import './index.css'
+// src/main.tsx
 
-// Naye tarike se root create karna padta hai
-ReactDOM.createRoot(document.getElementById('root')).render(
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
+// Yeh line zaroori hai (path check kar lena apne project ke hisab se)
+import { ThemeProvider } from "./components/theme-provider" 
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    {/* App ko ThemeProvider ke andar band karo */}
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <App />
+    </ThemeProvider>
   </React.StrictMode>,
 )
