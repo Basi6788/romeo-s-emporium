@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom'; // useLocation added for scroll fix
-import { Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react'; // Chevron icons removed
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
@@ -53,12 +53,14 @@ const SwipeHandler = ({
     onSwipedLeft,
     onSwipedRight,
     trackMouse: true,
+    trackTouch: true,
     delta: 10,
-    preventScrollOnSwipe: true
+    preventScrollOnSwipe: true,
+    swipeDuration: 500
   });
 
   return (
-    <div {...handlers} className="w-full h-full touch-pan-y">
+    <div {...handlers} className="w-full h-full">
       {children}
     </div>
   );
@@ -67,11 +69,11 @@ const SwipeHandler = ({
 // --- Main HomePage ---
 const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isSwiping, setIsSwiping] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [loading, setLoading] = useState(true);
   const heroRef = useRef<HTMLDivElement>(null);
+  const sliderRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { pathname } = useLocation(); // Location hook for scroll fix
   
   // Tracking hook
   const { trackInteraction, getRecommendations } = useTracking();
@@ -80,11 +82,6 @@ const HomePage = () => {
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
-
-  // ✅ FIX: Scroll to top on route change (Footer bug fix)
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
 
   // Filter and memoize hero slides
   const heroSlides = useMemo(() => {
@@ -154,22 +151,21 @@ const HomePage = () => {
     }
   }, [heroSlides]);
 
-  // --- GSAP Animations (FIXED: No more disappearing/dimming) ---
+  // --- GSAP Animations (Optimized) ---
   useEffect(() => {
     if (productsLoading || heroLoading) return;
 
-    // Kill existing ScrollTriggers to prevent memory leaks/bugs
+    // Kill existing ScrollTriggers
     ScrollTrigger.getAll().forEach(trigger => trigger.kill());
 
     const ctx = gsap.context(() => {
-      // Hero entrance
+      // Hero entrance animation
       gsap.from('.hero-content', {
         y: 30,
         opacity: 0,
         duration: 0.8,
         ease: 'power2.out',
-        delay: 0.3,
-        clearProps: 'all' // Ensures CSS takes over after animation
+        delay: 0.3
       });
 
       // Features animation
@@ -181,8 +177,7 @@ const HomePage = () => {
         scrollTrigger: {
           trigger: '.features-section',
           start: 'top 85%',
-          // ✅ FIX: Changed 'reverse' to 'none' so elements stay visible
-          toggleActions: 'play none none none', 
+          toggleActions: 'play none none reverse',
           markers: false
         }
       });
@@ -196,8 +191,7 @@ const HomePage = () => {
         scrollTrigger: {
           trigger: '.products-section',
           start: 'top 80%',
-          // ✅ FIX: Elements won't hide when scrolling up
-          toggleActions: 'play none none none'
+          toggleActions: 'play none none reverse'
         }
       });
 
@@ -209,81 +203,163 @@ const HomePage = () => {
         stagger: 0.05,
         scrollTrigger: {
           trigger: '.categories-section',
-          start: 'top 85%',
-          toggleActions: 'play none none none'
+          start: 'top 85%'
         }
+      });
+
+      // Fix for sections not appearing
+      gsap.utils.toArray<HTMLElement>('section').forEach((section) => {
+        ScrollTrigger.create({
+          trigger: section,
+          start: 'top 90%',
+          onEnter: () => {
+            gsap.to(section, {
+              opacity: 1,
+              duration: 0.5,
+              ease: 'power2.out'
+            });
+          }
+        });
       });
     });
 
+    // Refresh ScrollTrigger after animations
     ScrollTrigger.refresh();
 
     return () => ctx.revert();
   }, [productsLoading, heroLoading]);
 
-  // --- Slider Logic ---
+  // --- Swipeable Slide Logic with Animation ---
   const goToSlide = useCallback((index: number) => {
-    if (heroSlides.length <= 1) return;
+    if (heroSlides.length <= 1 || isAnimating) return;
     
-    const newIndex = (index + heroSlides.length) % heroSlides.length;
-    setCurrentSlide(newIndex);
-    trackInteraction('click', `hero_slide_${newIndex}`, { slide: newIndex });
-  }, [heroSlides.length, trackInteraction]);
+    setIsAnimating(true);
+    
+    // Get current and next slide elements
+    const currentSlideEl = sliderRef.current?.children[currentSlide] as HTMLElement;
+    const nextSlideEl = sliderRef.current?.children[index] as HTMLElement;
+    
+    // Animation timeline
+    const tl = gsap.timeline({
+      onComplete: () => {
+        setCurrentSlide(index);
+        setIsAnimating(false);
+        trackInteraction('click', `hero_slide_${index}`, { slide: index });
+      }
+    });
+
+    if (currentSlideEl && nextSlideEl) {
+      // Determine swipe direction
+      const direction = index > currentSlide ? 'left' : 'right';
+      
+      // Outgoing slide animation
+      tl.to(currentSlideEl, {
+        x: direction === 'left' ? '-100%' : '100%',
+        opacity: 0,
+        duration: 0.5,
+        ease: 'power2.out'
+      })
+      // Incoming slide animation
+      .fromTo(nextSlideEl,
+        {
+          x: direction === 'left' ? '100%' : '-100%',
+          opacity: 0
+        },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.5,
+          ease: 'power2.out'
+        },
+        '-=0.25' // Overlap animations
+      );
+    } else {
+      // Fallback if elements not found
+      setCurrentSlide(index);
+      setIsAnimating(false);
+    }
+  }, [heroSlides.length, currentSlide, isAnimating, trackInteraction]);
 
   const nextSlide = useCallback(() => {
-    goToSlide(currentSlide + 1);
-  }, [currentSlide, goToSlide]);
+    const nextIndex = (currentSlide + 1) % heroSlides.length;
+    goToSlide(nextIndex);
+  }, [currentSlide, heroSlides.length, goToSlide]);
 
   const prevSlide = useCallback(() => {
-    goToSlide(currentSlide - 1);
-  }, [currentSlide, goToSlide]);
+    const prevIndex = (currentSlide - 1 + heroSlides.length) % heroSlides.length;
+    goToSlide(prevIndex);
+  }, [currentSlide, heroSlides.length, goToSlide]);
 
-  // Auto-slide
+  // Auto-slide with pause on hover/swipe
   useEffect(() => {
-    if (heroSlides.length <= 1 || isSwiping) return;
+    if (heroSlides.length <= 1 || isAnimating) return;
     
     const interval = setInterval(() => {
       nextSlide();
     }, 5000);
     
     return () => clearInterval(interval);
-  }, [heroSlides.length, nextSlide, isSwiping]);
+  }, [heroSlides.length, nextSlide, isAnimating]);
 
-  // --- 3D Tilt ---
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') prevSlide();
+      if (e.key === 'ArrowRight') nextSlide();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [prevSlide, nextSlide]);
+
+  // --- Mouse Wheel Handling for Hero ---
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (heroRef.current?.contains(e.target as Node)) {
+      e.preventDefault();
+      if (e.deltaY > 0) {
+        nextSlide();
+      } else if (e.deltaY < 0) {
+        prevSlide();
+      }
+    }
+  }, [nextSlide, prevSlide]);
+
+  useEffect(() => {
+    const heroElement = heroRef.current;
+    if (heroElement) {
+      heroElement.addEventListener('wheel', handleWheel, { passive: false });
+      return () => heroElement.removeEventListener('wheel', handleWheel);
+    }
+  }, [handleWheel]);
+
+  // --- 3D Tilt Effect for Product Cards ---
   const handleTilt = useCallback((e: React.MouseEvent, card: HTMLElement) => {
     if (window.innerWidth < 768) return;
     
-    requestAnimationFrame(() => {
-      const rect = card.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      
-      const rotateX = ((centerY - y) / centerY) * 3;
-      const rotateY = ((x - centerX) / centerX) * 3;
-      
-      gsap.to(card, {
-        rotateX,
-        rotateY,
-        scale: 1.02,
-        duration: 0.3,
-        ease: 'power1.out'
-      });
-    });
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    const rotateX = ((centerY - y) / centerY) * 3;
+    const rotateY = ((x - centerX) / centerX) * 3;
+    
+    card.style.transform = `
+      perspective(1000px) 
+      rotateX(${rotateX}deg) 
+      rotateY(${rotateY}deg) 
+      scale3d(1.02, 1.02, 1.02)
+    `;
   }, []);
 
   const resetTilt = useCallback((card: HTMLElement) => {
-    gsap.to(card, {
-      rotateX: 0,
-      rotateY: 0,
-      scale: 1,
-      duration: 0.4,
-      ease: 'power2.out'
-    });
+    card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
   }, []);
 
   // --- Navigation Handler ---
   const handleCardClick = useCallback((e: React.MouseEvent, productId: string) => {
+    // Prevent navigation if clicking on interactive elements
     if (
       (e.target as HTMLElement).closest('button') ||
       (e.target as HTMLElement).closest('a') ||
@@ -292,6 +368,7 @@ const HomePage = () => {
       return;
     }
     
+    // Track product view
     const product = products.find(p => p.id === productId);
     if (product) {
       trackInteraction('product_click', productId, {
@@ -303,6 +380,16 @@ const HomePage = () => {
     navigate(`/product/${productId}`);
   }, [navigate, products, trackInteraction]);
 
+  // --- Fix for sections not appearing ---
+  useEffect(() => {
+    // Ensure all sections are visible initially
+    const sections = document.querySelectorAll('section');
+    sections.forEach(section => {
+      section.style.opacity = '1';
+    });
+  }, []);
+
+  // Show loader while initializing
   if (loading && heroSlides.length > 0) {
     return (
       <Layout>
@@ -315,11 +402,12 @@ const HomePage = () => {
     <Layout>
       <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-b from-background to-muted/10">
         
-        {/* HERO SECTION (Buttons Removed, Swipe Enabled) */}
+        {/* HERO SECTION with Swipeable Cards */}
         <section 
           ref={heroRef}
           className="relative w-full h-[500px] md:h-[600px] mb-12 md:mb-16"
         >
+          {/* Background Effects */}
           <Suspense fallback={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5" />}>
             <ParticleBackground />
           </Suspense>
@@ -327,39 +415,59 @@ const HomePage = () => {
           {heroLoading ? (
             <HeroSkeleton />
           ) : heroSlides.length > 0 ? (
-            <div className="relative h-full w-full mx-auto rounded-none md:rounded-3xl overflow-hidden shadow-2xl bg-black">
-              {/* ✅ FIX: Wrapped in SwipeHandler */}
-              <SwipeHandler onSwipedLeft={nextSlide} onSwipedRight={prevSlide}>
-                <div className="relative h-full w-full select-none cursor-grab active:cursor-grabbing">
+            <SwipeHandler onSwipedLeft={nextSlide} onSwipedRight={prevSlide}>
+              <div className="relative h-full w-full mx-auto rounded-none md:rounded-3xl overflow-hidden shadow-2xl bg-black">
+                <div ref={sliderRef} className="relative h-full w-full">
                   {heroSlides.map((slide, index) => (
-                    <Suspense key={slide.id || index} fallback={<HeroSkeleton />}>
-                      <HeroCard
-                        slide={slide}
-                        isActive={index === currentSlide}
-                      />
-                    </Suspense>
+                    <div
+                      key={slide.id || index}
+                      className={`absolute inset-0 transition-opacity duration-500 ${
+                        index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                      }`}
+                      style={{
+                        transform: index === currentSlide ? 'translateX(0)' : 'translateX(100%)'
+                      }}
+                    >
+                      <Suspense fallback={<HeroSkeleton />}>
+                        <HeroCard
+                          slide={slide}
+                          isActive={index === currentSlide}
+                        />
+                      </Suspense>
+                    </div>
                   ))}
                 </div>
-              </SwipeHandler>
-              
-              {/* Note: Buttons (Filters) Removed as requested */}
-              
-              {/* Dots Navigation (Kept for visual indication) */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
-                {heroSlides.map((_, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => goToSlide(i)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      i === currentSlide 
-                        ? 'w-8 bg-white shadow-lg' 
-                        : 'w-2 bg-white/50 hover:bg-white hover:w-4'
-                    }`}
-                    aria-label={`Go to slide ${i + 1}`}
-                  />
-                ))}
+                
+                {/* Dots Navigation with Improved Visibility */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+                  {heroSlides.map((_, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => goToSlide(i)}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        i === currentSlide 
+                          ? 'w-8 bg-white shadow-lg' 
+                          : 'w-2 bg-white/50 hover:bg-white hover:w-4'
+                      }`}
+                      aria-label={`Go to slide ${i + 1}`}
+                      disabled={isAnimating}
+                    />
+                  ))}
+                </div>
+                
+                {/* Swipe Instruction Hint */}
+                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 opacity-70 animate-pulse">
+                  <div className="flex items-center gap-2 text-white/80 text-sm bg-black/30 px-4 py-2 rounded-full">
+                    <span className="hidden md:inline">Swipe or use arrow keys</span>
+                    <span className="md:hidden">Swipe to navigate</span>
+                    <div className="flex">
+                      <span className="animate-bounce">←</span>
+                      <span className="animate-bounce delay-100">→</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            </SwipeHandler>
           ) : (
             <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-3xl">
               <div className="text-center space-y-4">
@@ -371,8 +479,8 @@ const HomePage = () => {
           )}
         </section>
 
-        {/* FEATURES */}
-        <section className="features-section py-8 container mx-auto px-4">
+        {/* FEATURES SECTION - Fixed Visibility */}
+        <section className="features-section py-8 container mx-auto px-4 opacity-100">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[
               { icon: Truck, title: 'Free Shipping', desc: 'On orders over $100', color: 'text-blue-500', bg: 'bg-blue-500/10' },
@@ -382,7 +490,7 @@ const HomePage = () => {
             ].map((f, i) => (
               <div 
                 key={i} 
-                className="feature-card flex flex-col items-center text-center p-6 rounded-2xl bg-card border hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
+                className="feature-card flex flex-col items-center text-center p-6 rounded-2xl bg-card border hover:border-primary/50 hover:shadow-lg transition-all duration-300 group opacity-100"
                 onClick={() => trackInteraction('click', `feature_${f.title}`)}
               >
                 <div className={`w-14 h-14 rounded-full ${f.bg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
@@ -395,10 +503,10 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* CATEGORIES */}
-        <section className="categories-section py-12 bg-gradient-to-b from-transparent to-muted/20">
+        {/* CATEGORIES SECTION - Fixed Layout */}
+        <section className="categories-section py-12 bg-gradient-to-b from-transparent to-muted/20 opacity-100">
           <div className="container mx-auto px-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   Browse Categories
@@ -411,7 +519,7 @@ const HomePage = () => {
             </div>
             
             {categoriesLoading ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="category-card animate-pulse">
                     <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-3"></div>
@@ -420,12 +528,12 @@ const HomePage = () => {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4 md:gap-6">
                 {categories.length > 0 ? categories.slice(0, 12).map((cat) => (
                   <Link 
                     key={cat.id} 
                     to={`/products?category=${cat.id}`}
-                    className="category-card group flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-card hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                    className="category-card group flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-card hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 opacity-100"
                     onClick={() => trackInteraction('click', `category_${cat.name}`)}
                   >
                     <div className="relative w-16 h-16 md:w-20 md:h-20">
@@ -457,8 +565,8 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* PERSONALIZED PRODUCTS */}
-        <section className="products-section py-16 container mx-auto px-4">
+        {/* PERSONALIZED PRODUCTS SECTION - Fixed Positioning */}
+        <section className="products-section py-16 container mx-auto px-4 relative">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 mb-4">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -482,13 +590,13 @@ const HomePage = () => {
               featuredProducts.map((product) => (
                 <div 
                   key={product.id} 
-                  className="product-card group relative h-full"
+                  className="product-card group relative h-full opacity-100"
                   onMouseMove={(e) => handleTilt(e, e.currentTarget)}
                   onMouseLeave={(e) => resetTilt(e.currentTarget)}
                   onClick={(e) => handleCardClick(e, product.id)}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="relative bg-card h-full rounded-2xl border hover:shadow-2xl transition-all duration-300 overflow-hidden transform-style-3d">
+                  <div className="relative bg-card h-full rounded-2xl border hover:shadow-2xl transition-all duration-300 overflow-hidden">
                     <ProductCard 
                       product={product} 
                       className="h-full bg-transparent"
@@ -536,11 +644,11 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* BANNER */}
-        <section className="py-12 container mx-auto px-4">
+        {/* BANNER SECTION - Fixed for all screen sizes */}
+        <section className="py-12 container mx-auto px-4 relative">
           <div className="relative rounded-3xl overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/80 to-secondary z-0" />
-            <div className="relative z-10 p-8 md:p-12 text-white">
+            <div className="relative z-10 p-6 md:p-12 text-white">
               <div className="max-w-2xl">
                 <h3 className="text-2xl md:text-3xl font-bold mb-4">
                   Start Shopping Today!
