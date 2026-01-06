@@ -5,7 +5,9 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 // Yeh line zaroori hai (path check kar lena apne project ke hisab se)
+// src/main.tsx
 import { ThemeProvider } from "./components/theme-provider" 
+" 
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
