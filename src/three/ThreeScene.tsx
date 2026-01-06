@@ -1,25 +1,32 @@
 import { Canvas } from '@react-three/fiber';
-import { Environment, Float } from '@react-three/drei';
+import { Environment, PerspectiveCamera } from '@react-three/drei';
+import { Suspense, useState, useEffect } from 'react';
+import HeroScene from '@/scenes/HeroScene';
 import { useThemeStore } from '@/theme/themeStore';
-import FloatingCards from './objects/FloatingCards';
 
-export default function ThreeScene() {
-  const mode = useThemeStore(s => s.mode);
+const ThreeScene = ({ scrollY }: { scrollY: number }) => {
+  const { isDarkMode } = useThemeStore();
+  
+  // Convert scrollY to a normalized 0-1 value for animations
+  const scrollProgress = Math.min(scrollY / 1000, 1);
 
   return (
-    <Canvas
-      className="fixed inset-0 -z-10"
-      camera={{ position: [0, 0, 6], fov: 45 }}
-    >
-      <color attach="background" args={[mode === 'dark' ? '#050505' : '#fdecec']} />
-      <ambientLight intensity={0.8} />
-      <directionalLight position={[5, 5, 5]} intensity={1} />
-
-      <Environment preset={mode === 'dark' ? 'night' : 'sunset'} />
-
-      <Float speed={1.5} rotationIntensity={0.6}>
-        <FloatingCards />
-      </Float>
-    </Canvas>
+    <div className="fixed inset-0 z-0 pointer-events-none">
+      <Canvas gl={{ antialias: true }} dpr={[1, 2]}>
+        <PerspectiveCamera makeDefault position={[0, 0, 6]} />
+        
+        <Suspense fallback={null}>
+          <HeroScene scrollProgress={scrollProgress} />
+          
+          {/* Environment Lighting */}
+          <Environment preset={isDarkMode ? "night" : "city"} />
+          
+          {/* Dynamic Background Color */}
+          <color attach="background" args={[isDarkMode ? '#0f172a' : '#ffe4e6']} /> {/* Pinkish for Light, Dark for Dark mode */}
+        </Suspense>
+      </Canvas>
+    </div>
   );
-}
+};
+
+export default ThreeScene;
