@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import ProductLoader from '@/components/Loaders/ProductLoader';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Swipeable } from 'react-swipeable';
+// ✅ FIX: Import changed from component to hook
+import { useSwipeable } from 'react-swipeable';
 
 // Lazy load heavy components
 const ParticleBackground = lazy(() => import('@/components/ParticleBackground'));
@@ -39,7 +40,7 @@ const ProductSkeletonCard = () => (
   </div>
 );
 
-// --- Swipe Handler Component ---
+// --- Swipe Handler Component (FIXED) ---
 const SwipeHandler = ({ 
   onSwipedLeft, 
   onSwipedRight, 
@@ -48,18 +49,22 @@ const SwipeHandler = ({
   onSwipedLeft: () => void;
   onSwipedRight: () => void;
   children: React.ReactNode;
-}) => (
-  <Swipeable
-    onSwipedLeft={onSwipedLeft}
-    onSwipedRight={onSwipedRight}
-    preventDefaultTouchmoveEvent
-    trackMouse // Enable mouse swipes
-    delta={10} // Sensitivity
-    className="w-full h-full"
-  >
-    {children}
-  </Swipeable>
-);
+}) => {
+  // ✅ FIX: Used useSwipeable hook instead of <Swipeable> component
+  const handlers = useSwipeable({
+    onSwipedLeft,
+    onSwipedRight,
+    trackMouse: true, // Enable mouse swipes
+    delta: 10, // Sensitivity
+    preventScrollOnSwipe: true // Prevents scrolling while swiping
+  });
+
+  return (
+    <div {...handlers} className="w-full h-full">
+      {children}
+    </div>
+  );
+};
 
 // --- Main HomePage ---
 const HomePage = () => {
