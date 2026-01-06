@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, Suspense } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import HeroCard from '@/components/HeroCard';
@@ -24,9 +24,7 @@ const HomePage = () => {
   const { data: products = [] } = useProducts();
   const { data: heroSlides = [] } = useHeroImages();
 
-  // -------------------------------
-  // HERO SCROLL FADE OUT
-  // -------------------------------
+  /* HERO SCROLL FADE */
   useEffect(() => {
     if (!heroRef.current) return;
 
@@ -47,9 +45,7 @@ const HomePage = () => {
     return () => ScrollTrigger.getAll().forEach(t => t.kill());
   }, []);
 
-  // -------------------------------
-  // SLIDE CHANGE
-  // -------------------------------
+  /* SLIDE CHANGE */
   const goTo = useCallback(
     (index: number) => {
       if (animating || index === current) return;
@@ -61,22 +57,22 @@ const HomePage = () => {
       const currentEl = slides[current] as HTMLElement;
       const nextEl = slides[index] as HTMLElement;
 
-      const tl = gsap.timeline({
+      gsap.timeline({
         onComplete: () => {
           setCurrent(index);
           setAnimating(false);
         },
-      });
-
-      tl.to(currentEl, {
+      })
+      .to(currentEl, {
         opacity: 0,
         y: -60,
         scale: 0.96,
         duration: 0.6,
         ease: 'power3.inOut',
-      }).fromTo(
+      })
+      .fromTo(
         nextEl,
-        { opacity: 0, y: 80, scale: 1.02 },
+        { opacity: 0, y: 80, scale: 1.03 },
         {
           opacity: 1,
           y: 0,
@@ -84,7 +80,7 @@ const HomePage = () => {
           duration: 0.8,
           ease: 'power3.out',
         },
-        '-=0.2'
+        '-=0.25'
       );
     },
     [current, animating]
@@ -94,20 +90,16 @@ const HomePage = () => {
   const prev = () =>
     goTo((current - 1 + heroSlides.length) % heroSlides.length);
 
-  // -------------------------------
-  // SWIPE
-  // -------------------------------
+  /* SWIPE */
   const swipeHandlers = useSwipeable({
     onSwipedLeft: next,
     onSwipedRight: prev,
     preventScrollOnSwipe: true,
-    trackTouch: true,
     trackMouse: true,
+    trackTouch: true,
   });
 
-  // -------------------------------
-  // AUTO SLIDE
-  // -------------------------------
+  /* AUTO SLIDE */
   useEffect(() => {
     if (heroSlides.length <= 1) return;
     const id = setInterval(next, 6000);
@@ -116,7 +108,7 @@ const HomePage = () => {
 
   return (
     <Layout>
-      {/* ================= HERO ================= */}
+      {/* HERO */}
       <section
         ref={heroRef}
         {...swipeHandlers}
@@ -148,22 +140,22 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ================= PRODUCTS ================= */}
+      {/* PRODUCTS */}
       <section className="py-20 container mx-auto px-4">
         <div className="text-center mb-14">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 mb-4">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold text-primary">
-              Trending Now
+              New Arrivals
             </span>
           </div>
 
           <h2 className="text-3xl md:text-4xl font-bold mb-3">
-            New Arrivals
+            Trending Products
           </h2>
 
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Handpicked products you’ll actually want.
+            Products people actually want, not filler.
           </p>
         </div>
 
@@ -171,7 +163,7 @@ const HomePage = () => {
           {products.slice(0, 8).map((p) => (
             <div
               key={p.id}
-              className="group cursor-pointer"
+              className="cursor-pointer"
               onClick={() => navigate(`/product/${p.id}`)}
             >
               <ProductCard product={p} />
