@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import ReactDOM from 'react-dom/client' // 👈 Ye '/client' bohot zaroori hai React 18 me
+import ReactDOM from 'react-dom/client'
 import { Link } from 'react-router-dom';
 import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Layout from '@/components/Layout';
@@ -352,8 +352,8 @@ const HomePage = () => {
   // --- Animations ---
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Parallax
-      if (window.innerWidth > 768) {
+      // Parallax - Added safety check for imageRefs
+      if (window.innerWidth > 768 && imageRefs.current.length > 0) {
         gsap.to(imageRefs.current, {
           yPercent: 15,
           ease: "none",
@@ -362,7 +362,9 @@ const HomePage = () => {
       }
       // Features Reveal with enhanced animation
       if(featuresRef.current) {
-        const features = featuresRef.current.children;
+        // --- FIX IS HERE: Converted HTMLCollection to Array using Array.from() ---
+        const features = Array.from(featuresRef.current.children);
+        
         gsap.fromTo(features,
           { 
             y: 100, 
@@ -386,7 +388,7 @@ const HomePage = () => {
           }
         );
         
-        // Add hover effects to features
+        // Add hover effects to features - NOW this works properly because 'features' is an Array
         features.forEach(feature => {
           feature.addEventListener('mouseenter', () => {
             gsap.to(feature, {
