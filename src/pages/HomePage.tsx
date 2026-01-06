@@ -1,192 +1,139 @@
-import { useEffect, useRef, useState } from 'react';
-import { Search, Menu, ShoppingBag, Sun, Moon } from 'lucide-react';
+import { useRef, useState, useLayoutEffect } from 'react';
+import { Search, AlignRight, User } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import ThreeScene from '@/three/ThreeScene';
-import { useThemeStore } from '@/theme/themeStore';
+import { useGSAP } from '@gsap/react';
+import clsx from 'clsx';
+
+import SceneContainer from '@/scenes/SceneContainer';
+import ProductCard from '@/components/ProductCard';
+import FloatingCart from '@/components/FloatingCart';
+import { useTheme } from '@/hooks/useTheme';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Dummy Data for UI (based on image)
+// --- Mock Data ---
 const PRODUCTS = [
-  { id: 1, name: 'Airpods Pro', price: '$499.00', img: '🎧', bg: 'bg-white' },
-  { id: 2, name: 'Speakers', price: '$359.00', img: '🔊', bg: 'bg-blue-900' },
-  { id: 3, name: 'Headphones', price: '$650.00', img: '🎧', bg: 'bg-red-400' },
-  { id: 4, name: 'Earphones', price: '$60.00', img: '🎵', bg: 'bg-gray-100' },
+  { id: '1', name: 'AirPods Pro', price: 499.00, category: 'Headphones', image: 'https://pngimg.com/d/airpods_PNG2.png' },
+  { id: '2', name: 'HomePod Mini', price: 349.00, category: 'Speakers', image: 'https://pngimg.com/d/homepod_PNG10.png' },
+  { id: '3', name: 'Sony XM5', price: 650.00, category: 'Headphones', image: 'https://pngimg.com/d/headphones_PNG101967.png' },
+  { id: '4', name: 'Earphones', price: 60.00, category: 'Earphones', image: 'https://pngimg.com/d/earphones_PNG1.png' },
+  { id: '5', name: 'JBL Pulse', price: 220.00, category: 'Speakers', image: 'https://pngimg.com/d/wireless_speaker_PNG36.png' },
+  { id: '6', name: 'Beats Studio', price: 300.00, category: 'Headphones', image: 'https://pngimg.com/d/headphones_PNG7647.png' },
 ];
 
 const CATEGORIES = ['All', 'Headphones', 'Speakers', 'Cables'];
 
 const HomePage = () => {
-  const { isDarkMode, toggleTheme } = useThemeStore();
-  const [scrollY, setScrollY] = useState(0);
+  const { theme, toggleTheme } = useTheme();
+  const [activeCat, setActiveCat] = useState('All');
   
-  // Refs for GSAP
   const containerRef = useRef<HTMLDivElement>(null);
-  const heroTextRef = useRef<HTMLDivElement>(null);
-  const cardsRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
-  // Scroll Listener for ThreeJS bridge
-  useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  // --- Animations ---
+  useGSAP(() => {
+    const tl = gsap.timeline();
 
-  // GSAP Animations
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Header Entry
-      gsap.from('.header-item', {
-        y: -20,
+    // Initial Load Animation
+    tl.from(headerRef.current, { y: -50, opacity: 0, duration: 0.8, ease: "power3.out" })
+      .from(titleRef.current, { x: -30, opacity: 0, duration: 0.8 }, "-=0.6")
+      .from(chipsRef.current, { x: 50, opacity: 0, duration: 0.8 }, "-=0.6")
+      .from('.product-grid-item', { y: 100, opacity: 0, stagger: 0.1, duration: 0.8 }, "-=0.4");
+
+    // Scroll Interaction: Fade out header as grid scrolls up
+    ScrollTrigger.create({
+      trigger: gridRef.current,
+      start: "top 60%", 
+      end: "top 20%",
+      scrub: 1,
+      animation: gsap.to([titleRef.current, chipsRef.current], {
         opacity: 0,
-        duration: 0.8,
-        stagger: 0.1,
-        ease: 'power3.out'
-      });
+        y: -50,
+        filter: 'blur(10px)',
+        stagger: 0.05
+      })
+    });
 
-      // Hero Text Entry
-      gsap.from(heroTextRef.current, {
-        x: -50,
-        opacity: 0,
-        duration: 1,
-        delay: 0.3,
-        ease: 'power3.out'
-      });
-
-      // Categories Entry
-      gsap.from('.category-pill', {
-        scale: 0,
-        opacity: 0,
-        duration: 0.5,
-        stagger: 0.1,
-        delay: 0.6,
-        ease: 'back.out(1.7)'
-      });
-
-      // Product Cards Stagger Entry
-      gsap.from('.product-card', {
-        y: 100,
-        opacity: 0,
-        duration: 0.8,
-        stagger: 0.1,
-        scrollTrigger: {
-          trigger: '.product-grid',
-          start: 'top 80%',
-        }
-      });
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, []);
+  }, { scope: containerRef });
 
   return (
-    <div ref={containerRef} className={`relative min-h-screen w-full transition-colors duration-500 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+    <div ref={containerRef} className="relative min-h-screen w-full font-sans overflow-hidden">
       
-      {/* 1. THE 3D BACKGROUND LAYER */}
-      <ThreeScene scrollY={scrollY} />
+      {/* 3D Background Layer */}
+      <SceneContainer />
 
-      {/* 2. THE UI CONTENT LAYER */}
-      <div className="relative z-10 container mx-auto px-6 py-8 max-w-md md:max-w-lg lg:max-w-2xl bg-transparent">
+      {/* Main Content Overlay */}
+      <div className="relative z-10 max-w-md mx-auto min-h-screen flex flex-col px-6 pt-8 pb-32">
         
-        {/* Header */}
-        <header className="flex justify-between items-center mb-10 header-item">
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-lg cursor-pointer">
-            <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className="w-full h-full object-cover" />
+        {/* Top Header */}
+        <header ref={headerRef} className="flex items-center justify-between mb-8">
+          <div className="relative flex-1 mr-4">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search" 
+              className="w-full bg-white dark:bg-white/10 backdrop-blur-sm rounded-full py-3 pl-12 pr-4 text-sm outline-none focus:ring-2 ring-primary/20 shadow-sm dark:text-white transition-colors"
+            />
           </div>
           <button 
             onClick={toggleTheme}
-            className={`p-3 rounded-full shadow-lg backdrop-blur-md transition-all ${isDarkMode ? 'bg-white/10 text-yellow-400' : 'bg-white text-gray-800'}`}
+            className="w-10 h-10 rounded-full bg-black dark:bg-white overflow-hidden flex items-center justify-center transition-transform active:scale-90"
           >
-            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-          <button className={`p-3 rounded-full shadow-lg backdrop-blur-md ${isDarkMode ? 'bg-white/10' : 'bg-white'}`}>
-             <Menu size={20} />
+            {theme === 'light' ? (
+              <img src="https://i.pravatar.cc/150?img=32" alt="User" className="w-full h-full object-cover opacity-90 hover:opacity-100" />
+            ) : (
+               <User className="text-black" size={20} />
+            )}
           </button>
         </header>
 
-        {/* Search Bar */}
-        <div className="header-item mb-8">
-          <div className={`flex items-center px-6 py-4 rounded-full shadow-xl backdrop-blur-lg ${isDarkMode ? 'bg-gray-800/50' : 'bg-white'}`}>
-            <Search className="text-gray-400 mr-3" size={20} />
-            <input 
-              type="text" 
-              placeholder="Search products..." 
-              className="bg-transparent border-none outline-none w-full text-lg placeholder-gray-400"
-            />
+        {/* Hero Title & Filters */}
+        <div className="mb-8 relative z-20">
+          <div ref={titleRef} className="flex justify-between items-end mb-6">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">
+              New <br /> arrivals
+            </h1>
+            <button className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+              <AlignRight size={24} className="text-gray-900 dark:text-white" />
+            </button>
+          </div>
+
+          <div ref={chipsRef} className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mask-linear">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCat(cat)}
+                className={clsx(
+                  "px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 border",
+                  activeCat === cat
+                    ? "bg-black text-white border-black dark:bg-white dark:text-black dark:border-white scale-105 shadow-lg"
+                    : "bg-transparent text-gray-500 border-gray-200 dark:border-white/20 hover:border-gray-400"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Hero / Title Section */}
-        <div ref={heroTextRef} className="mb-8">
-          <h1 className="text-4xl font-bold leading-tight">
-            New <br />
-            <span className="text-5xl">arrivals</span>
-          </h1>
-        </div>
-
-        {/* Categories Pills */}
-        <div className="flex gap-3 overflow-x-auto pb-6 no-scrollbar mb-4">
-          {CATEGORIES.map((cat, i) => (
-            <button
-              key={cat}
-              className={`category-pill px-6 py-3 rounded-full whitespace-nowrap text-sm font-medium transition-all duration-300
-                ${i === 0 
-                  ? 'bg-black text-white shadow-lg scale-105' 
-                  : isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600 border border-gray-100'
-                }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
         {/* Product Grid */}
-        <div className="product-grid grid grid-cols-2 gap-5 mb-20" ref={cardsRef}>
-          {PRODUCTS.map((product) => (
-            <div 
-              key={product.id}
-              className={`product-card group relative p-4 rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer
-                ${isDarkMode ? 'bg-gray-800/80 border border-gray-700' : 'bg-white/80'}
-              `}
-              onMouseEnter={() => {
-                 // GSAP Hover effect via React event
-                 gsap.to(`.p-img-${product.id}`, { scale: 1.1, duration: 0.3 });
-              }}
-              onMouseLeave={() => {
-                 gsap.to(`.p-img-${product.id}`, { scale: 1, duration: 0.3 });
-              }}
-            >
-              <div className="flex justify-center items-center h-32 mb-4 relative">
-                {/* Visual Representation of product (using emoji placeholder or 3D canvas could go here) */}
-                <div className={`p-img-${product.id} text-6xl drop-shadow-2xl transition-transform`}>
-                  {product.img}
-                </div>
-              </div>
-              
-              <div className="space-y-1">
-                <h3 className="font-bold text-lg">{product.name}</h3>
-                <p className="text-sm opacity-60 font-medium">{product.price}</p>
-              </div>
-
-              {/* Floating Action Button */}
-              {/* Special styling for highlighted items like the black button in image */}
-              <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300`}>
-                 <button className="bg-black text-white p-3 rounded-full shadow-lg flex items-center gap-2 px-5">
-                    <span className="text-xs font-bold">Buy</span>
-                    <ShoppingBag size={14} />
-                 </button>
-              </div>
-            </div>
+        <div ref={gridRef} className="grid grid-cols-2 gap-4 auto-rows-fr">
+          {PRODUCTS.filter(p => activeCat === 'All' || p.category === activeCat).map((product) => (
+             <div key={product.id} className="product-grid-item">
+               <ProductCard product={product} />
+             </div>
           ))}
-        </div>
-
-        {/* Bottom Navigation Fake */}
-        <div className={`fixed bottom-0 left-0 w-full p-4 backdrop-blur-md z-50 flex justify-around items-center rounded-t-3xl border-t ${isDarkMode ? 'bg-black/80 border-gray-800' : 'bg-white/80 border-gray-100'}`}>
-           <div className="w-1/3 flex justify-center"><div className="w-12 h-1 bg-gray-300 rounded-full" /></div>
         </div>
 
       </div>
+
+      {/* Fixed Floating Cart */}
+      <FloatingCart />
+
     </div>
   );
 };
