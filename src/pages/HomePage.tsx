@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
@@ -12,32 +12,29 @@ import * as THREE from 'three';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// --- 1. Three.js Background (Fixed z-index & Scroll) ---
+// --- 1. Three.js Background (Optimized for performance) ---
 const ParticleBackground = () => {
   const mountRef = useRef(null);
 
   useEffect(() => {
+    // Mobile pe heavy animation avoid karne ke liye check
     if (!mountRef.current || window.innerWidth < 768) return; 
-
-    // Clean up
-    while(mountRef.current.firstChild) mountRef.current.removeChild(mountRef.current.firstChild);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    // Important: Pointer events none to ensure scrolling works through the canvas
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Performance fix
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
     renderer.domElement.style.left = '0';
-    renderer.domElement.style.pointerEvents = 'none';
+    renderer.domElement.style.pointerEvents = 'none'; // Click-through enabled
     
     mountRef.current.appendChild(renderer.domElement);
 
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 1000;
+    const particlesCount = 800; // Count reduced slightly for optimization
     const posArray = new Float32Array(particlesCount * 3);
     
     for(let i = 0; i < particlesCount * 3; i+=3) {
@@ -50,7 +47,7 @@ const ParticleBackground = () => {
     
     const material = new THREE.PointsMaterial({
       size: 0.04,
-      color: 0x8b5cf6, // Violet color fixed
+      color: 0x8b5cf6, 
       transparent: true,
       opacity: 0.4,
       blending: THREE.AdditiveBlending,
@@ -65,8 +62,9 @@ const ParticleBackground = () => {
     
     const animate = () => {
       const elapsedTime = clock.getElapsedTime();
-      particlesMesh.rotation.y = elapsedTime * 0.05;
-      particlesMesh.rotation.x = elapsedTime * 0.02;
+      // Rotation thori slow ki hai smooth feel ke liye
+      particlesMesh.rotation.y = elapsedTime * 0.03; 
+      particlesMesh.rotation.x = elapsedTime * 0.01;
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(animate);
     };
@@ -84,7 +82,12 @@ const ParticleBackground = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationId);
-      if(mountRef.current) mountRef.current.innerHTML = '';
+      if(mountRef.current) {
+         // Safe cleanup
+         while(mountRef.current.firstChild) {
+            mountRef.current.removeChild(mountRef.current.firstChild);
+         }
+      }
       particlesGeometry.dispose();
       material.dispose();
       renderer.dispose();
@@ -94,8 +97,11 @@ const ParticleBackground = () => {
   return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none opacity-50" />;
 };
 
-// --- 2. Animated Text Component (More Bounce) ---
+// --- 2. Animated Text Component ---
 const AnimatedText = ({ text, className = "", delay = 0 }) => {
+  // Safe guard agar text undefined ho
+  if (!text) return null;
+  
   const letters = text.split("");
   const containerRef = useRef(null);
   
@@ -103,21 +109,15 @@ const AnimatedText = ({ text, className = "", delay = 0 }) => {
     if (containerRef.current) {
       gsap.fromTo(
         containerRef.current.children,
-        { 
-          y: 40, 
-          opacity: 0, 
-          scale: 0.5,
-          rotateX: -90
-        },
+        { y: 40, opacity: 0, rotateX: -90 },
         { 
           y: 0, 
           opacity: 1, 
-          scale: 1,
           rotateX: 0,
-          duration: 0.9,
+          duration: 0.8,
           delay,
-          stagger: 0.03,
-          ease: "elastic.out(1, 0.5)" // More bouncy
+          stagger: 0.02,
+          ease: "back.out(1.7)"
         }
       );
     }
@@ -126,11 +126,7 @@ const AnimatedText = ({ text, className = "", delay = 0 }) => {
   return (
     <span ref={containerRef} className={`inline-flex flex-wrap ${className}`}>
       {letters.map((letter, i) => (
-        <span 
-          key={i} 
-          className="inline-block hover:text-primary transition-colors duration-200"
-          style={{ whiteSpace: letter === " " ? "pre" : "normal" }}
-        >
+        <span key={i} className="inline-block" style={{ whiteSpace: letter === " " ? "pre" : "normal" }}>
           {letter}
         </span>
       ))}
@@ -138,368 +134,318 @@ const AnimatedText = ({ text, className = "", delay = 0 }) => {
   );
 };
 
-// --- 3. Hero Card (Fixed Colors & Removed Buttons logic visual) ---
-const HeroCard = ({ slide, index, slideRefs, contentRefs, imageRefs, isActive }) => {
+// --- 3. Hero Card ---
+const HeroCard = ({ slide, index, isActive }) => {
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    if (isActive && cardRef.current) {
+      gsap.fromTo(cardRef.current, 
+        { scale: 1.1, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 1, ease: "power2.out" }
+      );
+    }
+  }, [isActive]);
+
   return (
     <div
-      key={slide.id || index}
-      ref={el => slideRefs.current[index] = el}
-      className="absolute inset-0 overflow-hidden flex items-center md:items-end pb-12 md:pb-24"
-      style={{ visibility: isActive ? 'visible' : 'hidden', zIndex: isActive ? 10 : 0 }}
+      className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
+        isActive ? 'opacity-100 z-10 visible' : 'opacity-0 z-0 invisible'
+      }`}
     >
-      {/* Fixed Overlay: Using strict black gradients to ensure text is always white regardless of theme */}
-      <div className="absolute inset-0 z-[-1] rounded-3xl overflow-hidden bg-black">
+      <div ref={cardRef} className="relative w-full h-full">
+        {/* Image Layer */}
         <img
-          ref={el => imageRefs.current[index] = el}
           src={slide.image}
           alt={slide.title}
-          className="w-full h-[120%] object-cover opacity-80 transition-all duration-700"
+          className="absolute inset-0 w-full h-full object-cover"
           loading={index === 0 ? 'eager' : 'lazy'}
         />
-        {/* Gradient forcing dark bottom for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
-        <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-40 mix-blend-overlay`} />
-      </div>
+        
+        {/* Gradient Overlay for Text Readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-80" />
+        <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient || 'from-purple-500/20 to-blue-500/20'} mix-blend-overlay`} />
 
-      <div className="container mx-auto px-6 relative z-10">
-        <div ref={el => contentRefs.current[index] = el} className="max-w-3xl">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-sm font-bold mb-6 text-white shadow-lg">
-            <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse" />
-            {slide.badge || 'Trending Now'}
-          </span>
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold mb-6 text-white drop-shadow-lg tracking-tight leading-none">
-            <AnimatedText text={slide.title} delay={0.1} />
-          </h1>
-          <p className="text-lg sm:text-2xl text-gray-200 mb-8 font-medium max-w-xl drop-shadow-md leading-relaxed">
-            {slide.subtitle}
-          </p>
-          <Button 
-            asChild 
-            size="lg" 
-            className="h-16 px-10 text-xl rounded-full shadow-[0_0_20px_rgba(var(--primary),0.5)] bg-primary hover:bg-primary/90 text-white hover:scale-105 transition-all duration-300 transform-gpu"
-          >
-            <Link to={slide.link || '/products'}>
-              Shop Now <ArrowRight className="ml-2 w-6 h-6" />
-            </Link>
-          </Button>
+        {/* Text Content */}
+        <div className="absolute inset-0 flex items-center md:items-end pb-12 md:pb-24 px-6 md:px-12 container mx-auto">
+          <div className="max-w-3xl space-y-6">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-bold text-white shadow-lg">
+              <Sparkles className="w-4 h-4 text-yellow-400" />
+              {slide.badge || 'Featured'}
+            </span>
+            
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white leading-tight drop-shadow-lg">
+              {isActive && <AnimatedText text={slide.title} delay={0.2} />}
+            </h1>
+            
+            <p className="text-lg sm:text-2xl text-gray-200 font-medium max-w-xl drop-shadow-md">
+              {slide.subtitle}
+            </p>
+            
+            <Button 
+              asChild 
+              size="lg" 
+              className="h-14 px-8 text-lg rounded-full bg-primary hover:bg-primary/90 text-white shadow-xl hover:scale-105 transition-transform"
+            >
+              <Link to={slide.link || '/products'}>
+                Shop Now <ArrowRight className="ml-2 w-5 h-5" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
+// --- Skeletons ---
+const HeroSkeleton = () => (
+  <div className="w-full h-[500px] md:h-[600px] bg-muted/20 animate-pulse flex items-center justify-center">
+    <div className="text-muted-foreground">Loading Offers...</div>
+  </div>
+);
+
 const ProductSkeletonCard = () => (
-  <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-4 animate-pulse h-full">
+  <div className="bg-card rounded-2xl border p-4 animate-pulse h-full">
     <div className="aspect-square w-full bg-muted rounded-xl mb-4"></div>
-    <div className="space-y-3">
-      <div className="h-4 bg-muted rounded-full w-3/4"></div>
-      <div className="h-4 bg-muted rounded-full w-1/2"></div>
-    </div>
+    <div className="h-4 bg-muted rounded-full w-3/4 mb-2"></div>
+    <div className="h-4 bg-muted rounded-full w-1/2"></div>
   </div>
 );
 
 // --- 4. Main HomePage ---
 const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
-  
   const heroRef = useRef(null);
-  const slideRefs = useRef([]);
-  const contentRefs = useRef([]);
-  const imageRefs = useRef([]);
-  const featuresRef = useRef(null);
+  const navigate = useNavigate();
   
-  // Touch Handling
-  const touchStartX = useRef(null);
-  const touchEndX = useRef(null);
-
-  const { data: products = [], isLoading: productsLoading, isError: productsError } = useProducts();
+  // Real Data Hooks
+  const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
 
+  // STRICTLY NO MOCK DATA - Agar DB khali hai, toh empty array rahega
   const heroSlides = useMemo(() => {
-    if (dbHeroImages && dbHeroImages.length > 0) return dbHeroImages;
-    return [
-      {
-        id: '1',
-        title: 'New Season Arrival',
-        subtitle: 'Upgrade your style with our latest premium collection.',
-        image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070',
-        gradient: 'from-purple-500 to-blue-500',
-        badge: 'Exclusive',
-      },
-      {
-        id: '2',
-        title: 'Tech Revolution',
-        subtitle: 'Next-gen gadgets that define the future.',
-        image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070',
-        gradient: 'from-cyan-500 to-blue-600',
-        badge: 'Best Seller',
-      }
-    ];
+    return dbHeroImages && dbHeroImages.length > 0 ? dbHeroImages : [];
   }, [dbHeroImages]);
 
   const featuredProducts = useMemo(() => products.slice(0, 8), [products]);
 
-  // --- Animations ---
+  // --- GSAP Animations ---
   useEffect(() => {
+    if (productsLoading || heroLoading) return; // Wait for data
+    
+    // Refresh ScrollTrigger after DOM updates
+    ScrollTrigger.refresh();
+
     const ctx = gsap.context(() => {
-      // Parallax for Hero Images
-      if(window.innerWidth > 768 && imageRefs.current.length) {
-         gsap.to(imageRefs.current, {
-            yPercent: 20,
-            ease: "none",
-            scrollTrigger: { 
-              trigger: heroRef.current, 
-              start: "top top", 
-              end: "bottom top", 
-              scrub: true 
-            }
-         });
-      }
+      // Features Animation
+      gsap.from(".feature-card", {
+        y: 50,
+        opacity: 0,
+        duration: 0.8,
+        stagger: 0.1,
+        scrollTrigger: {
+          trigger: ".features-section",
+          start: "top 80%",
+        }
+      });
 
-      // Features Stagger
-      if(featuresRef.current) {
-        gsap.from(featuresRef.current.children, {
-          y: 60,
-          opacity: 0,
-          scale: 0.8,
-          duration: 0.8,
-          stagger: 0.1,
-          ease: "back.out(1.7)",
-          scrollTrigger: {
-            trigger: featuresRef.current,
-            start: "top 80%",
-          }
-        });
-      }
-
-      // Products Stagger (More pronounced)
-      const productCards = gsap.utils.toArray('.product-anim');
-      if(productCards.length) {
-        gsap.from(productCards, {
-          y: 100,
-          opacity: 0,
-          scale: 0.9,
-          duration: 0.8,
-          stagger: 0.1,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: '.products-grid',
-            start: "top 85%",
-          }
-        });
-      }
+      // Products Stagger
+      gsap.from(".product-anim", {
+        y: 60,
+        opacity: 0,
+        duration: 0.6,
+        stagger: 0.05, // Thora fast kiya hai
+        ease: "power2.out",
+        scrollTrigger: {
+          trigger: ".products-grid",
+          start: "top 85%",
+        }
+      });
     });
     return () => ctx.revert();
-  }, [heroSlides, products]);
+  }, [productsLoading, heroLoading]);
 
-  // --- Slide Logic ---
-  const animateSlide = useCallback((newIndex) => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    
-    const curr = { el: slideRefs.current[currentSlide], content: contentRefs.current[currentSlide] };
-    const next = { el: slideRefs.current[newIndex], content: contentRefs.current[newIndex] };
-
-    const tl = gsap.timeline({ onComplete: () => { setCurrentSlide(newIndex); setIsAnimating(false); } });
-    
-    tl.to(curr.content, { y: -20, opacity: 0, duration: 0.4 })
-      .to(curr.el, { opacity: 0, scale: 1.1, duration: 0.6 }, 0)
-      .set(curr.el, { visibility: 'hidden', zIndex: 0 })
-      .set(next.el, { visibility: 'visible', zIndex: 10, opacity: 0, scale: 1.1 })
-      .to(next.el, { opacity: 1, scale: 1, duration: 0.8, ease: "power2.out" })
-      .fromTo(next.content, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "back.out(1.2)" }, "-=0.4");
-
-  }, [currentSlide, isAnimating]);
-
-  const nextSlide = useCallback(() => {
-    animateSlide((currentSlide + 1) % heroSlides.length);
-  }, [currentSlide, heroSlides.length, animateSlide]);
-
-  const prevSlide = useCallback(() => {
-    animateSlide(currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1);
-  }, [currentSlide, heroSlides.length, animateSlide]);
-
-  // Touch Swipe
-  const onTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
-    const distance = touchStartX.current - touchEndX.current;
-    if (distance > 50) nextSlide();
-    if (distance < -50) prevSlide();
-    touchStartX.current = null;
-    touchEndX.current = null;
-  };
-
-  // Autoplay
+  // --- Slider Logic ---
   useEffect(() => {
-    const interval = setInterval(() => { if(!isAnimating) nextSlide(); }, 6000);
+    if (heroSlides.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 6000);
     return () => clearInterval(interval);
-  }, [isAnimating, nextSlide]);
+  }, [heroSlides.length]);
 
-  // 3D Tilt for Products
+  // --- 3D Tilt Logic (Fixed for Click Bugs) ---
   const handleTilt = (e, card) => {
+    if (window.innerWidth < 1024) return; // Disable on mobile/tablet
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const rotateX = ((y - rect.height/2) / rect.height) * -10;
-    const rotateY = ((x - rect.width/2) / rect.width) * 10;
+    const rotateX = ((y - rect.height/2) / rect.height) * -8; // Reduced rotation
+    const rotateY = ((x - rect.width/2) / rect.width) * 8;
     
     gsap.to(card, { 
       rotateX, 
       rotateY, 
       scale: 1.02, 
-      boxShadow: "0 20px 30px -10px rgba(0,0,0,0.2)",
-      duration: 0.4 
+      duration: 0.4,
+      ease: "power1.out"
     });
   };
 
   const resetTilt = (card) => {
-    gsap.to(card, { 
-      rotateX: 0, 
-      rotateY: 0, 
-      scale: 1, 
-      boxShadow: "none",
-      duration: 0.5 
-    });
+    gsap.to(card, { rotateX: 0, rotateY: 0, scale: 1, duration: 0.5 });
   };
+
+  // --- Navigation Handler for Cards ---
+  // Ye function link-in-link bug ko solve karta hai
+  const handleCardClick = (e, productId) => {
+    // Agar user ne button ya link pe click kiya hai inside card, toh navigate mat karo
+    const target = e.target;
+    if (target.closest('button') || target.closest('a')) {
+      return;
+    }
+    navigate(`/product/${productId}`);
+  };
+
+  if (heroLoading) return <Layout><HeroSkeleton /></Layout>;
 
   return (
     <Layout>
-      <div className="min-h-screen w-full overflow-x-hidden">
+      <div className="min-h-screen w-full overflow-x-hidden bg-background">
+        
         {/* HERO SECTION */}
-        <section 
-          ref={heroRef} 
-          className="relative w-full h-[500px] md:h-[600px] bg-background"
-          onTouchStart={e => touchStartX.current = e.targetTouches[0].clientX}
-          onTouchMove={e => touchEndX.current = e.targetTouches[0].clientX}
-          onTouchEnd={onTouchEnd}
-        >
+        <section ref={heroRef} className="relative w-full h-[500px] md:h-[600px] mb-12">
           <ParticleBackground />
           
-          <div className="relative h-full w-full md:w-[95%] mx-auto md:mt-4 rounded-none md:rounded-3xl overflow-hidden shadow-2xl">
-            {heroSlides.map((slide, index) => (
-              <HeroCard
-                key={slide.id || index}
-                slide={slide}
-                index={index}
-                slideRefs={slideRefs}
-                contentRefs={contentRefs}
-                imageRefs={imageRefs}
-                isActive={index === currentSlide}
-              />
-            ))}
-            
-            {/* Buttons removed as requested. Only Dots remain. */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-              {heroSlides.map((_, i) => (
-                <button 
-                  key={i} 
-                  onClick={() => i !== currentSlide && animateSlide(i)}
-                  className={`h-1.5 rounded-full transition-all duration-500 ${
-                    i === currentSlide ? 'w-12 bg-white' : 'w-4 bg-white/40 hover:bg-white/80'
-                  }`}
+          {heroSlides.length > 0 ? (
+            <div className="relative h-full w-full md:w-[96%] mx-auto md:mt-4 rounded-none md:rounded-3xl overflow-hidden shadow-2xl bg-black">
+              {heroSlides.map((slide, index) => (
+                <HeroCard
+                  key={slide.id || index}
+                  slide={slide}
+                  index={index}
+                  isActive={index === currentSlide}
                 />
               ))}
+              
+              {/* Dots Navigation */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                {heroSlides.map((_, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setCurrentSlide(i)}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === currentSlide ? 'w-8 bg-white' : 'w-2 bg-white/50 hover:bg-white'
+                    }`}
+                    aria-label={`Go to slide ${i + 1}`}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            // Fallback agar DB me images nahi hain
+            <div className="h-full flex items-center justify-center bg-muted">
+              <p className="text-xl font-semibold">No Offers Available</p>
+            </div>
+          )}
         </section>
 
-        {/* FEATURES */}
-        <section className="py-12 relative z-10">
-          <div className="container mx-auto px-4">
-            <div ref={featuresRef} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { icon: Truck, title: 'Free Shipping', desc: 'On orders over $100', color: 'bg-blue-500/10 text-blue-500' },
-                { icon: Shield, title: 'Secure Payment', desc: '100% protected', color: 'bg-green-500/10 text-green-500' },
-                { icon: Clock, title: 'Fast Delivery', desc: 'Global shipping', color: 'bg-orange-500/10 text-orange-500' },
-                { icon: Headphones, title: '24/7 Support', desc: 'Always here for you', color: 'bg-purple-500/10 text-purple-500' },
-              ].map((f, i) => (
-                <div key={i} className="flex flex-col items-center text-center p-6 rounded-2xl bg-card border border-border/50 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300">
-                  <div className={`p-4 rounded-full ${f.color} mb-4`}>
-                    <f.icon className="w-6 h-6" />
-                  </div>
-                  <h3 className="font-bold mb-1">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
-                </div>
-              ))}
-            </div>
+        {/* FEATURES (Static UI Icons are fine, not fake data) */}
+        <section className="features-section py-8 container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { icon: Truck, title: 'Free Shipping', desc: 'On orders over $100', color: 'text-blue-500' },
+              { icon: Shield, title: 'Secure Payment', desc: '100% protected', color: 'text-green-500' },
+              { icon: Clock, title: 'Fast Delivery', desc: 'Global shipping', color: 'text-orange-500' },
+              { icon: Headphones, title: '24/7 Support', desc: 'Always here for you', color: 'text-purple-500' },
+            ].map((f, i) => (
+              <div key={i} className="feature-card flex flex-col items-center text-center p-6 rounded-2xl bg-card border hover:border-primary/30 transition-colors">
+                <f.icon className={`w-8 h-8 ${f.color} mb-3`} />
+                <h3 className="font-bold text-sm md:text-base">{f.title}</h3>
+                <p className="text-xs text-muted-foreground">{f.desc}</p>
+              </div>
+            ))}
           </div>
         </section>
 
         {/* CATEGORIES */}
         <section className="py-12 bg-muted/30">
           <div className="container mx-auto px-4">
-            <div className="flex justify-between items-end mb-10">
-              <div>
-                <h2 className="text-3xl font-bold mb-2">Browse Categories</h2>
-                <div className="h-1 w-20 bg-primary rounded-full"></div>
-              </div>
-              <Button variant="ghost" asChild className="group">
-                <Link to="/products">View All <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" /></Link>
+            <div className="flex justify-between items-end mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold">Browse Categories</h2>
+              <Button variant="link" asChild>
+                <Link to="/products">View All</Link>
               </Button>
             </div>
             
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-              {categories.slice(0, 8).map((cat, i) => (
-                <Link 
-                  key={cat.id || i} 
-                  to={`/products?category=${cat.id}`}
-                  className="group flex flex-col items-center gap-3"
-                  onMouseEnter={(e) => gsap.to(e.currentTarget, { y: -5, duration: 0.3 })}
-                  onMouseLeave={(e) => gsap.to(e.currentTarget, { y: 0, duration: 0.3 })}
-                >
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-all duration-300 shadow-md">
-                    {cat.image_url ? (
-                      <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full bg-accent flex items-center justify-center text-2xl">📦</div>
-                    )}
-                  </div>
-                  <span className="text-sm font-medium group-hover:text-primary transition-colors">{cat.name}</span>
-                </Link>
-              ))}
-            </div>
+            {categoriesLoading ? (
+               <div className="text-center py-10">Loading Categories...</div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                {categories.length > 0 ? categories.slice(0, 6).map((cat) => (
+                  <Link 
+                    key={cat.id} 
+                    to={`/products?category=${cat.id}`}
+                    className="group flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-background transition-colors"
+                  >
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-all">
+                      {cat.image_url ? (
+                        <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-accent flex items-center justify-center">📦</div>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-center">{cat.name}</span>
+                  </Link>
+                )) : <div className="col-span-full text-center text-muted-foreground">No categories found.</div>}
+              </div>
+            )}
           </div>
         </section>
 
-        {/* TRENDING PRODUCTS (Fixed Area & Animation) */}
-        <section className="py-16">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-extrabold mb-4">Trending Now</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">Top picks from our premium collection.</p>
-            </div>
+        {/* TRENDING PRODUCTS (BUG FIXED: Link Wrapping) */}
+        <section className="products-grid py-16 container mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-extrabold mb-3">Trending Now</h2>
+            <p className="text-muted-foreground">Top picks from our collection.</p>
+          </div>
 
-            <div className="products-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
-              {productsLoading ? (
-                [...Array(8)].map((_, i) => <ProductSkeletonCard key={i} />)
-              ) : featuredProducts.map((product) => (
-                // Added h-full to Link to fix clickable area
-                <Link 
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+            {productsLoading ? (
+              [...Array(4)].map((_, i) => <ProductSkeletonCard key={i} />)
+            ) : featuredProducts.length > 0 ? (
+              featuredProducts.map((product) => (
+                <div 
                   key={product.id} 
-                  to={`/product/${product.id}`}
-                  className="product-anim block h-full" 
+                  className="product-anim h-full perspective-1000 cursor-pointer"
+                  onMouseMove={(e) => handleTilt(e, e.currentTarget)}
+                  onMouseLeave={(e) => resetTilt(e.currentTarget)}
+                  onClick={(e) => handleCardClick(e, product.id)} // Navigation logic here
                 >
-                  <div 
-                    className="h-full transform-style-3d perspective-1000"
-                    onMouseMove={(e) => handleTilt(e, e.currentTarget)}
-                    onMouseLeave={(e) => resetTilt(e.currentTarget)}
-                  >
-                    <div className="bg-card h-full rounded-2xl border border-border/50 hover:border-primary/50 overflow-hidden transition-all duration-300">
-                      {/* ProductCard needs to take full height inside */}
-                      <ProductCard product={product} className="h-full" />
-                    </div>
+                  <div className="bg-card h-full rounded-2xl border hover:shadow-xl transition-all duration-300 transform-style-3d">
+                    {/* Note: ProductCard ke andar <Link> mat lagana agar buttons hain.
+                       Agar ProductCard sirf display hai toh theek hai, 
+                       lekin yahan humne outer onClick laga diya hai safety ke liye.
+                    */}
+                    <ProductCard product={product} className="h-full pointer-events-none" />
+                    {/* pointer-events-none on Card content ensures clicks pass through to container, 
+                        UNLESS ProductCard has interactive buttons with pointer-events-auto */}
                   </div>
-                </Link>
-              ))}
-            </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-10">
+                <p>No products available right now.</p>
+              </div>
+            )}
+          </div>
 
-            <div className="text-center mt-12">
-              <Button asChild size="lg" className="rounded-full px-8">
-                <Link to="/products">Explore All Products</Link>
-              </Button>
-            </div>
+          <div className="text-center mt-12">
+            <Button asChild size="lg" className="rounded-full px-8">
+              <Link to="/products">Explore Store</Link>
+            </Button>
           </div>
         </section>
       </div>
