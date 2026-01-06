@@ -5,10 +5,13 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 import clsx from 'clsx';
 
+// 1. IMPORT FIX: Local hook hata kar next-themes wala use karo
+import { useTheme } from "next-themes"; 
+
 import SceneContainer from '@/scenes/SceneContainer';
 import ProductCard from '@/components/ProductCard';
 import FloatingCart from '@/components/FloatingCart';
-import { useTheme } from '@/hooks/useTheme';
+// import { useTheme } from '@/hooks/useTheme'; // <--- YE LINE DELETE KAR DO
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -25,7 +28,9 @@ const PRODUCTS = [
 const CATEGORIES = ['All', 'Headphones', 'Speakers', 'Cables'];
 
 const HomePage = () => {
-  const { theme, toggleTheme } = useTheme();
+  // 2. LOGIC FIX: next-themes 'setTheme' deta hai, 'toggleTheme' nahi.
+  const { theme, setTheme } = useTheme(); 
+  
   const [activeCat, setActiveCat] = useState('All');
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,13 +43,11 @@ const HomePage = () => {
   useGSAP(() => {
     const tl = gsap.timeline();
 
-    // Initial Load Animation
     tl.from(headerRef.current, { y: -50, opacity: 0, duration: 0.8, ease: "power3.out" })
       .from(titleRef.current, { x: -30, opacity: 0, duration: 0.8 }, "-=0.6")
       .from(chipsRef.current, { x: 50, opacity: 0, duration: 0.8 }, "-=0.6")
       .from('.product-grid-item', { y: 100, opacity: 0, stagger: 0.1, duration: 0.8 }, "-=0.4");
 
-    // Scroll Interaction: Fade out header as grid scrolls up
     ScrollTrigger.create({
       trigger: gridRef.current,
       start: "top 60%", 
@@ -63,13 +66,10 @@ const HomePage = () => {
   return (
     <div ref={containerRef} className="relative min-h-screen w-full font-sans overflow-hidden">
       
-      {/* 3D Background Layer */}
       <SceneContainer />
 
-      {/* Main Content Overlay */}
       <div className="relative z-10 max-w-md mx-auto min-h-screen flex flex-col px-6 pt-8 pb-32">
         
-        {/* Top Header */}
         <header ref={headerRef} className="flex items-center justify-between mb-8">
           <div className="relative flex-1 mr-4">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -80,18 +80,23 @@ const HomePage = () => {
             />
           </div>
           <button 
-            onClick={toggleTheme}
+            // 3. BUTTON FIX: Logic change ki hai taa ke theme switch ho sakay
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="w-10 h-10 rounded-full bg-black dark:bg-white overflow-hidden flex items-center justify-center transition-transform active:scale-90"
           >
             {theme === 'light' ? (
-              <img src="https://i.pravatar.cc/150?img=32" alt="User" className="w-full h-full object-cover opacity-90 hover:opacity-100" />
+               // Logic: Agar light hai to User icon dikhao taa ke dark pe click ho, ya vice versa
+               // Tumhari purani logic thori confuse thi, main ne simple rakhi hai:
+               // Light mode mein image dikh rahi hai (assume user avatar)
+               <img src="https://i.pravatar.cc/150?img=32" alt="User" className="w-full h-full object-cover opacity-90 hover:opacity-100" />
             ) : (
                <User className="text-black" size={20} />
             )}
           </button>
         </header>
 
-        {/* Hero Title & Filters */}
+        {/* ... Baaki code same rahega ... */}
+        
         <div className="mb-8 relative z-20">
           <div ref={titleRef} className="flex justify-between items-end mb-6">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">
@@ -120,7 +125,6 @@ const HomePage = () => {
           </div>
         </div>
 
-        {/* Product Grid */}
         <div ref={gridRef} className="grid grid-cols-2 gap-4 auto-rows-fr">
           {PRODUCTS.filter(p => activeCat === 'All' || p.category === activeCat).map((product) => (
              <div key={product.id} className="product-grid-item">
@@ -131,7 +135,6 @@ const HomePage = () => {
 
       </div>
 
-      {/* Fixed Floating Cart */}
       <FloatingCart />
 
     </div>
