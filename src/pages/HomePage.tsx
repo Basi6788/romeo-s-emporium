@@ -1,883 +1,502 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react';
+import { ArrowRight, Truck, Shield, Headphones, Clock, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
 import { useHeroImages } from '@/hooks/useHeroImages';
+import { useTracking } from '@/hooks/useTracking';
 import { Button } from '@/components/ui/button';
+import ProductLoader from '@/components/Loaders/ProductLoader';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import * as THREE from 'three';
-import { useToast } from '@/hooks/use-toast';
+import { Swipeable } from 'react-swipeable';
 
-// ==================== NEW SYSTEMS ====================
-// User Activity Tracking Context & Hooks
-import { useUserTracking } from '@/hooks/useUserTracking';
-import { useProductTracking } from '@/hooks/useProductTracking';
-import { useSecurityMonitor } from '@/hooks/useSecurityMonitor';
-// =====================================================
+// Lazy load heavy components
+const ParticleBackground = lazy(() => import('@/components/ParticleBackground'));
+const HeroCard = lazy(() => import('@/components/HeroCard'));
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ==================== OPTIMIZED THREE.JS BACKGROUND ====================
-const ParticleBackground = () => {
-  const mountRef = useRef(null);
-  const animationRef = useRef(null);
-  const rendererRef = useRef(null);
-  const sceneRef = useRef(null);
-  const cameraRef = useRef(null);
-  const particlesMeshRef = useRef(null);
-
-  useEffect(() => {
-    if (!mountRef.current) return;
-
-    // Performance check - disable on low-end devices
-    const isLowPerformance = window.innerWidth < 768 || 
-                           /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                           (navigator.deviceMemory && navigator.deviceMemory < 4);
-
-    if (isLowPerformance) {
-      // Fallback to simple gradient
-      mountRef.current.innerHTML = `
-        <div class="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-blue-900/20"></div>
-      `;
-      return;
-    }
-
-    // Initialize Three.js with error handling
-    try {
-      sceneRef.current = new THREE.Scene();
-      cameraRef.current = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      rendererRef.current = new THREE.WebGLRenderer({ 
-        alpha: true, 
-        antialias: true,
-        powerPreference: "low-power" // Battery saving
-      });
-      
-      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
-      rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-      rendererRef.current.domElement.style.position = 'absolute';
-      rendererRef.current.domElement.style.top = '0';
-      rendererRef.current.style.left = '0';
-      rendererRef.current.domElement.style.pointerEvents = 'none';
-      rendererRef.current.domElement.classList.add('three-bg');
-      
-      mountRef.current.appendChild(rendererRef.current.domElement);
-
-      // Optimized particles with LOD
-      const particlesGeometry = new THREE.BufferGeometry();
-      const particlesCount = Math.min(500, Math.floor(window.innerWidth * window.innerHeight / 5000));
-      const posArray = new Float32Array(particlesCount * 3);
-      
-      for(let i = 0; i < particlesCount * 3; i += 3) {
-        posArray[i] = (Math.random() - 0.5) * 15;
-        posArray[i + 1] = (Math.random() - 0.5) * 15;
-        posArray[i + 2] = (Math.random() - 0.5) * 8;
-      }
-
-      particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-      
-      const material = new THREE.PointsMaterial({
-        size: 0.03,
-        color: 0x8b5cf6,
-        transparent: true,
-        opacity: 0.3,
-        blending: THREE.AdditiveBlending,
-        sizeAttenuation: true
-      });
-
-      particlesMeshRef.current = new THREE.Points(particlesGeometry, material);
-      sceneRef.current.add(particlesMeshRef.current);
-      cameraRef.current.position.z = 5;
-
-      // Optimized animation loop with frame skipping for performance
-      let lastTime = 0;
-      const frameInterval = 1000 / 30; // 30 FPS target
-      
-      const animate = (currentTime) => {
-        animationRef.current = requestAnimationFrame(animate);
-        
-        const deltaTime = currentTime - lastTime;
-        if (deltaTime < frameInterval) return;
-        
-        lastTime = currentTime - (deltaTime % frameInterval);
-        
-        if (particlesMeshRef.current) {
-          const elapsedTime = currentTime * 0.001;
-          particlesMeshRef.current.rotation.y = elapsedTime * 0.02;
-          particlesMeshRef.current.rotation.x = elapsedTime * 0.008;
-        }
-        
-        if (rendererRef.current && sceneRef.current && cameraRef.current) {
-          rendererRef.current.render(sceneRef.current, cameraRef.current);
-        }
-      };
-
-      animate(0);
-
-      // Debounced resize handler
-      let resizeTimeout;
-      const handleResize = () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-          if (cameraRef.current && rendererRef.current) {
-            cameraRef.current.aspect = window.innerWidth / window.innerHeight;
-            cameraRef.current.updateProjectionMatrix();
-            rendererRef.current.setSize(window.innerWidth, window.innerHeight);
-          }
-        }, 100);
-      };
-
-      window.addEventListener('resize', handleResize);
-
-      // Cleanup function
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        if (animationRef.current) cancelAnimationFrame(animationRef.current);
-        
-        // Proper disposal
-        if (particlesMeshRef.current) {
-          particlesMeshRef.current.geometry.dispose();
-          particlesMeshRef.current.material.dispose();
-          sceneRef.current?.remove(particlesMeshRef.current);
-        }
-        
-        if (rendererRef.current) {
-          rendererRef.current.dispose();
-          if (mountRef.current && rendererRef.current.domElement.parentNode === mountRef.current) {
-            mountRef.current.removeChild(rendererRef.current.domElement);
-          }
-        }
-        
-        clearTimeout(resizeTimeout);
-      };
-    } catch (error) {
-      console.error('Three.js initialization failed:', error);
-      // Fallback gradient
-      if (mountRef.current) {
-        mountRef.current.innerHTML = `
-          <div class="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-blue-900/20"></div>
-        `;
-      }
-    }
-  }, []);
-
-  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none opacity-40" />;
-};
-
-// ==================== ENHANCED ANIMATED TEXT ====================
-const AnimatedText = ({ text, className = "", delay = 0 }) => {
-  const containerRef = useRef(null);
-  const animationId = useRef(null);
-  
-  useEffect(() => {
-    if (!text || !containerRef.current) return;
-    
-    const letters = text.split("");
-    const spans = letters.map((letter, i) => (
-      <span 
-        key={i} 
-        className="inline-block opacity-0 transform translate-y-8"
-        style={{ 
-          whiteSpace: letter === " " ? "pre" : "normal",
-          animationDelay: `${delay + (i * 0.03)}s`
-        }}
-      >
-        {letter}
-      </span>
-    ));
-    
-    // Force re-render with spans
-    containerRef.current.innerHTML = '';
-    spans.forEach(span => {
-      const div = document.createElement('div');
-      div.className = span.props.className;
-      div.style.animationDelay = span.props.style.animationDelay;
-      div.textContent = span.props.children;
-      div.style.whiteSpace = span.props.style.whiteSpace;
-      containerRef.current.appendChild(div);
-    });
-    
-    // Use CSS animation for better performance
-    const elements = containerRef.current.children;
-    animationId.current = setTimeout(() => {
-      Array.from(elements).forEach(el => {
-        el.style.transition = 'all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-        el.style.opacity = '1';
-        el.style.transform = 'translateY(0)';
-      });
-    }, 10);
-    
-    return () => {
-      if (animationId.current) clearTimeout(animationId.current);
-    };
-  }, [text, delay]);
-
-  return (
-    <span ref={containerRef} className={`inline-flex flex-wrap ${className}`} />
-  );
-};
-
-// ==================== NEW LOADER COMPONENT (GSAP + Lottie-like) ====================
-const EnhancedLoader = ({ isLoading }) => {
-  const loaderRef = useRef(null);
-  
-  useEffect(() => {
-    if (!loaderRef.current || !isLoading) return;
-    
-    const ctx = gsap.context(() => {
-      // Create pulsing circles
-      const circles = Array.from({ length: 3 }, (_, i) => {
-        const circle = document.createElement('div');
-        circle.className = 'absolute w-4 h-4 rounded-full bg-primary';
-        circle.style.left = `${30 + i * 20}%`;
-        loaderRef.current.appendChild(circle);
-        return circle;
-      });
-      
-      circles.forEach((circle, i) => {
-        gsap.to(circle, {
-          y: -20,
-          scale: 1.5,
-          opacity: 0.5,
-          duration: 0.6,
-          repeat: -1,
-          delay: i * 0.2,
-          yoyo: true,
-          ease: "power1.inOut"
-        });
-      });
-      
-      // Background shimmer
-      gsap.to(loaderRef.current, {
-        backgroundPosition: '200% 0',
-        duration: 2,
-        repeat: -1,
-        ease: "linear"
-      });
-    }, loaderRef);
-    
-    return () => ctx.revert();
-  }, [isLoading]);
-  
-  if (!isLoading) return null;
-  
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
-      <div 
-        ref={loaderRef} 
-        className="relative w-48 h-48 rounded-2xl overflow-hidden"
-        style={{
-          background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
-          backgroundSize: '200% 100%'
-        }}
-      >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-2xl font-bold mb-2">Loading Offers</div>
-            <div className="text-sm text-muted-foreground">Best deals incoming...</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== HERO CARD WITH SWIPE SUPPORT ====================
-const HeroCard = ({ slide, index, isActive, onSwipe }) => {
-  const cardRef = useRef(null);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const minSwipeDistance = 50;
-
-  useEffect(() => {
-    if (isActive && cardRef.current) {
-      gsap.killTweensOf(cardRef.current);
-      gsap.fromTo(cardRef.current,
-        { 
-          scale: 1.05, 
-          opacity: 0,
-          filter: 'blur(10px)'
-        },
-        { 
-          scale: 1, 
-          opacity: 1, 
-          filter: 'blur(0px)',
-          duration: 0.8, 
-          ease: "power3.out",
-          clearProps: "all"
-        }
-      );
-    }
-  }, [isActive]);
-
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchMove = (e) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
-    
-    const distance = touchStartX.current - touchEndX.current;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-    
-    if (isLeftSwipe && onSwipe) onSwipe('next');
-    if (isRightSwipe && onSwipe) onSwipe('prev');
-    
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-  };
-
-  const handleWheel = (e) => {
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      e.preventDefault();
-      if (e.deltaX > 30 && onSwipe) onSwipe('next');
-      if (e.deltaX < -30 && onSwipe) onSwipe('prev');
-    }
-  };
-
-  return (
-    <div
-      ref={cardRef}
-      className={`absolute inset-0 w-full h-full transition-all duration-500 ${
-        isActive ? 'opacity-100 z-10 visible' : 'opacity-0 z-0 invisible'
-      }`}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onWheel={handleWheel}
-    >
-      {/* Optimized Image with BlurHash Placeholder */}
-      <div className="absolute inset-0 w-full h-full">
-        <img
-          src={slide.image}
-          alt={slide.title}
-          className="absolute inset-0 w-full h-full object-cover"
-          loading={index === 0 ? 'eager' : 'lazy'}
-          decoding="async"
-          style={{
-            contentVisibility: 'auto',
-            willChange: 'transform'
-          }}
-          onLoad={(e) => {
-            // Fade in image when loaded
-            gsap.to(e.target, { opacity: 1, duration: 0.5 });
-          }}
-        />
-        
-        {/* Low-quality placeholder while loading */}
-        <div 
-          className="absolute inset-0 bg-gradient-to-br from-purple-900/30 to-blue-900/30 blur-xl"
-          style={{ contentVisibility: 'auto' }}
-        />
-      </div>
-      
-      {/* Gradient Overlays */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-      <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient || 'from-purple-600/20 to-blue-600/20'} mix-blend-soft-light`} />
-
-      {/* Text Content */}
-      <div className="absolute inset-0 flex items-end md:items-center pb-12 md:pb-0 px-6 md:px-16 container mx-auto">
-        <div className="max-w-3xl space-y-4 md:space-y-6">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-lg border border-white/30 text-sm font-bold text-white shadow-2xl animate-pulse">
-            <Sparkles className="w-4 h-4 text-yellow-400 animate-spin-slow" />
-            {slide.badge || 'LIMITED TIME'}
-          </span>
-          
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
-            {isActive ? <AnimatedText text={slide.title} delay={0.1} /> : slide.title}
-          </h1>
-          
-          <p className="text-lg sm:text-xl md:text-2xl text-gray-100 font-medium max-w-xl drop-shadow-lg leading-relaxed">
-            {slide.subtitle}
-          </p>
-          
-          <Button 
-            asChild 
-            size="lg" 
-            className="h-14 px-10 text-lg rounded-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-2xl hover:shadow-3xl hover:scale-[1.02] active:scale-95 transition-all duration-300 group"
-          >
-            <Link to={slide.link || '/products'}>
-              <span className="flex items-center gap-2">
-                Shop Now 
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </span>
-            </Link>
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==================== SKELETONS ====================
+// --- Skeletons ---
 const HeroSkeleton = () => (
-  <div className="w-full h-[500px] md:h-[600px] relative overflow-hidden">
-    <div className="absolute inset-0 bg-gradient-to-r from-muted/20 via-muted/10 to-muted/20 animate-shimmer bg-[length:200%_100%]" />
+  <div className="w-full h-[500px] md:h-[600px] bg-gradient-to-r from-muted/10 via-muted/20 to-muted/10 animate-pulse overflow-hidden">
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-        <div className="text-lg font-semibold text-muted-foreground">Loading Amazing Offers...</div>
+        <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted-foreground font-medium">Loading Amazing Offers...</p>
       </div>
     </div>
   </div>
 );
 
 const ProductSkeletonCard = () => (
-  <div className="bg-card rounded-2xl border p-4 overflow-hidden h-full animate-pulse">
-    <div className="aspect-square w-full bg-gradient-to-br from-muted to-muted/50 rounded-xl mb-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-    </div>
-    <div className="space-y-2">
-      <div className="h-4 bg-muted rounded-full w-3/4"></div>
-      <div className="h-4 bg-muted rounded-full w-1/2"></div>
-      <div className="h-6 bg-muted rounded-full w-1/3 mt-4"></div>
-    </div>
+  <div className="bg-card rounded-2xl border p-4 h-full">
+    <div className="aspect-square w-full bg-gradient-to-br from-muted to-muted/50 rounded-xl mb-4 animate-pulse"></div>
+    <div className="h-4 bg-gradient-to-r from-muted to-muted/70 rounded-full w-3/4 mb-2 animate-pulse"></div>
+    <div className="h-4 bg-gradient-to-r from-muted to-muted/70 rounded-full w-1/2 animate-pulse"></div>
+    <div className="mt-4 h-10 bg-gradient-to-r from-muted to-muted/70 rounded-lg animate-pulse"></div>
   </div>
 );
 
-// ==================== MAIN HOMEPAGE ====================
+// --- Swipe Handler Component ---
+const SwipeHandler = ({ 
+  onSwipedLeft, 
+  onSwipedRight, 
+  children 
+}: { 
+  onSwipedLeft: () => void;
+  onSwipedRight: () => void;
+  children: React.ReactNode;
+}) => (
+  <Swipeable
+    onSwipedLeft={onSwipedLeft}
+    onSwipedRight={onSwipedRight}
+    preventDefaultTouchmoveEvent
+    trackMouse // Enable mouse swipes
+    delta={10} // Sensitivity
+    className="w-full h-full"
+  >
+    {children}
+  </Swipeable>
+);
+
+// --- Main HomePage ---
 const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const heroRef = useRef(null);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [touchStartX, setTouchStartX] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const sliderRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
   
-  // ==================== NEW TRACKING SYSTEMS ====================
-  // Initialize tracking systems
-  const { trackUserActivity, getUserPreferences, isSuspiciousActivity } = useUserTracking();
-  const { trackProductView, getPersonalizedProducts, trackPurchaseIntent } = useProductTracking();
-  const { monitorActivity, warnUser, banUser } = useSecurityMonitor();
-  // ==============================================================
-  
+  // Tracking hook
+  const { trackInteraction, getRecommendations } = useTracking();
+
   // Real Data Hooks
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
 
-  // Track user activity on mount
-  useEffect(() => {
-    trackUserActivity('homepage_visit');
-    monitorActivity('page_view', { page: 'homepage' });
-  }, [trackUserActivity, monitorActivity]);
-
-  // Hero Slides with fallback
+  // Filter and memoize hero slides
   const heroSlides = useMemo(() => {
     if (!dbHeroImages || dbHeroImages.length === 0) {
-      return [{
-        id: 'fallback',
-        image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=2070',
-        title: 'Welcome to Our Store',
-        subtitle: 'Discover amazing products at unbeatable prices',
-        badge: 'NEW SEASON',
-        gradient: 'from-rose-500/20 to-orange-500/20'
-      }];
+      // Fallback slides
+      return [
+        {
+          id: '1',
+          image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=2070',
+          title: 'Premium Collection',
+          subtitle: 'Discover amazing deals on trending products',
+          badge: 'Limited Time',
+          link: '/products',
+          gradient: 'from-purple-600/20 to-pink-600/20'
+        },
+        {
+          id: '2',
+          image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070',
+          title: 'Summer Sale',
+          subtitle: 'Up to 60% off on selected items',
+          badge: 'Hot Deal',
+          link: '/products?category=electronics',
+          gradient: 'from-blue-600/20 to-cyan-600/20'
+        },
+        {
+          id: '3',
+          image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999',
+          title: 'New Arrivals',
+          subtitle: 'Fresh styles added daily',
+          badge: 'Just In',
+          link: '/products?new=true',
+          gradient: 'from-green-600/20 to-emerald-600/20'
+        }
+      ];
     }
     return dbHeroImages;
   }, [dbHeroImages]);
 
-  // Personalized products based on user behavior
-  const personalizedProducts = useMemo(() => {
-    if (products.length === 0) return [];
-    
-    const userPrefs = getUserPreferences();
-    const trendingProducts = products
-      .filter(p => p.rating >= 4)
-      .sort((a, b) => b.viewCount - a.viewCount)
-      .slice(0, 4);
-    
-    // For new users, show trending products
-    if (!userPrefs || Object.keys(userPrefs).length === 0) {
-      return trendingProducts;
-    }
-    
-    // For returning users, personalize
-    const preferredCategory = userPrefs.mostViewedCategory;
-    const personalized = products
-      .filter(p => 
-        p.category === preferredCategory || 
-        p.tags?.some(tag => userPrefs.interests?.includes(tag))
-      )
-      .sort((a, b) => b.rating - a.rating)
-      .slice(0, 8);
-    
-    return personalized.length > 3 ? personalized : trendingProducts;
-  }, [products, getUserPreferences]);
-
-  // Featured products (fallback if no personalization)
+  // Get personalized recommendations
   const featuredProducts = useMemo(() => {
-    return personalizedProducts.length > 0 ? personalizedProducts : products.slice(0, 8);
-  }, [personalizedProducts, products]);
+    if (products.length === 0) return [];
+    return getRecommendations(products);
+  }, [products, getRecommendations]);
 
-  // ==================== LOADING OPTIMIZATION ====================
+  // --- Preload Images ---
   useEffect(() => {
-    if (!heroLoading && !productsLoading) {
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-        setInitialLoad(false);
-        
-        // Track page load completion
-        trackUserActivity('homepage_loaded', {
-          loadTime: performance.now(),
-          heroCount: heroSlides.length,
-          productCount: products.length
+    const preloadImages = async () => {
+      const imagePromises = heroSlides.map(slide => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.src = slide.image;
+          img.onload = resolve;
+          img.onerror = reject;
         });
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [heroLoading, productsLoading, heroSlides.length, products.length, trackUserActivity]);
+      });
 
-  // ==================== GSAP ANIMATIONS (Optimized) ====================
-  useEffect(() => {
-    if (isLoading || initialLoad) return;
-    
-    ScrollTrigger.refresh(true);
-    
-    const ctx = gsap.context(() => {
-      // Hero entrance animation (only on first load)
-      if (initialLoad) {
-        gsap.from('.hero-container', {
-          y: 30,
-          opacity: 0,
-          duration: 0.8,
-          ease: "power3.out"
-        });
+      try {
+        await Promise.all(imagePromises);
+        setLoading(false);
+      } catch (error) {
+        console.error('Failed to preload images:', error);
+        setLoading(false);
       }
+    };
+
+    if (heroSlides.length > 0) {
+      preloadImages();
+    }
+  }, [heroSlides]);
+
+  // --- GSAP Animations (Optimized) ---
+  useEffect(() => {
+    if (productsLoading || heroLoading) return;
+
+    // Kill existing ScrollTriggers
+    ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+
+    const ctx = gsap.context(() => {
+      // Hero entrance animation
+      gsap.from('.hero-content', {
+        y: 30,
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out',
+        delay: 0.3
+      });
 
       // Features animation
-      gsap.from(".feature-card", {
+      gsap.from('.feature-card', {
         y: 40,
         opacity: 0,
         duration: 0.6,
-        stagger: 0.08,
-        ease: "back.out(1.2)",
+        stagger: 0.1,
         scrollTrigger: {
-          trigger: ".features-section",
-          start: "top 85%",
-          toggleActions: "play none none reverse",
-          once: true
+          trigger: '.features-section',
+          start: 'top 85%',
+          toggleActions: 'play none none reverse',
+          markers: false // Disable in production
         }
       });
 
-      // Products stagger with better performance
-      gsap.from(".product-anim", {
+      // Products animation
+      gsap.from('.product-card', {
         y: 50,
         opacity: 0,
-        scale: 0.95,
-        duration: 0.5,
-        stagger: 0.03,
-        ease: "power2.out",
+        duration: 0.7,
+        stagger: 0.08,
         scrollTrigger: {
-          trigger: ".products-grid",
-          start: "top 80%",
-          toggleActions: "play none none reverse",
-          once: true
+          trigger: '.products-section',
+          start: 'top 80%',
+          toggleActions: 'play none none reverse'
         }
       });
 
-      // Category animation
-      gsap.from(".category-card", {
-        y: 20,
+      // Categories animation
+      gsap.from('.category-card', {
+        scale: 0.8,
         opacity: 0,
-        duration: 0.4,
+        duration: 0.5,
         stagger: 0.05,
         scrollTrigger: {
-          trigger: ".categories-section",
-          start: "top 90%",
-          toggleActions: "play none none reverse",
-          once: true
+          trigger: '.categories-section',
+          start: 'top 85%'
         }
       });
     });
-    
-    return () => {
-      ctx.revert();
-      gsap.killTweensOf('.product-anim, .feature-card, .category-card');
-    };
-  }, [isLoading, initialLoad]);
 
-  // ==================== SLIDER LOGIC WITH SWIPE SUPPORT ====================
-  const goToSlide = useCallback((index) => {
-    if (index < 0) index = heroSlides.length - 1;
-    if (index >= heroSlides.length) index = 0;
-    
-    gsap.to(heroRef.current, {
-      opacity: 0.8,
-      duration: 0.2,
-      onComplete: () => {
-        setCurrentSlide(index);
-        gsap.to(heroRef.current, { opacity: 1, duration: 0.2 });
-      }
-    });
-  }, [heroSlides.length]);
+    // Refresh ScrollTrigger after animations
+    ScrollTrigger.refresh();
 
-  const handleSwipe = useCallback((direction) => {
-    if (direction === 'next') {
-      goToSlide(currentSlide + 1);
-    } else {
-      goToSlide(currentSlide - 1);
-    }
-    
-    // Track slider interaction
-    trackUserActivity('hero_slider_swipe', { direction, slide: currentSlide });
-  }, [currentSlide, goToSlide, trackUserActivity]);
+    return () => ctx.revert();
+  }, [productsLoading, heroLoading]);
 
-  // Auto-slide with pause on hover
-  useEffect(() => {
+  // --- Slider Logic (Fixed) ---
+  const goToSlide = useCallback((index: number) => {
     if (heroSlides.length <= 1) return;
     
-    let interval;
-    const startInterval = () => {
-      interval = setInterval(() => {
-        goToSlide(currentSlide + 1);
-      }, 6000);
-    };
+    const newIndex = (index + heroSlides.length) % heroSlides.length;
+    setCurrentSlide(newIndex);
     
-    const pauseInterval = () => {
-      if (interval) clearInterval(interval);
-    };
+    // Track interaction
+    trackInteraction('click', `hero_slide_${newIndex}`, { slide: newIndex });
+  }, [heroSlides.length, trackInteraction]);
+
+  const nextSlide = useCallback(() => {
+    goToSlide(currentSlide + 1);
+  }, [currentSlide, goToSlide]);
+
+  const prevSlide = useCallback(() => {
+    goToSlide(currentSlide - 1);
+  }, [currentSlide, goToSlide]);
+
+  // Auto-slide
+  useEffect(() => {
+    if (heroSlides.length <= 1 || isSwiping) return;
     
-    startInterval();
+    const interval = setInterval(() => {
+      nextSlide();
+    }, 5000);
     
-    // Pause on hover
+    return () => clearInterval(interval);
+  }, [heroSlides.length, nextSlide, isSwiping]);
+
+  // --- Touch/Mouse Wheel Handling ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX - touchEndX;
+    
+    if (Math.abs(diff) > 50) { // Minimum swipe distance
+      setIsSwiping(true);
+      if (diff > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+      
+      setTimeout(() => setIsSwiping(false), 500);
+    }
+  };
+
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (heroRef.current?.contains(e.target as Node)) {
+      e.preventDefault();
+      if (e.deltaY > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+    }
+  }, [nextSlide, prevSlide]);
+
+  useEffect(() => {
     const heroElement = heroRef.current;
     if (heroElement) {
-      heroElement.addEventListener('mouseenter', pauseInterval);
-      heroElement.addEventListener('mouseleave', startInterval);
-      heroElement.addEventListener('touchstart', pauseInterval);
-      heroElement.addEventListener('touchend', startInterval);
+      heroElement.addEventListener('wheel', handleWheel, { passive: false });
+      return () => heroElement.removeEventListener('wheel', handleWheel);
     }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-      if (heroElement) {
-        heroElement.removeEventListener('mouseenter', pauseInterval);
-        heroElement.removeEventListener('mouseleave', startInterval);
-        heroElement.removeEventListener('touchstart', pauseInterval);
-        heroElement.removeEventListener('touchend', startInterval);
-      }
-    };
-  }, [heroSlides.length, currentSlide, goToSlide]);
+  }, [handleWheel]);
 
-  // ==================== 3D TILT (Performance Optimized) ====================
-  const tiltTimeout = useRef(null);
-  
-  const handleTilt = useCallback((e, card) => {
-    if (window.innerWidth < 1024) return;
+  // --- 3D Tilt (Fixed Performance) ---
+  const handleTilt = useCallback((e: React.MouseEvent, card: HTMLElement) => {
+    if (window.innerWidth < 768) return;
     
-    if (tiltTimeout.current) clearTimeout(tiltTimeout.current);
-    
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Calculate rotation based on mouse position
-    const rotateX = ((y - rect.height / 2) / rect.height) * -5;
-    const rotateY = ((x - rect.width / 2) / rect.width) * 5;
-    
-    // Use transform for better performance than gsap
-    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
-    card.style.transition = 'transform 0.2s ease-out';
+    requestAnimationFrame(() => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      
+      const rotateX = ((centerY - y) / centerY) * 3; // Reduced rotation
+      const rotateY = ((x - centerX) / centerX) * 3;
+      
+      gsap.to(card, {
+        rotateX,
+        rotateY,
+        scale: 1.02,
+        duration: 0.3,
+        ease: 'power1.out'
+      });
+    });
   }, []);
 
-  const resetTilt = useCallback((card) => {
-    tiltTimeout.current = setTimeout(() => {
-      card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
-      card.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-    }, 50);
+  const resetTilt = useCallback((card: HTMLElement) => {
+    gsap.to(card, {
+      rotateX: 0,
+      rotateY: 0,
+      scale: 1,
+      duration: 0.4,
+      ease: 'power2.out'
+    });
   }, []);
 
-  // ==================== CARD CLICK HANDLER WITH TRACKING ====================
-  const handleCardClick = useCallback((e, product) => {
-    // Prevent navigation if clicking interactive elements
-    if (e.target.closest('button') || e.target.closest('a') || e.target.closest('[data-interactive]')) {
+  // --- Navigation Handler ---
+  const handleCardClick = useCallback((e: React.MouseEvent, productId: string) => {
+    // Prevent navigation if clicking on interactive elements
+    if (
+      (e.target as HTMLElement).closest('button') ||
+      (e.target as HTMLElement).closest('a') ||
+      (e.target as HTMLElement).closest('input')
+    ) {
       return;
     }
     
     // Track product view
-    trackProductView(product.id, {
-      source: 'homepage_featured',
-      position: featuredProducts.findIndex(p => p.id === product.id)
-    });
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      trackInteraction('product_click', productId, {
+        category: product.category,
+        price: product.price
+      });
+    }
     
-    // Track purchase intent
-    trackPurchaseIntent(product.id);
-    
-    // Navigate to product page
-    navigate(`/product/${product.id}`);
-  }, [navigate, trackProductView, trackPurchaseIntent, featuredProducts]);
+    navigate(`/product/${productId}`);
+  }, [navigate, products, trackInteraction]);
 
-  // ==================== SECURITY MONITORING ====================
-  useEffect(() => {
-    // Check for suspicious activity
-    const checkActivity = () => {
-      if (isSuspiciousActivity()) {
-        warnUser('Unusual activity detected. Please browse normally.');
-        
-        // If multiple violations, ban user
-        const violations = JSON.parse(localStorage.getItem('security_violations') || '0');
-        if (violations > 3) {
-          banUser('Multiple policy violations detected');
-          toast({
-            title: "Account Suspended",
-            description: "Your account has been suspended due to policy violations.",
-            variant: "destructive"
-          });
-        }
-      }
-    };
-    
-    // Check every 30 seconds
-    const interval = setInterval(checkActivity, 30000);
-    return () => clearInterval(interval);
-  }, [isSuspiciousActivity, warnUser, banUser, toast]);
-
-  // ==================== RENDER ====================
-  if (heroLoading && initialLoad) {
+  // Show loader while initializing
+  if (loading && heroSlides.length > 0) {
     return (
       <Layout>
-        <EnhancedLoader isLoading={true} />
-        <HeroSkeleton />
+        <ProductLoader />
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <EnhancedLoader isLoading={isLoading} />
-      
-      <div className="min-h-screen w-full overflow-hidden bg-background">
+      <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-b from-background to-muted/10">
         
-        {/* HERO SECTION */}
+        {/* HERO SECTION (Fixed Swipe & Wheel) */}
         <section 
-          ref={heroRef} 
-          className="relative w-full h-[500px] md:h-[600px] mb-8 md:mb-12 hero-container"
+          ref={heroRef}
+          className="relative w-full h-[500px] md:h-[600px] mb-12 md:mb-16"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
-          <ParticleBackground />
+          {/* Background Effects */}
+          <Suspense fallback={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5" />}>
+            <ParticleBackground />
+          </Suspense>
           
-          <div className="relative h-full w-full md:w-[95%] mx-auto md:mt-4 rounded-none md:rounded-3xl overflow-hidden shadow-2xl bg-black/90 border border-border/50">
-            {heroSlides.map((slide, index) => (
-              <HeroCard
-                key={slide.id || index}
-                slide={slide}
-                index={index}
-                isActive={index === currentSlide}
-                onSwipe={handleSwipe}
-              />
-            ))}
-            
-            {/* Navigation Dots */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-              {heroSlides.map((_, i) => (
-                <button 
-                  key={i} 
-                  onClick={() => {
-                    goToSlide(i);
-                    trackUserActivity('hero_dot_click', { slide: i });
-                  }}
-                  className={`h-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary ${
-                    i === currentSlide 
-                      ? 'w-8 bg-gradient-to-r from-primary to-purple-600' 
-                      : 'w-2 bg-white/40 hover:bg-white/70'
-                  }`}
-                  aria-label={`Go to slide ${i + 1}`}
-                />
-              ))}
+          {heroLoading ? (
+            <HeroSkeleton />
+          ) : heroSlides.length > 0 ? (
+            <div className="relative h-full w-full mx-auto rounded-none md:rounded-3xl overflow-hidden shadow-2xl bg-black">
+              <SwipeHandler onSwipedLeft={nextSlide} onSwipedRight={prevSlide}>
+                <div ref={sliderRef} className="relative h-full w-full">
+                  {heroSlides.map((slide, index) => (
+                    <Suspense key={slide.id || index} fallback={<HeroSkeleton />}>
+                      <HeroCard
+                        slide={slide}
+                        isActive={index === currentSlide}
+                      />
+                    </Suspense>
+                  ))}
+                </div>
+              </SwipeHandler>
+              
+              {/* Navigation Buttons */}
+              <button
+                onClick={prevSlide}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all group"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white group-hover:scale-110 transition-transform" />
+              </button>
+              
+              <button
+                onClick={nextSlide}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all group"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white group-hover:scale-110 transition-transform" />
+              </button>
+              
+              {/* Dots Navigation */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+                {heroSlides.map((_, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => goToSlide(i)}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === currentSlide 
+                        ? 'w-8 bg-white shadow-lg' 
+                        : 'w-2 bg-white/50 hover:bg-white hover:w-4'
+                    }`}
+                    aria-label={`Go to slide ${i + 1}`}
+                  />
+                ))}
+              </div>
             </div>
-            
-            {/* Previous/Next Buttons (Hidden but accessible via keyboard) */}
-            <button
-              onClick={() => handleSwipe('prev')}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm text-white opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-white"
-              aria-label="Previous slide"
-            >
-              ←
-            </button>
-            <button
-              onClick={() => handleSwipe('next')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm text-white opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-white"
-              aria-label="Next slide"
-            >
-              →
-            </button>
-          </div>
+          ) : (
+            <div className="h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-3xl">
+              <div className="text-center space-y-4">
+                <Sparkles className="w-12 h-12 text-primary mx-auto" />
+                <p className="text-xl font-semibold">No Offers Available</p>
+                <p className="text-muted-foreground">Check back soon for amazing deals!</p>
+              </div>
+            </div>
+          )}
         </section>
 
-        {/* FEATURES SECTION */}
+        {/* FEATURES */}
         <section className="features-section py-8 container mx-auto px-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[
-              { icon: Truck, title: 'Free Shipping', desc: 'On orders over $100', color: 'text-blue-500' },
-              { icon: Shield, title: 'Secure Payment', desc: '100% protected', color: 'text-green-500' },
-              { icon: Clock, title: 'Fast Delivery', desc: 'Global shipping', color: 'text-orange-500' },
-              { icon: Headphones, title: '24/7 Support', desc: 'Always here for you', color: 'text-purple-500' },
+              { icon: Truck, title: 'Free Shipping', desc: 'On orders over $100', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+              { icon: Shield, title: 'Secure Payment', desc: '100% protected', color: 'text-green-500', bg: 'bg-green-500/10' },
+              { icon: Clock, title: 'Fast Delivery', desc: 'Global shipping', color: 'text-orange-500', bg: 'bg-orange-500/10' },
+              { icon: Headphones, title: '24/7 Support', desc: 'Always here for you', color: 'text-purple-500', bg: 'bg-purple-500/10' },
             ].map((f, i) => (
-              <div key={i} className="feature-card flex flex-col items-center text-center p-6 rounded-2xl bg-card/50 backdrop-blur-sm border hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                <div className={`p-3 rounded-full bg-${f.color.split('-')[1]}-500/10 mb-3`}>
-                  <f.icon className={`w-6 h-6 ${f.color}`} />
+              <div 
+                key={i} 
+                className="feature-card flex flex-col items-center text-center p-6 rounded-2xl bg-card border hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
+                onClick={() => trackInteraction('click', `feature_${f.title}`)}
+              >
+                <div className={`w-14 h-14 rounded-full ${f.bg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <f.icon className={`w-7 h-7 ${f.color}`} />
                 </div>
-                <h3 className="font-bold text-sm md:text-base mb-1">{f.title}</h3>
-                <p className="text-xs text-muted-foreground">{f.desc}</p>
+                <h3 className="font-bold text-base md:text-lg mb-2">{f.title}</h3>
+                <p className="text-sm text-muted-foreground">{f.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* CATEGORIES SECTION */}
-        <section className="categories-section py-12 bg-gradient-to-b from-muted/30 to-transparent">
+        {/* CATEGORIES */}
+        <section className="categories-section py-12 bg-gradient-to-b from-transparent to-muted/20">
           <div className="container mx-auto px-4">
-            <div className="flex justify-between items-end mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
               <div>
-                <h2 className="text-2xl md:text-3xl font-bold mb-2">Browse Categories</h2>
-                <p className="text-muted-foreground">Shop by your favorite categories</p>
+                <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Browse Categories
+                </h2>
+                <p className="text-muted-foreground mt-2">Shop by your favorite categories</p>
               </div>
               <Button variant="outline" asChild className="rounded-full">
-                <Link to="/products">View All</Link>
+                <Link to="/categories">View All Categories</Link>
               </Button>
             </div>
             
             {categoriesLoading ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="category-card flex flex-col items-center gap-3 p-4">
-                    <div className="w-16 h-16 rounded-full bg-muted animate-pulse"></div>
-                    <div className="h-4 bg-muted rounded-full w-3/4"></div>
+                  <div key={i} className="category-card animate-pulse">
+                    <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-3"></div>
+                    <div className="h-4 bg-muted rounded-full w-3/4 mx-auto"></div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-                {categories.length > 0 ? categories.slice(0, 6).map((cat) => (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 md:gap-6">
+                {categories.length > 0 ? categories.slice(0, 12).map((cat) => (
                   <Link 
                     key={cat.id} 
                     to={`/products?category=${cat.id}`}
-                    className="category-card group flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-background transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-                    onClick={() => trackUserActivity('category_click', { category: cat.name })}
+                    className="category-card group flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-card hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                    onClick={() => trackInteraction('click', `category_${cat.name}`)}
                   >
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-all duration-300 relative">
+                    <div className="relative w-16 h-16 md:w-20 md:h-20">
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 group-hover:from-primary/30 group-hover:to-secondary/30 transition-all" />
                       {cat.image_url ? (
                         <img 
                           src={cat.image_url} 
                           alt={cat.name} 
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          className="relative w-full h-full rounded-full object-cover border-2 border-transparent group-hover:border-primary/30 transition-all"
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-accent to-accent/70 flex items-center justify-center text-2xl">
+                        <div className="relative w-full h-full rounded-full bg-accent flex items-center justify-center text-2xl">
                           📦
                         </div>
                       )}
                     </div>
-                    <span className="text-sm font-medium text-center group-hover:text-primary transition-colors">
+                    <span className="text-sm font-medium text-center line-clamp-1 group-hover:text-primary transition-colors">
                       {cat.name}
                     </span>
                   </Link>
@@ -891,22 +510,20 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* PERSONALIZED/Trending Products */}
-        <section className="products-grid py-16 container mx-auto px-4">
+        {/* PERSONALIZED PRODUCTS */}
+        <section className="products-section py-16 container mx-auto px-4">
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4">
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                {getUserPreferences() ? 'Picked For You' : 'Trending Now'}
-              </span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 mb-4">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-primary">Personalized For You</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-3">
-              {getUserPreferences() ? 'Personalized Recommendations' : 'Trending Products'}
+            <h2 className="text-3xl md:text-4xl font-bold mb-3">
+              {featuredProducts.length > 0 ? 'Recommended Just For You' : 'Trending Now'}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              {getUserPreferences() 
-                ? 'Products we think you\'ll love based on your browsing history'
-                : 'Top picks from our collection loved by many shoppers'
+              {featuredProducts.length > 0 
+                ? 'Based on your browsing history and preferences'
+                : 'Top picks from our collection'
               }
             </p>
           </div>
@@ -918,33 +535,44 @@ const HomePage = () => {
               featuredProducts.map((product) => (
                 <div 
                   key={product.id} 
-                  className="product-anim h-full perspective-1000 cursor-pointer group"
+                  className="product-card group relative h-full"
                   onMouseMove={(e) => handleTilt(e, e.currentTarget)}
                   onMouseLeave={(e) => resetTilt(e.currentTarget)}
-                  onClick={(e) => handleCardClick(e, product)}
+                  onClick={(e) => handleCardClick(e, product.id)}
                 >
-                  <div className="bg-card h-full rounded-2xl border hover:border-primary/50 overflow-hidden hover:shadow-2xl transition-all duration-300 transform-style-3d">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="relative bg-card h-full rounded-2xl border hover:shadow-2xl transition-all duration-300 overflow-hidden transform-style-3d">
                     <ProductCard 
                       product={product} 
-                      className="h-full"
-                      showQuickView={true}
-                      onQuickView={() => {
-                        trackProductView(product.id, { source: 'quick_view' });
-                      }}
+                      className="h-full bg-transparent"
+                      showBadge={product.rating >= 4.5}
                     />
+                    
+                    {/* Quick view overlay */}
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <Button 
+                        size="sm" 
+                        className="rounded-full px-6"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCardClick(e, product.id);
+                        }}
+                      >
+                        Quick View
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="col-span-full text-center py-16">
-                <div className="w-24 h-24 mx-auto mb-6 text-muted-foreground">
-                  📦
+              <div className="col-span-full text-center py-10">
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto">
+                    <Sparkles className="w-10 h-10 text-muted-foreground" />
+                  </div>
+                  <p className="text-lg font-semibold">No products available</p>
+                  <p className="text-muted-foreground">Check back soon for new arrivals!</p>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">No Products Available</h3>
-                <p className="text-muted-foreground mb-6">Check back soon for new arrivals!</p>
-                <Button asChild>
-                  <Link to="/products">Browse All Products</Link>
-                </Button>
               </div>
             )}
           </div>
@@ -953,14 +581,46 @@ const HomePage = () => {
             <Button 
               asChild 
               size="lg" 
-              className="rounded-full px-10 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
-              onClick={() => trackUserActivity('explore_store_click')}
+              className="rounded-full px-8 h-12 text-base shadow-lg hover:shadow-xl transition-shadow"
+              onClick={() => trackInteraction('click', 'explore_store_button')}
             >
-              <Link to="/products">
-                Explore Full Store
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
+              <Link to="/products">Explore Full Store</Link>
             </Button>
+          </div>
+        </section>
+
+        {/* BANNER */}
+        <section className="py-12 container mx-auto px-4">
+          <div className="relative rounded-3xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/80 to-secondary z-0" />
+            <div className="relative z-10 p-8 md:p-12 text-white">
+              <div className="max-w-2xl">
+                <h3 className="text-2xl md:text-3xl font-bold mb-4">
+                  Start Shopping Today!
+                </h3>
+                <p className="text-white/90 mb-6">
+                  Join millions of happy customers. Get exclusive deals, early access to sales, and personalized recommendations.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button 
+                    asChild 
+                    size="lg" 
+                    className="bg-white text-primary hover:bg-white/90 rounded-full"
+                    onClick={() => trackInteraction('click', 'banner_shop_now')}
+                  >
+                    <Link to="/products">Shop Now</Link>
+                  </Button>
+                  <Button 
+                    asChild 
+                    size="lg" 
+                    variant="outline" 
+                    className="border-white text-white hover:bg-white/10 rounded-full"
+                  >
+                    <Link to="/signup">Create Account</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </div>
