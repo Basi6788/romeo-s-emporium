@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 
 type ThemeState = {
-  mode: 'light' | 'dark';
-  toggle: () => void;
+  isDarkMode: boolean;
+  toggleTheme: () => void;
+  currentScene: string;
+  setScene: (scene: string) => void;
 };
 
 export const useThemeStore = create<ThemeState>((set) => ({
-  mode: 'light',
-  toggle: () =>
-    set((s) => ({ mode: s.mode === 'light' ? 'dark' : 'light' })),
+  isDarkMode: false, // Default light (Pink theme from image)
+  toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
+  currentScene: 'hero',
+  setScene: (scene) => set({ currentScene: scene }),
 }));
