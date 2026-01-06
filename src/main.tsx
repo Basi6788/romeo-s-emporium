@@ -4,7 +4,7 @@ import App from './App.tsx'
 import './index.css'
 
 // 👇 1. Ye import add karo
-import { ThemeProvider } from "next-themes"; 
+import { ThemeProvider } from "./context/useTheme"; 
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
