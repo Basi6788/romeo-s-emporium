@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate, Link, useNavigate } from "react-router-dom";
 import { ReactLenis } from "lenis/react";
 // Clerk Imports
-import { ClerkProvider } from "@clerk/clerk-react"; // Note: AuthenticateWithRedirectCallback yahan se hata diya kyun ke ab SSOCallback page me hai
+import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/clerk-react"; 
 // Context Imports
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -36,10 +36,10 @@ import TrackOrderPage from "./pages/TrackOrderPage";
 import MepcoBill from "./pages/MepcoBill";
 import HelpCenter from "./pages/HelpCenter";
 
-// 👇 NEW IMPORT (Make sure to create the file first)
+// 👇 NEW IMPORT 
 import SSOCallback from "./pages/SSOCallback"; 
 
-// Admin Imports... (Same as yours)
+// Admin Imports... 
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -70,8 +70,10 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
 const GuestRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuth();
+  // Also check Clerk's native loading state to prevent premature redirects
+  const { isLoaded } = useClerkAuth();
 
-  if (loading) {
+  if (loading || !isLoaded) {
     return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
   }
   
@@ -90,6 +92,7 @@ const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
       publishableKey={PUBLISHABLE_KEY}
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
+      // Important: These URLs must match your routes exactly
       signInUrl="/auth/sign-in"
       signUpUrl="/auth/sign-up"
       afterSignOutUrl="/"
@@ -109,21 +112,19 @@ const MainContent = () => {
       <main className="flex-1 w-full">
         <PageTransition key={location.pathname}>
           <Routes location={location}>
-            {/* Public */}
+            {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/mepco-bill" element={<MepcoBill />} />
             <Route path="/help" element={<HelpCenter />} />
 
-            {/* 🔥 UPDATED: Clerk SSO Callback Handler with Custom UI */}
-            {/* Ab ye hamara naya Custom Page use karega */}
-            <Route 
-              path="/sso-callback" 
-              element={<SSOCallback />} 
-            />
+            {/* 🔥 FIXED: SSO Callback Handler */}
+            {/* This route catches the Google/GitHub redirect */}
+            <Route path="/sso-callback" element={<SSOCallback />} />
 
-            {/* 🔥 Auth Routes for Custom UI */}
+            {/* 🔥 FIXED: Auth Routes */}
+            {/* Note the '/*' at the end. This is crucial for Clerk's internal routing */}
             <Route path="/auth/sign-in/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
             <Route path="/auth/sign-up/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
             
