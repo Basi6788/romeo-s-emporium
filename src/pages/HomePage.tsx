@@ -1,11 +1,10 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ListFilter, ChevronDown } from 'lucide-react'; // Icons for filter
+import { useRef, useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ListFilter, X } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useProducts, useCategories } from '@/hooks/useApi';
 import { useHeroImages } from '@/hooks/useHeroImages';
-import { useTracking } from '@/hooks/useTracking';
 import ProductLoader from '@/components/Loaders/ProductLoader';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -20,65 +19,65 @@ const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [initialLoad, setInitialLoad] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [sortOrder, setSortOrder] = useState<null | 'lowToHigh' | 'highToLow'>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [sortOrder, setSortOrder] = useState<string | null>(null);
 
   const heroRef = useRef(null);
-  const wrapperRef = useRef(null);
-  
+  const contentRef = useRef(null);
+  const containerRef = useRef(null);
+
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: categories = [], isLoading: categoriesLoading } = useCategories();
   const { data: dbHeroImages = [], isLoading: heroLoading } = useHeroImages();
-  const { getRecommendations } = useTracking();
 
-  // --- Filter & Sort Logic ---
-  const processedProducts = useMemo(() => {
-    let filtered = products;
-    
-    // Category Filter
+  // --- Filter & Sort Logic (Fix) ---
+  const filteredProducts = useMemo(() => {
+    let result = [...products];
+
+    // Category Filter (ID ya Name dono check karega)
     if (selectedCategory !== 'All') {
-      filtered = products.filter(p => p.category === selectedCategory);
+      result = result.filter(p => 
+        p.category === selectedCategory || p.category_id === selectedCategory
+      );
     }
 
-    // Price Sorting
-    if (sortOrder === 'lowToHigh') {
-      filtered = [...filtered].sort((a, b) => a.price - b.price);
-    } else if (sortOrder === 'highToLow') {
-      filtered = [...filtered].sort((a, b) => b.price - a.price);
-    }
+    // Sort Logic
+    if (sortOrder === 'highToLow') result.sort((a, b) => b.price - a.price);
+    if (sortOrder === 'lowToHigh') result.sort((a, b) => a.price - b.price);
 
-    return filtered;
+    return result;
   }, [products, selectedCategory, sortOrder]);
 
   const heroSlides = useMemo(() => {
-    if (!dbHeroImages || dbHeroImages.length === 0) {
-      return [
-        { id: '1', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=2070', title: 'Premium Collection' },
-      ];
-    }
-    return dbHeroImages;
+    return dbHeroImages.length > 0 ? dbHeroImages : [
+      { id: '1', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=2070', title: 'Premium Collection' }
+    ];
   }, [dbHeroImages]);
 
-  // GSAP Scroll Animation
+  // --- Smooth GSAP Animation ---
   useEffect(() => {
     if (initialLoad) return;
 
-    const ctx = gsap.context(() => {
-      // Hero section fades out and moves up slightly
-      gsap.to(heroRef.current, {
-        opacity: 0,
-        scale: 0.9,
-        y: -100,
-        scrollTrigger: {
-          trigger: ".hero-trigger",
-          start: "top top",
-          end: "bottom center",
-          scrub: true,
-        }
-      });
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: containerRef.current,
+        start: "top top",
+        end: "50% top",
+        scrub: 1, // Smoothness badha di
+      }
     });
 
-    return () => ctx.revert();
+    tl.to(heroRef.current, {
+      opacity: 0,
+      scale: 0.8,
+      y: -50,
+      filter: "blur(10px)",
+      ease: "power1.inOut"
+    });
+
+    return () => {
+      ScrollTrigger.getAll().forEach(t => t.kill());
+    };
   }, [initialLoad]);
 
   useEffect(() => {
@@ -89,56 +88,60 @@ const HomePage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen w-full overflow-x-hidden bg-black hero-trigger">
+      <div ref={containerRef} className="relative min-h-screen w-full bg-black">
         
-        {/* HERO SECTION with Animation Ref */}
-        <section ref={heroRef} className="fixed top-0 left-0 w-full h-[500px] md:h-[600px] z-0">
+        {/* HERO SECTION (Fixed for smooth fade) */}
+        <section ref={heroRef} className="fixed top-0 left-0 w-full h-[60vh] md:h-[70vh] z-0">
           <ParticleBackground />
-          <div className="relative h-full w-full overflow-hidden">
+          <div className="relative h-full w-full">
             {heroSlides.map((slide, index) => (
-              <div key={slide.id} className={cn("absolute inset-0 transition-opacity duration-700", index === currentSlide ? 'opacity-100' : 'opacity-0')}>
+              <div key={slide.id} className={cn("absolute inset-0 transition-opacity duration-1000", index === currentSlide ? 'opacity-100' : 'opacity-0')}>
                 <HeroCard slide={slide} isActive={index === currentSlide} />
               </div>
             ))}
           </div>
         </section>
 
-        {/* MAIN CONTENT WRAPPER */}
-        <div className="relative z-20 mt-[450px] md:mt-[550px] bg-background rounded-t-[40px] shadow-[0_-20px_25px_-5px_rgba(0,0,0,0.1)] pt-10 pb-20">
+        {/* CONTENT WRAPPER */}
+        <div 
+          ref={contentRef}
+          className="relative z-10 mt-[55vh] bg-background rounded-t-[45px] shadow-[0_-30px_50px_rgba(0,0,0,0.3)] pt-12 pb-24"
+        >
           <div className="container mx-auto px-6">
             
-            {/* Heading & Filter Row */}
-            <div className="flex justify-between items-start mb-6">
-              <h1 className="text-[32px] font-bold leading-tight tracking-tight text-foreground">
+            {/* Header Area */}
+            <div className="flex justify-between items-start mb-8">
+              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-foreground leading-[0.9]">
                 TRENDING <br /> NOW
               </h1>
               
-              {/* Filter Dropdown */}
-              <div className="relative mt-2">
-                <button 
-                  onClick={() => setIsFilterOpen(!isFilterOpen)}
-                  className="p-3 bg-secondary/20 rounded-xl hover:bg-secondary/40 transition-colors"
-                >
-                  <ListFilter className="w-6 h-6" />
-                </button>
-                
-                {isFilterOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-2xl shadow-xl z-50 p-2 overflow-hidden">
-                    <button onClick={() => {setSortOrder('highToLow'); setIsFilterOpen(false)}} className="w-full text-left px-4 py-3 hover:bg-secondary/20 rounded-xl text-sm transition-colors">Price: High to Low</button>
-                    <button onClick={() => {setSortOrder('lowToHigh'); setIsFilterOpen(false)}} className="w-full text-left px-4 py-3 hover:bg-secondary/20 rounded-xl text-sm transition-colors">Price: Low to High</button>
-                    <button onClick={() => {setSortOrder(null); setIsFilterOpen(false)}} className="w-full text-left px-4 py-3 hover:bg-secondary/20 rounded-xl text-sm transition-colors text-destructive">Reset Filter</button>
-                  </div>
-                )}
-              </div>
+              {/* Filter Button (Image Like) */}
+              <button 
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className="mt-2 p-3 bg-secondary/10 rounded-2xl hover:bg-secondary/20 transition-all border border-border/50"
+              >
+                <ListFilter className="w-7 h-7" />
+              </button>
             </div>
 
-            {/* CATEGORIES (Image Style) */}
-            <div className="flex gap-3 overflow-x-auto pb-8 scrollbar-hide no-scrollbar">
+            {/* Filter Dropdown (Real & Working) */}
+            {isFilterOpen && (
+              <div className="mb-6 p-4 bg-secondary/5 rounded-3xl border border-border animate-in fade-in slide-in-from-top-4">
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={() => setSortOrder('highToLow')} className={cn("px-4 py-2 rounded-xl text-xs font-bold border", sortOrder === 'highToLow' ? "bg-primary text-primary-foreground" : "bg-background")}>Price: High to Low</button>
+                  <button onClick={() => setSortOrder('lowToHigh')} className={cn("px-4 py-2 rounded-xl text-xs font-bold border", sortOrder === 'lowToHigh' ? "bg-primary text-primary-foreground" : "bg-background")}>Price: Low to High</button>
+                  <button onClick={() => setSortOrder(null)} className="px-4 py-2 rounded-xl text-xs font-bold bg-destructive/10 text-destructive">Clear</button>
+                </div>
+              </div>
+            )}
+
+            {/* CATEGORIES PILLS (Image Style) */}
+            <div className="flex gap-3 overflow-x-auto pb-10 no-scrollbar">
               <button 
                 onClick={() => setSelectedCategory('All')}
                 className={cn(
-                  "px-6 py-2.5 rounded-full text-sm font-medium transition-all whitespace-nowrap",
-                  selectedCategory === 'All' ? "bg-black text-white" : "bg-secondary/10 text-muted-foreground"
+                  "px-8 py-3 rounded-full text-sm font-bold transition-all whitespace-nowrap border",
+                  selectedCategory === 'All' ? "bg-foreground text-background border-foreground" : "bg-transparent text-muted-foreground border-border"
                 )}
               >
                 All
@@ -146,10 +149,10 @@ const HomePage = () => {
               {categories.map((cat: any) => (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(cat.name)}
+                  onClick={() => setSelectedCategory(cat.name)} // Agar ye kaam na kare to cat.id use karna
                   className={cn(
-                    "px-6 py-2.5 rounded-full text-sm font-medium transition-all whitespace-nowrap",
-                    selectedCategory === cat.name ? "bg-black text-white" : "bg-secondary/10 text-muted-foreground"
+                    "px-8 py-3 rounded-full text-sm font-bold transition-all whitespace-nowrap border",
+                    selectedCategory === cat.name ? "bg-foreground text-background border-foreground" : "bg-transparent text-muted-foreground border-border"
                   )}
                 >
                   {cat.name}
@@ -158,13 +161,15 @@ const HomePage = () => {
             </div>
 
             {/* PRODUCT GRID */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
-              {processedProducts.length > 0 ? (
-                processedProducts.map((product) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-10">
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))
               ) : (
-                <p className="col-span-full text-center py-20 text-muted-foreground italic">Is category me koi products nahi mile...</p>
+                <div className="col-span-full text-center py-20">
+                  <p className="text-muted-foreground text-lg">Koi products nahi mile is category mein.</p>
+                </div>
               )}
             </div>
 
@@ -172,7 +177,6 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Styles to hide scrollbar but keep functionality */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
