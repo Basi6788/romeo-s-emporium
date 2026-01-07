@@ -1,9 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
 import gsap from 'gsap';
 
 type Theme = 'light' | 'dark';
 
-export const useTheme = () => {
+// Context create kar rahe hain
+type ThemeContextType = {
+  theme: Theme;
+  toggleTheme: () => void;
+};
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+// Ye wo component hai jo Main.tsx dhoond raha tha
+export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme');
     return (saved as Theme) || 'light';
@@ -13,7 +22,7 @@ export const useTheme = () => {
     localStorage.setItem('theme', theme);
     document.documentElement.classList.toggle('dark', theme === 'dark');
     
-    // Animate theme transition
+    // Animate theme transition (Tumhara GSAP Logic)
     gsap.to('html', {
       '--primary': theme === 'light' ? '#FF6B8B' : '#FF6B8B',
       '--background': theme === 'light' ? '#FFD1D1' : '#000000',
@@ -42,5 +51,18 @@ export const useTheme = () => {
     });
   }, []);
 
-  return { theme, toggleTheme };
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+// Ye hook ab components me use hoga theme change karne ke liye
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
 };
