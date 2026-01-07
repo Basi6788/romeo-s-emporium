@@ -9,7 +9,7 @@ import { useSwipeable } from 'react-swipeable';
 import { useTheme } from '@/hooks/useTheme';
 
 // Lazy load heavy components
-const BackgroundScene = lazy(() => import('@/scene/SceneContainer'));
+const BackgroundScene = lazy(() => import('@/scenes/SceneContainer'));
 const ProductCard = lazy(() => import('@/components/ProductCard'));
 const FloatingCart = lazy(() => import('@/components/FloatingCart'));
 
