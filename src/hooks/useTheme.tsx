@@ -1,36 +1,46 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import gsap from 'gsap';
 
 type Theme = 'light' | 'dark';
 
-interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>('light');
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+export const useTheme = () => {
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('theme');
+    return (saved as Theme) || 'light';
+  });
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
+    localStorage.setItem('theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    
+    // Animate theme transition
+    gsap.to('html', {
+      '--primary': theme === 'light' ? '#FF6B8B' : '#FF6B8B',
+      '--background': theme === 'light' ? '#FFD1D1' : '#000000',
+      '--card': theme === 'light' ? '#FFF0F0' : '#1A1A1A',
+      '--foreground': theme === 'light' ? '#333333' : '#FFFFFF',
+      duration: 1,
+      ease: 'power2.inOut'
+    });
   }, [theme]);
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-};
+  const toggleTheme = useCallback(() => {
+    // Animation for theme toggle
+    const body = document.body;
+    gsap.to(body, {
+      opacity: 0.5,
+      duration: 0.2,
+      ease: 'power2.in',
+      onComplete: () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+        gsap.to(body, {
+          opacity: 1,
+          duration: 0.3,
+          ease: 'power2.out'
+        });
+      }
+    });
+  }, []);
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) throw new Error('useTheme must be used within a ThemeProvider');
-  return context;
+  return { theme, toggleTheme };
 };
