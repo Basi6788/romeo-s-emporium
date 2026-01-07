@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 // Components
 import ParticleBackground from '@/components/ParticleBackground';
 import HeroCard from '@/components/HeroCard';
-import SectionWrapper from '@/components/ui/SectionWrapper'; // User ka suggested component
+import RoundedContentWrapper from '@/components/ui/RoundedContentWrapper'; // User ka suggested component
 
 gsap.registerPlugin(ScrollTrigger);
 
