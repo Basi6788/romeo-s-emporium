@@ -5,7 +5,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import SceneContainer from '@/scene/SceneContainer';
+import SceneContainer from '@/scenes/SceneContainer';
 import ProductCard from '@/components/ProductCard';
 import FloatingCart from '@/components/FloatingCart';
 import useTheme from '@/hooks/useTheme';
