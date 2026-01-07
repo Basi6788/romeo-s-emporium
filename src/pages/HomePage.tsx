@@ -9,6 +9,9 @@ import ProductLoader from '@/components/Loaders/ProductLoader';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { cn } from "@/lib/utils";
+// HomePage.tsx ke upar ye line check karein
+import { Truck, Shield, Headphones, Clock, Sparkles } from 'lucide-react'; 
+
 
 // Components
 import ParticleBackground from '@/components/ParticleBackground';
