@@ -84,4 +84,4 @@ const RoundedContentWrapper = ({ children, className }: RoundedContentWrapperPro
   );
 };
 
-export default SectionWrapper;
+export default RoundedContentWrapper;
