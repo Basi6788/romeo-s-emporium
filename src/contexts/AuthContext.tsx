@@ -18,22 +18,22 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   loading: boolean;
-  // Login ab 'status' return karega taa ke UI ko pata chale ke OTP dikhana hai
+  // Login returns status to handle OTP flow
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; status?: string }>;
   loginWithSocial: (strategy: 'oauth_google' | 'oauth_apple' | 'oauth_facebook') => Promise<void>;
-  // Register ab actual SignUp create karega
+  // Register returns status for OTP
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string; status?: string }>;
-  // New: OTP Verify karne ke liye function
+  // Universal Verify Function
   verifyOtp: (code: string, isLoginFlow: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Admin Emails List
-const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com', 'Romeo786@gmail.com']; 
+// Admin Emails List (Hardcoded Super Admins) - Lowercase me rakhen
+const ADMIN_EMAILS = ['bbasitahmad1213@gmail.com', 'romeo786@gmail.com']; 
 
-// --- Three.js Particle System (UNCHANGED - As per your design) ---
+// --- Three.js Particle System (Background Effects) ---
 class ParticleSystem {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -43,8 +43,10 @@ class ParticleSystem {
   private material: THREE.PointsMaterial;
   private count = 2000;
   private frameId: number | null = null;
+  private container: HTMLElement;
 
   constructor(container: HTMLElement) {
+    this.container = container;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -79,10 +81,18 @@ class ParticleSystem {
 
     this.particles = new THREE.Points(this.geometry, this.material);
     this.scene.add(this.particles);
-
     this.camera.position.z = 5;
-
+    
+    // Resize Handler
+    window.addEventListener('resize', this.handleResize);
     this.animate();
+  }
+
+  handleResize = () => {
+      if(!this.container) return;
+      this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
   }
 
   animate = () => {
@@ -97,7 +107,8 @@ class ParticleSystem {
   explode() {
     const positions = this.geometry.attributes.position.array as Float32Array;
     gsap.to(this.particles.rotation, { x: Math.PI * 2, y: Math.PI * 2, duration: 2, ease: 'power4.out' });
-    for (let i = 0; i < positions.length; i += 3) {
+    // Sirf thore particles move karo performance ke liye
+    for (let i = 0; i < positions.length; i += 9) { 
       gsap.to(positions, {
         [i]: positions[i] * 2,
         [i + 1]: positions[i + 1] * 2,
@@ -111,15 +122,12 @@ class ParticleSystem {
 
   implode() {
     const positions = this.geometry.attributes.position.array as Float32Array;
-    for (let i = 0; i < positions.length; i += 3) {
-      gsap.to(positions, {
-        [i]: 0, [i + 1]: 0, [i + 2]: 0, duration: 1, ease: 'power3.in', delay: Math.random() * 0.3,
-      });
-    }
+    gsap.to(this.scene.scale, { x: 0.1, y: 0.1, z: 0.1, duration: 0.8, ease: 'power2.in' });
   }
 
   cleanup() {
     if (this.frameId) cancelAnimationFrame(this.frameId);
+    window.removeEventListener('resize', this.handleResize);
     this.renderer.dispose();
     this.geometry.dispose();
     this.material.dispose();
@@ -129,20 +137,21 @@ class ParticleSystem {
   }
 }
 
-// --- Main Auth Provider ---
+// --- Main Auth Provider Logic ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Clerk Hooks
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
-  const { signOut, setActive } = useClerk(); // setActive is crucial for Custom Flows
+  const { signOut, setActive } = useClerk();
   const { signIn, isLoaded: signInLoaded } = useSignIn();
-  const { signUp, isLoaded: signUpLoaded } = useSignUp(); // 🔥 Added SignUp Hook
+  const { signUp, isLoaded: signUpLoaded } = useSignUp();
 
   // Local State
   const [isAdmin, setIsAdmin] = useState(false);
   const particleSystemRef = useRef<ParticleSystem | null>(null);
   
-  // 1. Initialize Particles
+  // 1. Initialize Particles (Background)
   useEffect(() => {
+    // Only run on client side
     const container = document.getElementById('auth-particle-container');
     if (container && !particleSystemRef.current) {
         particleSystemRef.current = new ParticleSystem(container);
@@ -155,7 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // 2. Admin Check Logic
+  // 2. Admin Check Logic (Supabase + Hardcoded)
   useEffect(() => {
     const checkAdminRole = async () => {
       if (!clerkUser || !isSignedIn) {
@@ -163,32 +172,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      const email = clerkUser.primaryEmailAddress?.emailAddress;
+      const email = clerkUser.primaryEmailAddress?.emailAddress?.toLowerCase();
       
+      // Check 1: Hardcoded Emails (Case Insensitive)
       if (email && ADMIN_EMAILS.includes(email)) {
           setIsAdmin(true);
           return;
       }
 
+      // Check 2: Clerk Metadata
       if (clerkUser.publicMetadata?.role === 'admin') {
           setIsAdmin(true);
           return;
       }
 
+      // Check 3: Supabase DB Role
       try {
-         const { data } = await supabase.rpc('has_role', { _user_id: clerkUser.id, _role: 'admin' });
-         if (data) setIsAdmin(true);
+         // Agar Supabase configured nahi hai tu crash na ho
+         if (supabase) {
+             const { data } = await supabase.rpc('has_role', { _user_id: clerkUser.id, _role: 'admin' });
+             if (data) setIsAdmin(true);
+         }
       } catch (e) { 
-        // Silent fail
+        // Silent fail if DB check fails
       }
     };
 
     if (isLoaded) {
         checkAdminRole();
         if (isSignedIn) {
-            if(document.querySelector('.auth-success')) {
-                gsap.fromTo('.auth-success', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' });
-            }
+            // Animation Trigger on Success
             particleSystemRef.current?.explode();
         }
     }
@@ -201,55 +214,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithSocial = async (strategy: 'oauth_google' | 'oauth_apple' | 'oauth_facebook') => {
     if (!signInLoaded) return;
     try {
-        const redirectUrl = `${window.location.origin}/sso-callback`;
+        // App.tsx handle karega redirect ko, bas authenticate karo
+        // SSO Callback zaroori hai loop prevent karne ke liye
+        const redirectUrl = `${window.location.origin}/sso-callback`; 
         await signIn.authenticateWithRedirect({
             strategy,
-            redirectUrl: redirectUrl, 
-            redirectUrlComplete: "/"
+            redirectUrl,
+            redirectUrlComplete: "/" // App.tsx will override this based on bridge settings
         });
     } catch (err) {
         console.error("Social Login Error:", err);
     }
   };
 
-  // 2. Custom Login Logic (Updated for OTP)
+  // 2. Login Logic (Updated for OTP)
   const login = async (email: string, password: string) => {
-    if (!signInLoaded) return { success: false, error: "Clerk not loaded" };
+    if (!signInLoaded) return { success: false, error: "Auth system not loaded" };
+    
     try {
-      if(document.querySelector('.login-button')) {
-          gsap.to('.login-button', { scale: 0.9, duration: 0.1, yoyo: true, repeat: 1 });
-      }
-      
-      // Step 1: Create Sign In
+      // Step 1: Initialize Login
       const result = await signIn.create({ identifier: email, password });
       
-      // Step 2: Check Status
+      // Step 2: Analyze Status
       if (result.status === "complete") {
-        // Login Successful
         await setActive({ session: result.createdSessionId });
         return { success: true, status: 'complete' };
-      } else if (result.status === "needs_first_factor") {
-        // 🔥 Password sahi hai, lekin OTP chahiye (Custom Flow)
+      } 
+      // Agar 2FA ya Email Code ki zaroorat hai
+      else if (result.status === "needs_first_factor" || result.status === "needs_second_factor") {
         return { success: true, status: 'needs_code' };
-      } else {
-        return { success: false, error: "Verification required", status: result.status };
+      } 
+      else {
+        return { success: false, error: "Action required: " + result.status, status: result.status };
       }
     } catch (err: any) {
-      if(document.querySelector('.error-message')) {
-         gsap.fromTo('.error-message', { x: -10 }, { x: 10, duration: 0.1, repeat: 5, yoyo: true });
-      }
-      return { success: false, error: err.errors?.[0]?.message || err.message };
+      // Error Formatting
+      const msg = err.errors ? err.errors[0].longMessage : err.message;
+      return { success: false, error: msg };
     }
   };
 
-  // 3. Custom Register Logic (Implemented)
+  // 3. Register Logic
   const register = async (name: string, email: string, password: string) => {
-    if (!signUpLoaded) return { success: false, error: "Clerk not loaded" };
+    if (!signUpLoaded) return { success: false, error: "Auth system not loaded" };
     
     try {
-        // Step 1: Create Sign Up
+        // Step 1: Create Sign Up Object
         const [firstName, ...lastNameParts] = name.split(" ");
-        const lastName = lastNameParts.join(" ");
+        const lastName = lastNameParts.join(" ") || ""; // Handle single names
 
         await signUp.create({
             emailAddress: email,
@@ -258,49 +270,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             lastName
         });
 
-        // Step 2: Send Email OTP
+        // Step 2: Trigger Verification Email
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
 
-        // Step 3: Tell UI to show OTP Input
+        // Step 3: Tell UI to show OTP
         return { success: true, status: 'needs_code' };
 
     } catch (err: any) {
-        return { success: false, error: err.errors?.[0]?.message || err.message };
+        const msg = err.errors ? err.errors[0].longMessage : err.message;
+        return { success: false, error: msg };
     }
   };
 
-  // 4. 🔥 New: Verify OTP (Handles both Login & Register)
+  // 4. 🔥 Universal OTP Verify
   const verifyOtp = async (code: string, isLoginFlow: boolean) => {
     try {
         let result;
+        
+        // --- LOGIN FLOW ---
         if (isLoginFlow) {
-            // Verify for Login
-            if (!signInLoaded) return { success: false };
-            result = await signIn.attemptFirstFactor({ strategy: "email_code", code });
-        } else {
-            // Verify for Sign Up
-            if (!signUpLoaded) return { success: false };
-            result = await signUp.attemptEmailAddressVerification({ code });
+            if (!signInLoaded) return { success: false, error: "Not loaded" };
+            
+            // Login ke liye 'attemptFirstFactor' use hota hai
+            result = await signIn.attemptFirstFactor({
+                strategy: "email_code",
+                code,
+            });
+        } 
+        // --- SIGNUP FLOW ---
+        else {
+            if (!signUpLoaded) return { success: false, error: "Not loaded" };
+            
+            // Signup ke liye 'attemptEmailAddressVerification' use hota hai
+            result = await signUp.attemptEmailAddressVerification({
+                code,
+            });
         }
 
+        // --- CHECK RESULT ---
         if (result.status === "complete") {
+            // Session Active karo
             await setActive({ session: result.createdSessionId });
             return { success: true };
         } else {
-            return { success: false, error: "Verification failed or incomplete." };
+            return { success: false, error: "Verification incomplete. Status: " + result.status };
         }
     } catch (err: any) {
-        return { success: false, error: err.errors?.[0]?.message || "Invalid Code" };
+        const msg = err.errors ? err.errors[0].longMessage : "Invalid verification code";
+        return { success: false, error: msg };
     }
   };
 
   // 5. Logout
   const logout = async () => {
-    if(document.querySelector('.auth-container')) {
-        gsap.to('.auth-container', { opacity: 0, scale: 0.8, duration: 0.3, ease: 'power2.in' });
-    }
+    // Animation Effect
     particleSystemRef.current?.implode();
     
+    // Wait for animation
     await new Promise(resolve => setTimeout(resolve, 500));
     await signOut();
     setIsAdmin(false);
@@ -323,9 +349,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       loginWithSocial,
       register,
-      verifyOtp, // Exposed to UI
+      verifyOtp, 
       logout
     }}>
+      {/* Background Layer */}
       <div id="auth-particle-container" className="fixed inset-0 pointer-events-none z-0" />
       <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none" />
       {children}
@@ -338,3 +365,4 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
+

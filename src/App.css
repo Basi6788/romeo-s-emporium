@@ -2,47 +2,24 @@
 
 #root {
   width: 100%;
-  min-height: 100vh; /* Make sure app takes full screen height */
+  min-height: 100vh; /* App hamesha full screen lega */
   margin: 0;
-  padding: 0; /* IMP: Ye 2rem padding remove kar di jo scroll issue kar rahi thi */
+  padding: 0;
+  
+  /* Layout settings */
   display: flex;
   flex-direction: column;
-  text-align: left; /* Default 'center' hata diya taa ke text normal behave kare */
-  overflow-x: hidden; /* Extra safety for horizontal scroll */
+  text-align: left;
+  overflow-x: hidden; /* Horizontal scroll rokne ke liye */
+  
+  /* CRITICAL: Background transparent rakhna zaroori hai */
+  background-color: transparent !important;
+  
+  /* Z-index 2 taake ye Canvas (Z-index 1) ke upar rahe */
+  position: relative;
+  z-index: 2;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
+/* Agar future me koi global utility chahiye ho toh yahan daal sakte hain,
+   filhal Tailwind (index.css) sab sambhal lega. */
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}

@@ -4,9 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate, Link, useNavigate } from "react-router-dom";
 import { ReactLenis } from "lenis/react";
-// Clerk Imports
 import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/clerk-react"; 
-// Context Imports
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -20,7 +18,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import CompareBar from "@/components/CompareBar";
 import CompareModal from "@/components/CompareModal";
 
-// Pages Imports
+// Pages
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -35,11 +33,12 @@ import OrderDetailPage from "./pages/OrderDetailPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import MepcoBill from "./pages/MepcoBill";
 import HelpCenter from "./pages/HelpCenter";
-
-// 👇 NEW IMPORT 
 import SSOCallback from "./pages/SSOCallback"; 
 
-// Admin Imports... 
+import OnboardingPage from "./pages/OnboardingPage";
+import WelcomeBackPage from "./pages/WelcomeBackPage";
+
+// Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -53,38 +52,17 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXYk"; 
 
-// --- Protected Route Components ---
+// --- 1. FIXED ADMIN ROUTE ---
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading, isAuthenticated } = useAuth();
   
-  if (loading) {
-    return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
-  }
-  
-  if (!isAuthenticated || !isAdmin) {
-    return <Navigate to="/auth/sign-in" replace />;
-  }
+  if (loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
+  if (!isAuthenticated || !isAdmin) return <Navigate to="/auth/sign-in" replace />;
   
   return <>{children}</>;
 };
 
-const GuestRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, loading } = useAuth();
-  // Also check Clerk's native loading state to prevent premature redirects
-  const { isLoaded } = useClerkAuth();
-
-  if (loading || !isLoaded) {
-    return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
-  }
-  
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-// --- Helper Component to bridge Clerk & Router ---
+// --- 2. UPDATED CLERK BRIDGE ---
 const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   return (
@@ -92,10 +70,10 @@ const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
       publishableKey={PUBLISHABLE_KEY}
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
-      // Important: These URLs must match your routes exactly
       signInUrl="/auth/sign-in"
       signUpUrl="/auth/sign-up"
       afterSignOutUrl="/"
+      // Force redirect urls yahan se hata diye hain kyunke hum custom login use kar rahe hain
     >
       {children}
     </ClerkProvider>
@@ -105,6 +83,7 @@ const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
 const MainContent = () => {
   const location = useLocation();
   const { isAdmin } = useAuth();
+  const isSpecialPage = location.pathname === '/onboarding' || location.pathname === '/welcome-back';
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   return (
@@ -112,25 +91,24 @@ const MainContent = () => {
       <main className="flex-1 w-full">
         <PageTransition key={location.pathname}>
           <Routes location={location}>
-            {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/mepco-bill" element={<MepcoBill />} />
             <Route path="/help" element={<HelpCenter />} />
-
-            {/* 🔥 FIXED: SSO Callback Handler */}
-            {/* This route catches the Google/GitHub redirect */}
             <Route path="/sso-callback" element={<SSOCallback />} />
 
-            {/* 🔥 FIXED: Auth Routes */}
-            {/* Note the '/*' at the end. This is crucial for Clerk's internal routing */}
-            <Route path="/auth/sign-in/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
-            <Route path="/auth/sign-up/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
-            
-            <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
+            {/* --- NEW ROUTES --- */}
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/welcome-back" element={<WelcomeBackPage />} />
 
-            {/* Protected User Routes */}
+            {/* --- AUTH ROUTES UPDATE --- */}
+            {/* GuestRoute hata diya hai taake AuthPage khud redirect handle kare */}
+            <Route path="/auth/sign-in/*" element={<AuthPage />} />
+            <Route path="/auth/sign-up/*" element={<AuthPage />} />
+            <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
+            
+            {/* User Routes */}
             <Route path="/cart" element={<CartPage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
@@ -139,8 +117,8 @@ const MainContent = () => {
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/track-order" element={<TrackOrderPage />} />
-
-            {/* Protected Admin Routes */}
+            
+            {/* Admin Routes */}
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
             <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
@@ -149,13 +127,13 @@ const MainContent = () => {
             <Route path="/admin/security" element={<AdminRoute><AdminSecurity /></AdminRoute>} />
             <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
             <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
-
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </PageTransition>
       </main>
 
-      {isAdmin && !isAdminRoute && (
+      {isAdmin && !isAdminRoute && !isSpecialPage && (
         <div className="fixed bottom-24 right-4 z-50">
           <Link to="/admin" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl hover:scale-105 transition-transform">
             <ShieldCheck className="w-5 h-5" /> Admin Panel
@@ -163,7 +141,7 @@ const MainContent = () => {
         </div>
       )}
 
-      {!isAdminRoute && (
+      {!isAdminRoute && !isSpecialPage && (
         <>
           <BottomNavigation />
           <CompareBar />
@@ -175,11 +153,10 @@ const MainContent = () => {
   );
 };
 
-// Main App Component
 const App = () => (
-  <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-    <ClerkRouterBridge>
-      <QueryClientProvider client={queryClient}>
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ClerkRouterBridge>
         <ThemeProvider>
           <AuthProvider>
             <CartProvider>
@@ -198,9 +175,10 @@ const App = () => (
             </CartProvider>
           </AuthProvider>
         </ThemeProvider>
-      </QueryClientProvider>
-    </ClerkRouterBridge>
-  </BrowserRouter>
+      </ClerkRouterBridge>
+    </BrowserRouter>
+  </QueryClientProvider>
 );
 
 export default App;
+

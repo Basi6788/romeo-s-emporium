@@ -1,20 +1,8 @@
-
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
-
-/* NOTE: 'Grift' font is not available on Google Fonts. 
-   You need to host it yourself and use @font-face. 
-   I've added the @font-face rule below. You need to put the font files 
-   (e.g., Grift-Bold.woff2) in your public/fonts folder. 
-   If you don't have it, it will fall back to 'Outfit'. */
-
-@font-face {
-  font-family: 'Grift';
-  src: url('/fonts/Grift-Bold.woff2') format('woff2'),
-       url('/fonts/Grift-Bold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* --- Google Fonts: Bold & Rounded --- */
+/* Fredoka: Headlines ke liye (Bohot rounded aur bold hai) */
+/* Nunito: Body text ke liye (Readable aur soft rounded) */
+/* Quicksand: Buttons aur Accents ke liye */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&family=Quicksand:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -22,357 +10,169 @@
 
 @layer base {
   :root {
-    /* --- Light Mode Colors (Cream) --- */
-    --background: 40 100% 97%; /* Cream Color */
-    --foreground: 220 20% 10%;
-
-    --card: 40 100% 99%; /* Slightly lighter cream for cards */
-    --card-foreground: 220 20% 10%;
-
-    --popover: 40 100% 99%;
-    --popover-foreground: 220 20% 10%;
-
-    --primary: 250 95% 60%;
+    /* --- Light Mode (Based on your Peach/Pink Image) --- */
+    /* HSL: 10 hue (Red-Orange), 100% saturation, 92% lightness */
+    --background: 10 100% 92%; 
+    --foreground: 340 30% 20%; /* Dark Berry Text for contrast */
+    
+    --card: 10 100% 96%; /* Slightly lighter peach for cards */
+    --card-foreground: 340 30% 20%;
+    
+    --popover: 10 100% 96%;
+    --popover-foreground: 340 30% 20%;
+    
+    /* Primary: Deep Rose/Red to pop on Peach background */
+    --primary: 340 85% 55%; 
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 40 30% 94%; /* Darker cream for secondary */
-    --secondary-foreground: 220 20% 10%;
-
-    --muted: 40 30% 94%;
-    --muted-foreground: 220 10% 46%;
-
-    --accent: 160 84% 39%;
+    
+    --secondary: 10 60% 90%;
+    --secondary-foreground: 340 30% 20%;
+    
+    --muted: 10 30% 85%;
+    --muted-foreground: 340 10% 45%;
+    
+    --accent: 260 80% 60%; /* Violet accent for fun contrast */
     --accent-foreground: 0 0% 100%;
-
+    
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
-    --border: 40 20% 90%;
-    --input: 40 20% 90%;
-    --ring: 250 95% 60%;
-
-    --radius: 1rem;
-
-    --success: 160 84% 39%;
-    --warning: 38 92% 50%;
-    --info: 200 98% 39%;
-    --rose: 350 89% 60%;
-    --amber: 38 92% 50%;
-    --emerald: 160 84% 39%;
-    --violet: 250 95% 60%;
     
-    /* Glass Effect Variables */
-    --glass-bg: 40 100% 97% / 0.6; /* Cream glass */
-    --glass-border: 255 255 255 / 0.4;
-    --blur-intensity: 20px;
+    --border: 10 40% 80%; /* Peach colored borders */
+    --input: 10 40% 80%;
+    --ring: 340 85% 55%;
+    
+    --radius: 1.5rem; /* Zyada rounded corners */
 
-    --sidebar-background: 40 100% 97%;
-    --sidebar-foreground: 220 20% 10%;
-    --sidebar-primary: 250 95% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 40 30% 94%;
-    --sidebar-accent-foreground: 220 20% 10%;
-    --sidebar-border: 40 20% 90%;
-    --sidebar-ring: 250 95% 60%;
+    /* --- Glass Variables (Peach Tinted Glass) --- */
+    --glass-bg: 10 100% 95% / 0.6; 
+    --glass-border: 0 0% 100% / 0.6;
+    --glass-blur: 16px;
   }
 
   .dark {
-    /* --- Dark Mode Colors (Deep Black) --- */
-    --background: 0 0% 0%; /* Deep, Pure Black */
-    --foreground: 0 0% 98%;
-
-    --card: 0 0% 5%; /* Slightly lighter black for cards */
-    --card-foreground: 0 0% 98%;
-
-    --popover: 0 0% 5%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 250 95% 60%;
+    /* --- Dark Mode (Deep & Transparent) --- */
+    --background: 0 0% 0%; 
+    --foreground: 10 20% 98%;
+    
+    --card: 0 0% 8%;
+    --card-foreground: 10 20% 98%;
+    
+    --popover: 0 0% 8%;
+    --popover-foreground: 10 20% 98%;
+    
+    --primary: 340 85% 60%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 10%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 0 0% 10%;
+    
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 10 20% 98%;
+    
+    --muted: 0 0% 12%;
     --muted-foreground: 220 10% 65%;
-
-    --accent: 160 84% 39%;
+    
+    --accent: 260 80% 60%;
     --accent-foreground: 0 0% 100%;
-
+    
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
+    
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 340 85% 60%;
 
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 250 95% 60%;
-
-    /* Dark Glass Variables */
-    --glass-bg: 0 0% 0% / 0.6; /* Black glass */
-    --glass-border: 255 255 255 / 0.1;
-
-    --sidebar-background: 0 0% 0%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 250 95% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 10%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 250 95% 60%;
+    /* --- Glass Variables (Dark Mode) --- */
+    --glass-bg: 0 0% 0% / 0.4; 
+    --glass-border: 255 255 255 / 0.08;
+    --glass-blur: 24px;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
-
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-    overflow-x: hidden;
-    /* Background Glass/Gradient Effect for the whole page */
-    background-image: linear-gradient(
-      to bottom right, 
-      hsl(var(--background)), 
-      hsl(var(--background) / 0.8) 50%, 
-      hsl(var(--background))
-    );
-    background-attachment: fixed; /* Keeps the effect static while scrolling */
-  }
-
+  
+  /* Smooth Scroll Behavior globally */
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
   }
 
-  /* Font Family Definitions */
+  /* IMPORTANT: Body Transparent for Canvas effects */
+  body {
+    background-color: hsl(var(--background)) !important;
+    @apply text-foreground antialiased;
+    font-family: 'Nunito', sans-serif; /* Body font rounded */
+    min-height: 100vh;
+    overflow-x: hidden; /* Horizontal scroll roka */
+  }
+
+  /* --- Custom Scrollbar (Kamal ki look ke liye) --- */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/30 rounded-full hover:bg-primary/60 transition-colors;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  
+  #root {
+    background-color: transparent !important;
+    min-height: 100vh;
+  }
+
+  /* Headers ke liye Bold & Bouncy Font */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Grift', 'Outfit', sans-serif;
+    font-family: 'Fredoka', sans-serif;
+    letter-spacing: -0.02em; /* Thoda tight spacing modern look ke liye */
   }
 }
 
 @layer components {
-  .gradient-text {
-    @apply bg-gradient-to-r from-violet to-emerald bg-clip-text text-transparent;
+  /* Unified Glass Panel with new Peach Frost Effect */
+  .glass-panel {
+    background-color: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-border));
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    @apply rounded-3xl;
   }
 
-  .gradient-bg {
-    @apply bg-gradient-to-r from-violet via-primary to-emerald;
-  }
-
-  .gradient-accent {
-    @apply bg-gradient-to-r from-amber to-rose;
-  }
-
-  /* Standard Glass Class */
-  .glass {
-    @apply bg-[hsl(var(--glass-bg))] backdrop-blur-xl border border-[hsl(var(--glass-border))];
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); /* Added subtle shadow */
-  }
-
-  /* Advanced Liquid Glass Effect */
-  .glass-liquid {
-    @apply bg-[hsl(var(--glass-bg))] backdrop-blur-2xl;
-    background: linear-gradient(
-      135deg,
-      hsl(var(--background) / 0.9) 0%,
-      hsl(var(--background) / 0.5) 50%,
-      hsl(var(--background) / 0.8) 100%
-    );
-    border: 1px solid hsl(var(--border) / 0.3);
-    box-shadow: 
-      0 8px 32px hsl(var(--primary) / 0.1),
-      inset 0 0 0 1px hsl(var(--border) / 0.1);
-  }
-
-  .card-hover {
-    @apply transition-all duration-500 hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-2;
-  }
-
+  /* BUTTON STYLES UPDATED - Rounded & Bouncy */
   .btn-primary {
-    @apply bg-gradient-to-r from-primary via-violet to-primary text-primary-foreground font-semibold px-6 py-3 rounded-2xl transition-all duration-300;
-    @apply hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98];
-    background-size: 200% 100%;
-    animation: shimmer-btn 3s ease infinite;
+    /* Gradient Red/Rose to Violet */
+    @apply bg-gradient-to-r from-primary via-accent to-primary text-white font-bold px-8 py-4 rounded-full transition-all duration-300;
+    @apply hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1 active:scale-95;
+    background-size: 200% auto;
+    font-family: 'Quicksand', sans-serif;
+    letter-spacing: 0.5px;
   }
-
-  .btn-secondary {
-    @apply bg-secondary text-secondary-foreground font-semibold px-6 py-3 rounded-2xl transition-all duration-300;
-    @apply hover:bg-secondary/80 hover:scale-[1.02] active:scale-[0.98];
-  }
-
-  .btn-ghost {
-    @apply text-foreground font-semibold px-6 py-3 rounded-2xl transition-all duration-300 hover:bg-muted;
-  }
-
-  .btn-accent {
-    @apply bg-gradient-to-r from-emerald to-accent text-accent-foreground font-semibold px-6 py-3 rounded-2xl;
-    @apply transition-all duration-300 hover:shadow-xl hover:shadow-emerald/40 hover:scale-[1.02];
-  }
-
+  
+  /* Input Style - Pill Shape */
   .input-field {
-    @apply w-full px-5 py-4 rounded-2xl bg-muted/50 border border-border/50;
-    @apply focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none;
-    @apply placeholder:text-muted-foreground/60;
+    @apply w-full px-6 py-4 rounded-full bg-white/40 border-2 border-transparent;
+    @apply focus:border-primary focus:bg-white/80 focus:ring-4 focus:ring-primary/10 transition-all outline-none shadow-sm;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 600;
+    color: hsl(var(--foreground));
   }
 
-  .section-title {
-    @apply text-4xl md:text-5xl font-display font-bold tracking-tight;
-    font-family: 'Grift', 'Outfit', sans-serif; /* Ensure headings use Grift */
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* Animations */
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite alternate;
-  }
-
-  .animate-slide-up {
-    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
-  }
-
-  .animate-scale-in {
-    animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .animate-liquid {
-    animation: liquid 8s ease-in-out infinite;
+  /* --- Animation Helpers for Framer Motion --- */
+  /* Ye class use karo apne motion.div par taake GPU use ho aur lag na kare */
+  .gpu-accelerated {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-20px) rotate(2deg); }
-}
-
-@keyframes glow {
-  from { 
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3), 0 0 40px hsl(var(--emerald) / 0.1); 
-  }
-  to { 
-    box-shadow: 0 0 40px hsl(var(--primary) / 0.5), 0 0 80px hsl(var(--emerald) / 0.2); 
+@layer utilities {
+  /* Text Outline Utility agar heading ko pop karana ho */
+  .text-outline {
+    -webkit-text-stroke: 1px hsl(var(--foreground));
+    color: transparent;
   }
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(40px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes liquid {
-  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-  50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
-}
-
-@keyframes shimmer-btn {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes pulse-ring {
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { opacity: 0.5; }
-  100% { transform: scale(1.3); opacity: 0; }
-}
-
-.shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted)) 0%,
-    hsl(var(--muted-foreground) / 0.1) 50%,
-    hsl(var(--muted)) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 3s linear infinite;
-}
-
-/* Safe area for bottom navigation */
-.safe-area-pb {
-  padding-bottom: env(safe-area-inset-bottom, 8px);
-}
-
-/* Custom scrollbar - HIDDEN AS REQUESTED */
-::-webkit-scrollbar {
-  display: none;
-}
-* {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-
-/* Color utility classes */
-.text-violet { color: hsl(var(--violet)); }
-.text-emerald { color: hsl(var(--emerald)); }
-.text-amber { color: hsl(var(--amber)); }
-.text-rose { color: hsl(var(--rose)); }
-
-.bg-violet { background-color: hsl(var(--violet)); }
-.bg-emerald { background-color: hsl(var(--emerald)); }
-.bg-amber { background-color: hsl(var(--amber)); }
-.bg-rose { background-color: hsl(var(--rose)); }
-
-.border-violet { border-color: hsl(var(--violet)); }
-.border-emerald { border-color: hsl(var(--emerald)); }
-.border-amber { border-color: hsl(var(--amber)); }
-.border-rose { border-color: hsl(var(--rose)); }
-
-/* 3D Effects */
-.perspective-1000 {
-  perspective: 1000px;
-}
-
-.preserve-3d {
-  transform-style: preserve-3d;
-}
-
-/* Noise texture overlay - Can be applied to body for extra effect */
-.noise::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-  opacity: 0.03;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Bottom nav spacing for pages */
-.has-bottom-nav {
-  padding-bottom: 80px;
-}

@@ -2,7 +2,13 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+    "./index.html" // Ye bhi add kar diya safety ke liye
+  ],
   prefix: "",
   theme: {
     container: {
@@ -14,8 +20,9 @@ export default {
     },
     extend: {
       fontFamily: {
+        // Updated: 'Outfit' hata kar 'Space Grotesk' kar diya
         sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
-        display: ['Outfit', 'system-ui', 'sans-serif'],
+        display: ['Space Grotesk', 'system-ui', 'sans-serif'], 
       },
       colors: {
         border: "hsl(var(--border))",
@@ -51,6 +58,7 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Custom color shortcuts
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         info: "hsl(var(--info))",
@@ -58,6 +66,7 @@ export default {
         amber: "hsl(var(--amber))",
         emerald: "hsl(var(--emerald))",
         violet: "hsl(var(--violet))",
+        
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -103,12 +112,17 @@ export default {
           from: { transform: "rotate(0deg)" },
           to: { transform: "rotate(360deg)" },
         },
+        aurora: {
+          from: { backgroundPosition: "0% center" },
+          to: { backgroundPosition: "200% center" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         float: "float 6s ease-in-out infinite",
         "spin-slow": "spin-slow 20s linear infinite",
+        aurora: "aurora 5s linear infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
@@ -118,3 +132,4 @@ export default {
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+

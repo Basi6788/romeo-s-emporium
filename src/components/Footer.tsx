@@ -1,13 +1,26 @@
 import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
+// HugeIcons imports
 import {
-  Facebook, Twitter, Instagram, Youtube,
-  Mail, Phone, MapPin, MessageCircle,
-  Home, Box, Tag, FileText, HelpCircle, Truck, RefreshCw
-} from 'lucide-react';
+  InstagramIcon, 
+  YoutubeIcon, 
+  NewTwitterIcon, // X logo
+  Facebook02Icon,
+  Mail01Icon, 
+  Call02Icon, 
+  Location01Icon, 
+  WhatsappIcon,
+  Home01Icon, 
+  PackageIcon, 
+  Tag01Icon, 
+  SaleTag02Icon, 
+  HelpCircleIcon, 
+  DeliveryTruck01Icon, 
+  Exchange01Icon // REPLACED: ArrowPathIcon exist nahi karta, Returns ke liye Exchange01 best hai
+} from 'hugeicons-react';
 import gsap from 'gsap';
 
-// --- Styles (Cleaned & Optimized) ---
+// --- Styles (Updated to use CSS Variables) ---
 const styles = `
 /* Gradient Text Fix */
 .mirae-gradient-text {
@@ -20,36 +33,25 @@ const styles = `
   display: inline-block;
 }
 
-/* Glass Updates */
+/* Glass Updates - Now using Variables */
 .glass-panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transition: all 0.3s ease;
-}
-.dark .glass-panel {
-  background: rgba(20, 20, 20, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-}
-.light .glass-panel, .glass-panel {
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  color: var(--text-secondary);
 }
 
 .glass-btn {
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
   backdrop-filter: blur(12px);
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   position: relative;
   overflow: hidden;
-}
-.dark .glass-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-.light .glass-btn, .glass-btn {
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--text-muted);
 }
 
 /* Shine Animation */
@@ -58,7 +60,7 @@ const styles = `
   position: absolute;
   top: 0; left: -100%;
   width: 50%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  background: linear-gradient(90deg, transparent, var(--shine-color), transparent);
   transform: skewX(-25deg);
   transition: 0.5s;
 }
@@ -108,8 +110,9 @@ const Footer: React.FC = () => {
       rotateX: -yMove,  
       rotateY: xMove,  
       scale: 1.1,  
-      borderColor: color || '#d1d5db',   
-      boxShadow: color ? `0 0 20px ${color}40` : `0 0 15px rgba(0,0,0, 0.1)`,  
+      borderColor: color || 'var(--accent-color)',   
+      boxShadow: color ? `0 0 20px ${color}40` : `0 0 15px rgba(0,0,0, 0.1)`, 
+      color: color || 'var(--text-primary)', 
       ease: "power1.out"  
     });
   };
@@ -118,41 +121,45 @@ const Footer: React.FC = () => {
     gsap.to(e.currentTarget, {
       duration: 0.5,
       rotateX: 0, rotateY: 0, scale: 1,
-      borderColor: "inherit",
+      borderColor: "var(--btn-border)", // Reset to variable
       boxShadow: "none",
+      color: "var(--text-muted)", // Reset text color
       ease: "elastic.out(1, 0.5)"
     });
   };
 
-  // Data Objects
+  // Data Objects with HugeIcons
   const socialLinks = [
-    { icon: Instagram, href: "https://www.instagram.com/_mirae01", color: "#E1306C", name: "Instagram" },
-    { icon: Youtube, href: "https://m.youtube.com/@mirae0001", color: "#FF0000", name: "YouTube" },
-    { icon: Twitter, href: "https://x.com/RomeoUchiha88", color: "#1DA1F2", name: "X (Twitter)" },
-    { icon: Facebook, href: "https://www.facebook.com/share/1D2dZVpPBn/", color: "#1877F2", name: "Facebook" }
+    { icon: InstagramIcon, href: "https://www.instagram.com/_mirae01", color: "#E1306C", name: "Instagram" },
+    { icon: YoutubeIcon, href: "https://m.youtube.com/@mirae0001", color: "#FF0000", name: "YouTube" },
+    { icon: NewTwitterIcon, href: "https://x.com/RomeoUchiha88", color: "#1DA1F2", name: "X (Twitter)" },
+    { icon: Facebook02Icon, href: "https://www.facebook.com/share/1D2dZVpPBn/", color: "#1877F2", name: "Facebook" }
   ];
 
   const quickLinks = [
-    { name: 'Home', icon: Home },
-    { name: 'Products', icon: Box },
-    { name: 'Categories', icon: Tag },
-    { name: 'Deals', icon: FileText },
+    { name: 'Home', icon: Home01Icon },
+    { name: 'Products', icon: PackageIcon }, // Better than Box
+    { name: 'Categories', icon: Tag01Icon },
+    { name: 'Deals', icon: SaleTag02Icon }, // Specific for deals
   ];
 
   const supportLinks = [
-    { name: 'FAQ', icon: HelpCircle },
-    { name: 'Shipping', icon: Truck },
-    { name: 'Returns', icon: RefreshCw },
-    { name: 'Contact', icon: Phone },
+    { name: 'FAQ', icon: HelpCircleIcon },
+    { name: 'Shipping', icon: DeliveryTruck01Icon }, // Specific truck
+    { name: 'Returns', icon: Exchange01Icon }, // FIXED: Using Exchange01Icon
+    { name: 'Contact', icon: Call02Icon },
   ];
 
   return (
-    // 'overflow-hidden' here ensures nothing scrolls past the footer bounds
-    <footer className="footer-container relative bg-gray-50 dark:bg-[#050505] text-gray-800 dark:text-gray-200 mt-auto transition-colors duration-300 overflow-hidden">
+    // Main container now uses variables for bg and text
+    <footer 
+      className="footer-container relative mt-auto transition-colors duration-300 overflow-hidden"
+      style={{ backgroundColor: 'var(--footer-bg)', color: 'var(--text-primary)' }}
+    >
       <style>{styles}</style>
 
       {/* Main Content Wrapper */}
-      <div className="relative pt-16 pb-6"> {/* Reduced bottom padding slightly for tighter fit */}
+      <div className="relative pt-16 pb-6">
         
         {/* Ambient Background Glows */}
         <div className="absolute top-0 left-1/4 w-80 h-80 bg-yellow-500/10 rounded-full blur-[100px] pointer-events-none" />
@@ -193,7 +200,7 @@ const Footer: React.FC = () => {
                 Luxury meets Technology. Elevating your lifestyle with premium gear and seamless delivery.
               </p>
 
-              {/* Social Icons - DIRECT LINKS */}
+              {/* Social Icons */}
               <div className="flex gap-3">
                 {socialLinks.map((item, i) => (
                   <a
@@ -201,11 +208,11 @@ const Footer: React.FC = () => {
                     href={item.href}
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 cursor-pointer"
+                    className="w-10 h-10 glass-btn rounded-full flex items-center justify-center cursor-pointer"
                     onMouseMove={(e) => handleTilt(e, item.color)}
                     onMouseLeave={handleReset}
                   >
-                    <item.icon className="w-5 h-5" />
+                    <item.icon size={20} className="text-current" />
                   </a>
                 ))}
               </div>
@@ -213,19 +220,19 @@ const Footer: React.FC = () => {
 
             {/* QUICK LINKS */}
             <div className="lg:col-span-2">
-              <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Quick Links</h4>
+              <h4 className="font-bold text-lg mb-6" style={{ color: 'var(--accent-color)' }}>Quick Links</h4>
               <ul className="space-y-3">
                 {quickLinks.map((link) => (
                   <li key={link.name}>
                     <Link to="#" className="flex items-center gap-3 group">
                       <div 
-                        className="w-8 h-8 glass-btn rounded-lg flex items-center justify-center text-gray-500 group-hover:text-yellow-500 transition-colors"
+                        className="w-8 h-8 glass-btn rounded-lg flex items-center justify-center group-hover:text-yellow-500 transition-colors"
                         onMouseMove={(e) => handleTilt(e, '#FFD700')}
                         onMouseLeave={handleReset}
                       >
-                        <link.icon className="w-4 h-4" />
+                        <link.icon size={16} />
                       </div>
-                      <span className="text-sm hover:text-yellow-600 dark:hover:text-yellow-500 transition-colors">{link.name}</span>
+                      <span className="text-sm hover:text-yellow-600 transition-colors opacity-80 hover:opacity-100">{link.name}</span>
                     </Link>
                   </li>
                 ))}
@@ -234,19 +241,19 @@ const Footer: React.FC = () => {
 
             {/* SUPPORT */}
             <div className="lg:col-span-2">
-              <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Support</h4>
+              <h4 className="font-bold text-lg mb-6" style={{ color: 'var(--accent-color)' }}>Support</h4>
               <ul className="space-y-3">
                 {supportLinks.map((link) => (
                   <li key={link.name}>
                     <Link to="#" className="flex items-center gap-3 group">
                       <div 
-                        className="w-8 h-8 glass-btn rounded-lg flex items-center justify-center text-gray-500 group-hover:text-yellow-500 transition-colors"
+                        className="w-8 h-8 glass-btn rounded-lg flex items-center justify-center group-hover:text-yellow-500 transition-colors"
                         onMouseMove={(e) => handleTilt(e, '#FFD700')}
                         onMouseLeave={handleReset}
                       >
-                        <link.icon className="w-4 h-4" />
+                        <link.icon size={16} />
                       </div>
-                      <span className="text-sm hover:text-yellow-600 dark:hover:text-yellow-500 transition-colors">{link.name}</span>
+                      <span className="text-sm hover:text-yellow-600 transition-colors opacity-80 hover:opacity-100">{link.name}</span>
                     </Link>
                   </li>
                 ))}
@@ -255,16 +262,16 @@ const Footer: React.FC = () => {
 
             {/* CONTACT INFO */}
             <div className="lg:col-span-4">
-              <h4 className="font-bold text-lg mb-6 text-yellow-600 dark:text-yellow-500">Contact Us</h4>
+              <h4 className="font-bold text-lg mb-6" style={{ color: 'var(--accent-color)' }}>Contact Us</h4>
               <div className="glass-panel rounded-2xl p-5 space-y-4">
                   
                 {/* Gmail */}
                 <div className="flex items-center gap-4 group">
                   <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-red-500">
-                    <Mail className="w-5 h-5" />
+                    <Mail01Icon size={20} />
                   </div>
                   <div className="overflow-hidden">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Email us</p>
+                    <p className="text-xs opacity-60">Email us</p>
                     <a href="mailto:MiraeSupport01@gmail.com" className="text-sm font-medium hover:text-yellow-500 transition-colors truncate block">
                       MiraeSupport01@gmail.com
                     </a>
@@ -274,10 +281,10 @@ const Footer: React.FC = () => {
                 {/* Phone / WhatsApp */}
                 <div className="flex items-center gap-4 group">
                   <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-green-500">
-                    <MessageCircle className="w-5 h-5" />
+                    <WhatsappIcon size={20} />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">WhatsApp / Call</p>
+                    <p className="text-xs opacity-60">WhatsApp / Call</p>
                     <a href="https://wa.me/923047299447" className="text-sm font-medium hover:text-yellow-500 transition-colors">
                       +92 304 729 9447
                     </a>
@@ -287,10 +294,10 @@ const Footer: React.FC = () => {
                 {/* Location */}
                 <div className="flex items-center gap-4 group">
                   <div className="w-10 h-10 glass-btn rounded-full flex items-center justify-center text-blue-500">
-                    <MapPin className="w-5 h-5" />
+                    <Location01Icon size={20} />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Location</p>
+                    <p className="text-xs opacity-60">Location</p>
                     <span className="text-sm font-medium">Rohillanwali, Punjab, Pakistan</span>
                   </div>
                 </div>
@@ -301,9 +308,9 @@ const Footer: React.FC = () => {
           </div>
 
           {/* COPYRIGHT */}
-          <div className="border-t border-gray-300 dark:border-white/10 pt-6 text-center">
-            <p className="text-xs text-gray-500">
-              &copy; 2025 <span className="text-yellow-600 dark:text-yellow-500 font-bold">MIRAE</span>. Created by Romeo. 
+          <div className="border-t pt-6 text-center" style={{ borderColor: 'var(--glass-border)' }}>
+            <p className="text-xs opacity-60">
+              &copy; 2025 <span className="font-bold" style={{ color: 'var(--accent-color)' }}>MIRAE</span>. Created by Romeo. 
             </p>
           </div>
 
@@ -314,3 +321,4 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
+

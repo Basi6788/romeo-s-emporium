@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react"; // SWC hata kar standard plugin use kiya
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
@@ -7,10 +7,11 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 5173, // Standard fast port, 8080 aksar busy hota hai
-    strictPort: true, // Agar 5173 busy ho tu error dega, purana cache load nahi karega
+    port: 5173, 
+    strictPort: true, 
   },
   plugins: [
+    // Standard React plugin (Babel-based) jo Termux mein kabhi crash nahi hota
     react(),
     mode === "development" && componentTagger()
   ].filter(Boolean),
@@ -20,7 +21,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Ye line hamesha naye filename generate karegi taake cache ka masla na ho
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name].[hash].${new Date().getTime()}.js`,
@@ -28,9 +28,10 @@ export default defineConfig(({ mode }) => ({
         assetFileNames: `assets/[name].[hash].[ext]`,
       },
     },
-    // Performance optimization
+    // Esbuild use karenge jo ke fast hai aur Termux mein stable hai
     minify: 'esbuild', 
-    sourcemap: false, // Production mein speed barhane ke liye map file off kar di
-    reportCompressedSize: false, // Build fast karne ke liye
+    sourcemap: false, 
+    reportCompressedSize: false, 
   },
 }));
+
