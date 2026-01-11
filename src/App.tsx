@@ -10,7 +10,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { CompareProvider } from "@/contexts/CompareContext";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2 } from "lucide-react"; 
 
 import ScrollToTop from "@/components/ScrollToTop";
 import PageTransition from "@/components/PageTransition";
@@ -34,9 +34,8 @@ import TrackOrderPage from "./pages/TrackOrderPage";
 import MepcoBill from "./pages/MepcoBill";
 import HelpCenter from "./pages/HelpCenter";
 import SSOCallback from "./pages/SSOCallback"; 
-
-import OnboardingPage from "./pages/OnboardingPage";
-import WelcomeBackPage from "./pages/WelcomeBackPage";
+// 👇 YAHAN MAINE IMPORT ADD KIYA HAI (Path check kar lena agar different folder mein ho)
+import WelcomeBackPage from "./pages/WelcomeBackPage"; 
 
 // Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -52,7 +51,27 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXYk"; 
 
-// --- 1. FIXED ADMIN ROUTE ---
+// --- Protected Route (Modified: Sirf Auth Check karega, Onboarding nahi) ---
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isSignedIn, isLoaded } = useClerkAuth();
+  const location = useLocation();
+
+  if (!isLoaded) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-black">
+        <Loader2 className="animate-spin text-blue-500 w-12 h-12" />
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <Navigate to={`/auth/sign-in?redirect_url=${encodeURIComponent(location.pathname)}`} replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// --- Admin Route ---
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading, isAuthenticated } = useAuth();
   
@@ -62,7 +81,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// --- 2. UPDATED CLERK BRIDGE ---
+// --- Clerk Bridge ---
 const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   return (
@@ -73,50 +92,82 @@ const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
       signInUrl="/auth/sign-in"
       signUpUrl="/auth/sign-up"
       afterSignOutUrl="/"
-      // Force redirect urls yahan se hata diye hain kyunke hum custom login use kar rahe hain
     >
       {children}
     </ClerkProvider>
   );
 };
 
+// Main Content
 const MainContent = () => {
   const location = useLocation();
   const { isAdmin } = useAuth();
-  const isSpecialPage = location.pathname === '/onboarding' || location.pathname === '/welcome-back';
+  
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   return (
     <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background">
-      <main className="flex-1 w-full">
+      
+      <main className="flex-1 w-full relative z-10">
         <PageTransition key={location.pathname}>
           <Routes location={location}>
+            {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/mepco-bill" element={<MepcoBill />} />
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/sso-callback" element={<SSOCallback />} />
-
-            {/* --- NEW ROUTES --- */}
-            <Route path="/onboarding" element={<OnboardingPage />} />
+            
+            {/* 👇 YAHAN ROUTE ADD KIYA HAI. URL /welcome-back hoga */}
             <Route path="/welcome-back" element={<WelcomeBackPage />} />
 
-            {/* --- AUTH ROUTES UPDATE --- */}
-            {/* GuestRoute hata diya hai taake AuthPage khud redirect handle kare */}
+            {/* Auth Routes */}
             <Route path="/auth/sign-in/*" element={<AuthPage />} />
             <Route path="/auth/sign-up/*" element={<AuthPage />} />
             <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
             
-            {/* User Routes */}
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/wishlist" element={<WishlistPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/confirmation" element={<ConfirmationPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/orders/:id" element={<OrderDetailPage />} />
-            <Route path="/track-order" element={<TrackOrderPage />} />
+            {/* Protected User Routes */}
+            <Route path="/cart" element={
+              <ProtectedRoute>
+                <CartPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/wishlist" element={
+              <ProtectedRoute>
+                <WishlistPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/checkout" element={
+              <ProtectedRoute>
+                <CheckoutPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/confirmation" element={
+              <ProtectedRoute>
+                <ConfirmationPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/orders" element={
+              <ProtectedRoute>
+                <OrdersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/orders/:id" element={
+              <ProtectedRoute>
+                <OrderDetailPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/track-order" element={
+              <ProtectedRoute>
+                <TrackOrderPage />
+              </ProtectedRoute>
+            } />
             
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
@@ -133,7 +184,7 @@ const MainContent = () => {
         </PageTransition>
       </main>
 
-      {isAdmin && !isAdminRoute && !isSpecialPage && (
+      {isAdmin && !isAdminRoute && (
         <div className="fixed bottom-24 right-4 z-50">
           <Link to="/admin" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl hover:scale-105 transition-transform">
             <ShieldCheck className="w-5 h-5" /> Admin Panel
@@ -141,7 +192,7 @@ const MainContent = () => {
         </div>
       )}
 
-      {!isAdminRoute && !isSpecialPage && (
+      {!isAdminRoute && (
         <>
           <BottomNavigation />
           <CompareBar />

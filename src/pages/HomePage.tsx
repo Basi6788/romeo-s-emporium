@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo, memo, useCallback } from 'react';
-import { Tick02Icon } from 'hugeicons-react'; // Menu01Icon removed, replaced with custom SVG
+import { Tick02Icon } from 'hugeicons-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion'; 
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
@@ -85,11 +85,21 @@ const HomePage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // --- FIX APPLIED HERE ---
   const processedProducts = useMemo(() => {
     let filtered = Array.isArray(products) ? [...products] : [];
+    
     if (selectedCategory !== 'All') {
-      filtered = filtered.filter(p => String(p.category_id) === String(selectedCategory));
+      // FIX: Database image shows column is 'category', not 'category_id'.
+      // Also checking both just in case.
+      filtered = filtered.filter(p => 
+        // Check 1: Agar DB me category ka string/ID 'category' column me hai
+        String(p.category) === String(selectedCategory) || 
+        // Check 2: Fallback agar code me kahin aur mapping ho
+        String(p.category_id) === String(selectedCategory)
+      );
     }
+
     if (sortOrder === 'lowToHigh') {
       filtered.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
     } else if (sortOrder === 'highToLow') {
@@ -223,16 +233,13 @@ const HomePage = () => {
                     animate={isFilterOpen ? "open" : "closed"}
                     className="text-foreground block"
                   >
-                    {/* Line 1: Top (Wide) -> Morphs to Diagonal */}
                     <motion.path
                       variants={{
                         closed: { d: "M 3 6 L 21 6", stroke: "currentColor" },
                         open: { d: "M 4 4 L 20 20", stroke: "currentColor" }
                       }}
-                      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} // GSAP Power3.out feel
+                      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} 
                     />
-                    
-                    {/* Line 2: Middle (Medium) -> Fades out & shrinks center */}
                     <motion.path
                       d="M 7 12 L 17 12"
                       variants={{
@@ -241,8 +248,6 @@ const HomePage = () => {
                       }}
                       transition={{ duration: 0.3 }}
                     />
-                    
-                    {/* Line 3: Bottom (Small) -> Morphs to Opposite Diagonal */}
                     <motion.path
                       variants={{
                         closed: { d: "M 10 18 L 14 18" },
@@ -306,6 +311,9 @@ const HomePage = () => {
                 <motion.button
                   key={cat.id}
                   variants={fadeInUp}
+                  // IMPORTANT: Agar 'products' table me category ka 'Name' save hai (like "Shoes"),
+                  // to yahan 'cat.id' ki jagah 'cat.name' pass karna parega.
+                  // Abhi mai 'cat.id' hi rakh raha hun assuming aapne IDs store ki hain.
                   onClick={() => setSelectedCategory(cat.id)}
                   className={cn(
                     "relative px-6 py-2.5 rounded-[30px] text-sm font-medium transition-all flex items-center gap-2 flex-shrink-0 overflow-hidden",

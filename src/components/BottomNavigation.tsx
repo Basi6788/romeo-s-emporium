@@ -234,3 +234,4 @@ const BottomNavigation: React.FC = () => {
 
 export default BottomNavigation;
 
+

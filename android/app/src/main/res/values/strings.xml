@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MIRAE</string>
+    <string name="title_activity_main">MIRAE</string>
+    <string name="package_name">com.uchiha</string>
+    <string name="custom_url_scheme">com.uchiha</string>
+</resources>
