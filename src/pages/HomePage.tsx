@@ -210,7 +210,7 @@ const HomePage = () => {
                 transition={{ duration: 0.6, ease: "easeOut" }}
                 className="text-3xl md:text-5xl font-black text-foreground leading-none tracking-tight"
               >
-                TRENDING <br /> <AuroraText>now</AuroraText>
+                TRENDING <br /> <AuroraText>NOW</AuroraText>
               </motion.h1>
 
               <div className="relative" ref={dropdownRef}>
@@ -377,4 +377,5 @@ const HomePage = () => {
 };
 
 export default HomePage;
+
 

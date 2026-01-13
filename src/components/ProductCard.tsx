@@ -1,251 +1,284 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  ShoppingCartAdd01Icon, 
-  FavouriteIcon, 
-  FlashIcon, 
-  StarIcon 
-} from 'hugeicons-react';
-import { Button } from '@/components/ui/button';
-import gsap from 'gsap';
-
-// --- IMPORTS ---
-// Hum Context direct import karne ke bajaye Hooks try kar rahe hain
-// Agar tumhare files me 'useCart' ya 'useWishlist' nahi hai, to error aayega.
-// Lekin usually ye hooks banaye jate hain.
+import React, { useState, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
+import { toast } from 'sonner';
+import gsap from 'gsap';
 
-interface ProductCardProps {
-  product: {
-    id: string;
-    name: string;
-    price: number;
-    originalPrice?: number;
-    image: string;
-    category: string;
-    rating: number;
-    reviews: number;
-    badge?: string;
-    color?: string;
-  };
+// --- Configuration ---
+const SUPABASE_PROJECT_URL = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+const STORAGE_BUCKET = 'storage/v1/object/public/product-images';
+
+// --- Interface ---
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  original_price?: number;
+  originalPrice?: number;
+  image: string;          
+  category: string;
+  product_images?: {
+    image_path: string;
+    is_primary: boolean;
+  }[];
+  rating?: number;
+  reviews?: number;
+  description?: string;
+  colors?: string[];
+  in_stock?: boolean;
 }
 
-const ProductCard = ({ product }: ProductCardProps) => {
-  const navigate = useNavigate();
-  const cardRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-  const heartRef = useRef<HTMLDivElement>(null);
+interface ProductCardProps {
+  product: Product;
+}
 
-  // --- SAFE CONTEXT USAGE ---
-  // Hum maan ke chal rahe hain ke hooks exported hain
-  const cart = useCart();
-  const wishlist = useWishlist();
+const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+  const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // Swipe Refs
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
 
-  // Helper functions to safely access context
-  // (Taake agar context null bhi ho to app crash na ho)
-  const addToCart = cart?.addToCart || (() => console.error("Cart Context missing"));
-  const addToWishlist = wishlist?.addToWishlist || (() => console.error("Wishlist Context missing"));
-  const removeFromWishlist = wishlist?.removeFromWishlist || (() => {});
-  const wishlistItems = wishlist?.wishlistItems || [];
+  const isWishlisted = isInWishlist(product.id);
 
-  // Auth Check (Simple LocalStorage Check)
-  // Tum yahan apna auth logic replace kar sakte ho
-  const isLoggedIn = !!localStorage.getItem('user') || !!localStorage.getItem('token');
-
-  const isWishlisted = wishlistItems.some((item: any) => item.id === product.id);
-
-  // --- AUTH REDIRECT HELPER ---
-  const checkAuthAndProceed = (action: () => void) => {
-    if (!isLoggedIn) {
-      // User ko login page par bhejo
-      navigate('/auth'); 
-      return;
-    }
-    action();
-  };
-
-  // --- ANIMATIONS ---
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!cardRef.current || window.innerWidth < 768) return;
-    const card = cardRef.current;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const rotateX = ((centerY - y) / centerY) * 5;
-    const rotateY = ((x - centerX) / centerX) * 5;
-
-    gsap.to(card, {
-      rotateX,
-      rotateY,
-      transformPerspective: 1000,
-      scale: 1.02,
-      duration: 0.4,
-      ease: 'power2.out'
-    });
-  };
-
-  const handleMouseLeave = () => {
-    if (!cardRef.current) return;
-    gsap.to(cardRef.current, {
-      rotateX: 0,
-      rotateY: 0,
-      scale: 1,
-      duration: 0.5,
-      ease: 'elastic.out(1, 0.5)'
-    });
-  };
-
-  const handleWishlistClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    checkAuthAndProceed(() => {
-      if (isWishlisted) {
-        removeFromWishlist(product.id);
-      } else {
-        addToWishlist(product); // Product object pass kar rahe hain
-        gsap.fromTo(heartRef.current, 
-          { scale: 1 },
-          { scale: 1.5, duration: 0.2, yoyo: true, repeat: 1, ease: "back.out(1.7)" }
-        );
-      }
-    });
-  };
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    checkAuthAndProceed(() => {
-      const btn = e.currentTarget;
-      gsap.to(btn, {
-        scale: 0.9,
-        duration: 0.1,
-        yoyo: true,
-        repeat: 1,
-        onComplete: () => {
-          // Adjust payload according to your Context types
-          addToCart({
-            productId: product.id,
-            name: product.name,
-            price: product.price,
-            image: product.image,
-            quantity: 1,
-            color: product.color
-          });
-        }
+  // --- 🔥 Images Logic ---
+  const productImages = useMemo(() => {
+    let images: string[] = [];
+    if (product.product_images && product.product_images.length > 0) {
+      const sortedImages = [...product.product_images].sort((a, b) => {
+        return (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0);
       });
-    });
+      images = sortedImages.map(img => {
+        if (!img.image_path) return null;
+        if (img.image_path.startsWith('http')) return img.image_path;
+        return `${SUPABASE_PROJECT_URL}/${STORAGE_BUCKET}/${img.image_path}`;
+      }).filter(Boolean) as string[];
+    } else if (typeof product.image === 'string' && product.image.includes(',')) {
+      images = product.image.split(',').map(s => s.trim());
+    } else if (product.image) {
+      images = [product.image];
+    }
+    if (images.length === 0) images = ['/placeholder.svg'];
+    return [...new Set(images)];
+  }, [product]);
+
+  // --- Navigation & Swipe ---
+  const nextImage = (e?: React.MouseEvent) => {
+    e?.preventDefault(); e?.stopPropagation();
+    if (productImages.length > 1) setCurrentImageIndex((prev) => (prev + 1) % productImages.length);
   };
 
-  const handleBuyNow = (e: React.MouseEvent) => {
+  const prevImage = (e?: React.MouseEvent) => {
+    e?.preventDefault(); e?.stopPropagation();
+    if (productImages.length > 1) setCurrentImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.targetTouches[0].clientX; };
+  const handleTouchMove = (e: React.TouchEvent) => { touchEndX.current = e.targetTouches[0].clientX; };
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const distance = touchStartX.current - touchEndX.current;
+    if (distance > 50) nextImage();
+    else if (distance < -50) prevImage();
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
+
+  // --- 🛒 Cart Logic ---
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     
-    checkAuthAndProceed(() => {
-      addToCart({
+    gsap.fromTo(e.currentTarget, { scale: 1 }, { scale: 0.90, duration: 0.1, yoyo: true, repeat: 1 });
+
+    addToCart({
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      image: productImages[currentImageIndex], 
+      quantity: 1
+    });
+    toast.success('Added to cart!');
+  };
+
+  // --- ❤️ Wishlist Logic ---
+  const handleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    gsap.fromTo(e.currentTarget, { scale: 1 }, { scale: 1.25, duration: 0.15, yoyo: true, repeat: 1 });
+
+    if (isWishlisted) {
+      removeFromWishlist(product.id);
+      toast.error('Removed from wishlist');
+    } else {
+      addToWishlist({
         productId: product.id,
         name: product.name,
         price: product.price,
-        image: product.image,
-        quantity: 1,
-        color: product.color
+        image: productImages[0]
       });
-      navigate('/checkout');
-    });
+      toast.success('Added to wishlist!');
+    }
   };
 
-  const handleCardClick = () => {
-    navigate(`/product/${product.id}`);
-  };
+  const originalPrice = product.original_price || product.originalPrice;
+  const discount = originalPrice ? Math.round((1 - product.price / originalPrice) * 100) : 0;
 
   return (
-    <div
-      ref={cardRef}
-      onClick={handleCardClick}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className="group relative w-full max-w-[380px] bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden"
-    >
-      {/* Badge & Wishlist */}
-      <div className="absolute top-3 left-3 right-3 z-20 flex justify-between items-start">
-        {product.badge ? (
-          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide text-white shadow-sm ${
-            product.badge === 'New' ? 'bg-emerald-500' : 'bg-rose-500'
-          }`}>
-            {product.badge}
-          </span>
-        ) : <div />}
+    <>
+      {/* --- Fonts Import & Custom Styles --- */}
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Oswald:wght@500;700&family=Roboto+Condensed:wght@400;700&display=swap');
+          
+          .font-label { font-family: 'Roboto Condensed', sans-serif; }
+          .font-product-name { font-family: 'Outfit', sans-serif; }
+          .font-price { font-family: 'Oswald', sans-serif; }
+        `}
+      </style>
 
-        <button
-          ref={heartRef}
-          onClick={handleWishlistClick}
-          className="p-2 rounded-full bg-white/80 dark:bg-black/50 backdrop-blur-md shadow-sm hover:bg-white transition-colors group/heart"
+      <Link to={`/products/${product.id}`} className="block h-full select-none">
+        <div 
+          className="group relative flex w-full flex-col overflow-hidden rounded-[1.5rem] bg-white dark:bg-zinc-900 shadow-sm transition-all duration-300 hover:shadow-xl border border-gray-100 dark:border-zinc-800"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
-          <FavouriteIcon 
-            size={20} 
-            className={`transition-colors duration-300 ${isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-gray-500 group-hover/heart:text-rose-500'}`}
-            variant={isWishlisted ? "solid" : "stroke"}
-          />
-        </button>
-      </div>
+          {/* --- Image Section --- */}
+          <div 
+            className="relative aspect-[4/5] w-full bg-[#f8f8f8] dark:bg-zinc-800 overflow-hidden"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* Discount Badge */}
+            {discount > 0 && (
+              <div className="absolute left-3 top-3 z-20">
+                <span className="font-price rounded-full bg-red-500 px-2.5 py-1 text-[12px] tracking-wide text-white shadow-sm">
+                  -{discount}%
+                </span>
+              </div>
+            )}
 
-      {/* Image */}
-      <div className="relative w-full aspect-[4/3] overflow-hidden bg-gray-50 dark:bg-zinc-800/50">
-        <div className={`absolute inset-0 opacity-10 ${product.color || 'bg-blue-500'}`} />
-        <img
-          ref={imageRef}
-          src={product.image}
-          alt={product.name}
-          className="w-full h-full object-contain p-6 transition-transform duration-500 group-hover:scale-110 will-change-transform"
-        />
-      </div>
+            {/* ❤️ Wishlist Button */}
+            <button 
+              onClick={handleWishlist}
+              className={`absolute right-3 top-3 z-30 rounded-full p-2.5 shadow-md transition-all duration-300 active:scale-90 flex items-center justify-center ${
+                isWishlisted 
+                  ? 'bg-red-600 text-white shadow-red-200 border border-red-600'
+                  : 'bg-white/90 dark:bg-zinc-900/90 text-gray-400 hover:text-red-500 hover:bg-white border border-transparent'
+              }`}
+            >
+              <Heart 
+                size={18} 
+                className={`transition-all duration-300 ${isWishlisted ? 'fill-current text-white' : ''}`} 
+              />
+            </button>
 
-      {/* Content */}
-      <div className="p-4 space-y-3">
-        <div className="flex justify-between items-start gap-2">
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{product.category}</p>
-            <h3 className="text-base font-bold text-gray-800 dark:text-gray-100 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+            {/* Navigation Arrows */}
+            {productImages.length > 1 && (
+              <>
+                <button 
+                  onClick={prevImage} 
+                  className={`absolute left-2 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-white/90 dark:bg-zinc-800/90 shadow-sm text-gray-800 dark:text-white backdrop-blur-sm transition-all duration-300 hover:scale-110 active:scale-95 border border-gray-100 dark:border-zinc-700 md:opacity-0 md:group-hover:opacity-100 ${
+                    isHovered ? 'opacity-100 translate-x-0' : '-translate-x-2'
+                  }`}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button 
+                  onClick={nextImage} 
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-white/90 dark:bg-zinc-800/90 shadow-sm text-gray-800 dark:text-white backdrop-blur-sm transition-all duration-300 hover:scale-110 active:scale-95 border border-gray-100 dark:border-zinc-700 md:opacity-0 md:group-hover:opacity-100 ${
+                    isHovered ? 'opacity-100 translate-x-0' : 'translate-x-2'
+                  }`}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </>
+            )}
+
+            {/* Images Display */}
+            <div className="h-full w-full relative">
+              {productImages.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  alt={`${product.name} - View ${idx + 1}`}
+                  className={`absolute inset-0 h-full w-full object-cover transition-all duration-500 ease-in-out ${
+                    idx === currentImageIndex 
+                      ? 'opacity-100 scale-100 z-10' 
+                      : 'opacity-0 scale-105 z-0'
+                  }`}
+                  loading="lazy"
+                />
+              ))}
+            </div>
+
+            {/* Pagination Dots */}
+            {productImages.length > 1 && (
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-20 pointer-events-none">
+                {productImages.map((_, idx) => (
+                  <div 
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm ${
+                      idx === currentImageIndex 
+                        ? 'w-4 bg-gray-900 dark:bg-white' 
+                        : 'w-1.5 bg-white/60 dark:bg-zinc-500/60'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* --- Product Info --- */}
+          <div className="flex flex-1 flex-col p-4 pt-3">
+            {/* Category Label - Uses Roboto Condensed */}
+            <div className="mb-1.5">
+              <span className="font-label text-[11px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                {product.category}
+              </span>
+            </div>
+            
+            {/* Product Name - Uses Outfit */}
+            <h3 className="font-product-name line-clamp-2 text-[15px] font-semibold text-gray-900 dark:text-white group-hover:text-black dark:group-hover:text-gray-200 transition-colors h-11 leading-[1.35]">
               {product.name}
             </h3>
+            
+            <div className="mt-auto pt-3 flex items-end justify-between gap-2">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-label tracking-wide uppercase">Price</span>
+                <div className="flex items-baseline gap-1.5">
+                  {/* Price - Uses Oswald for PKR */}
+                  <span className="font-price text-xl font-medium text-gray-900 dark:text-white tracking-wide">
+                    Rs.{product.price.toLocaleString()}
+                  </span>
+                  {originalPrice && (
+                    <span className="font-price text-sm line-through text-gray-400 dark:text-gray-600 decoration-gray-400/60">
+                      Rs.{originalPrice.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button 
+                onClick={handleAddToCart} 
+                className="relative overflow-hidden rounded-full bg-black dark:bg-white p-2.5 text-white dark:text-black shadow-md transition-all hover:scale-105 active:scale-95 flex-shrink-0 group/cart"
+                aria-label="Add to cart"
+              >
+                <ShoppingCart size={18} strokeWidth={2.5} className="group-active/cart:scale-90 transition-transform" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1 bg-gray-50 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-xs font-medium">
-            <StarIcon size={12} className="text-amber-400 fill-amber-400" variant="solid" />
-            <span>{product.rating}</span>
-          </div>
         </div>
-
-        <div className="flex items-baseline gap-2">
-          <span className="text-xl font-bold text-gray-900 dark:text-white">
-            ${product.price}
-          </span>
-          {product.originalPrice && (
-            <span className="text-xs text-gray-400 line-through decoration-gray-400">
-              ${product.originalPrice}
-            </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-[1fr_auto] gap-2 pt-1">
-          <Button 
-            onClick={handleBuyNow}
-            className="w-full bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 font-semibold h-10 rounded-xl flex items-center justify-center gap-2 group/btn transition-all active:scale-95"
-          >
-            <span>Buy Now</span>
-            <FlashIcon size={16} className="text-yellow-400 group-hover/btn:animate-pulse" variant="solid" />
-          </Button>
-
-          <Button
-            onClick={handleAddToCart}
-            variant="outline"
-            className="h-10 w-12 rounded-xl border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 p-0 flex items-center justify-center transition-transform active:scale-90"
-          >
-            <ShoppingCartAdd01Icon size={20} className="text-gray-700 dark:text-gray-300" />
-          </Button>
-        </div>
-      </div>
-    </div>
+      </Link>
+    </>
   );
 };
 

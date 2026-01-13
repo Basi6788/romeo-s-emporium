@@ -1,6 +1,6 @@
 /* --- Google Fonts: Bold & Rounded --- */
-/* Fredoka: Headlines ke liye (Bohot rounded aur bold hai) */
-/* Nunito: Body text ke liye (Readable aur soft rounded) */
+/* Fredoka: Headlines ke liye */
+/* Nunito: Body text ke liye */
 /* Quicksand: Buttons aur Accents ke liye */
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&family=Quicksand:wght@500;600;700&display=swap');
 
@@ -10,100 +10,109 @@
 
 @layer base {
   :root {
-    /* --- Light Mode (Based on your Peach/Pink Image) --- */
-    /* HSL: 10 hue (Red-Orange), 100% saturation, 92% lightness */
-    --background: 10 100% 92%; 
-    --foreground: 340 30% 20%; /* Dark Berry Text for contrast */
+    /* --- Light Mode (Orange/Rust Palette) --- */
     
-    --card: 10 100% 96%; /* Slightly lighter peach for cards */
-    --card-foreground: 340 30% 20%;
+    /* Background base color (Ab thoda transparency ke liye tayyar) */
+    --background: 31 100% 97%; 
     
-    --popover: 10 100% 96%;
-    --popover-foreground: 340 30% 20%;
+    /* Foreground: The 950 Shade (Deep Rust/Brown for Text) */
+    --foreground: 13 84% 17%; 
     
-    /* Primary: Deep Rose/Red to pop on Peach background */
-    --primary: 340 85% 55%; 
-    --primary-foreground: 0 0% 100%;
+    /* Card: High transparency + Blur ke liye set kiya */
+    --card: 31 100% 98%; 
+    --card-foreground: 13 84% 17%;
     
-    --secondary: 10 60% 90%;
-    --secondary-foreground: 340 30% 20%;
+    --popover: 31 100% 98%;
+    --popover-foreground: 13 84% 17%;
     
-    --muted: 10 30% 85%;
-    --muted-foreground: 340 10% 45%;
+    /* Primary: The 500 Shade (#ff6900 - Vibrant Orange) */
+    --primary: 25 100% 50%; 
+    --primary-foreground: 0 0% 100%; 
     
-    --accent: 260 80% 60%; /* Violet accent for fun contrast */
+    /* Secondary: The 300 Shade (#ffb86a - Soft Orange) */
+    --secondary: 31 100% 71%;
+    --secondary-foreground: 13 84% 17%;
+    
+    --muted: 31 30% 90%;
+    --muted-foreground: 13 10% 45%;
+    
+    --accent: 260 80% 60%; 
     --accent-foreground: 0 0% 100%;
     
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 10 40% 80%; /* Peach colored borders */
-    --input: 10 40% 80%;
-    --ring: 340 85% 55%;
+    --border: 31 100% 85%; 
+    --input: 31 100% 85%;
+    --ring: 25 100% 50%; 
     
-    --radius: 1.5rem; /* Zyada rounded corners */
+    --radius: 1.5rem; 
 
-    /* --- Glass Variables (Peach Tinted Glass) --- */
-    --glass-bg: 10 100% 95% / 0.6; 
-    --glass-border: 0 0% 100% / 0.6;
-    --glass-blur: 16px;
+    /* --- ENHANCED Glass Variables (Stronger Blur & Transparency) --- */
+    /* Isse elements ke peeche ka background blur hoga */
+    --glass-bg: 31 100% 98% / 0.45; /* Zyada transparent (45% opacity) */
+    --glass-border: 255 255 255 / 0.6; /* White semi-transparent border */
+    --glass-blur: 20px; /* Strong blur */
+    --glass-shadow: 0 8px 32px 0 rgba(255, 105, 0, 0.15); /* Orange glow shadow */
   }
 
   .dark {
-    /* --- Dark Mode (Deep & Transparent) --- */
-    --background: 0 0% 0%; 
-    --foreground: 10 20% 98%;
+    /* --- Dark Mode Glass Settings --- */
+    --background: 13 20% 5%; 
+    --foreground: 31 50% 95%;
     
-    --card: 0 0% 8%;
-    --card-foreground: 10 20% 98%;
+    --card: 13 20% 10%;
+    --card-foreground: 31 50% 95%;
     
-    --popover: 0 0% 8%;
-    --popover-foreground: 10 20% 98%;
+    --popover: 13 20% 10%;
+    --popover-foreground: 31 50% 95%;
     
-    --primary: 340 85% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 25 100% 60%;
+    --primary-foreground: 13 84% 10%;
     
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 10 20% 98%;
+    --secondary: 13 20% 15%;
+    --secondary-foreground: 31 50% 95%;
     
-    --muted: 0 0% 12%;
-    --muted-foreground: 220 10% 65%;
+    --muted: 13 20% 15%;
+    --muted-foreground: 31 20% 65%;
     
-    --accent: 260 80% 60%;
+    --accent: 260 80% 65%;
     --accent-foreground: 0 0% 100%;
     
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 340 85% 60%;
+    --border: 13 20% 20%;
+    --input: 13 20% 20%;
+    --ring: 25 100% 60%;
 
-    /* --- Glass Variables (Dark Mode) --- */
-    --glass-bg: 0 0% 0% / 0.4; 
-    --glass-border: 255 255 255 / 0.08;
-    --glass-blur: 24px;
+    /* --- Dark Glass Variables --- */
+    --glass-bg: 13 20% 5% / 0.3; /* Dark transparent */
+    --glass-border: 255 255 255 / 0.1;
+    --glass-blur: 30px; /* Dark mode me zyada blur accha lagta hai */
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
   }
 
   * {
     @apply border-border;
   }
   
-  /* Smooth Scroll Behavior globally */
   html {
     scroll-behavior: smooth;
   }
 
-  /* IMPORTANT: Body Transparent for Canvas effects */
   body {
     background-color: hsl(var(--background)) !important;
+    /* Agar background image hai to ye pattern use karo nice texture ke liye: */
+    background-image: radial-gradient(at 0% 0%, hsla(25,100%,70%,0.1) 0px, transparent 50%),
+                      radial-gradient(at 100% 0%, hsla(260,80%,70%,0.1) 0px, transparent 50%);
+    background-attachment: fixed; /* Background scroll nahi karega */
     @apply text-foreground antialiased;
-    font-family: 'Nunito', sans-serif; /* Body font rounded */
+    font-family: 'Nunito', sans-serif;
     min-height: 100vh;
-    overflow-x: hidden; /* Horizontal scroll roka */
+    overflow-x: hidden;
   }
 
-  /* --- Custom Scrollbar (Kamal ki look ke liye) --- */
   ::-webkit-scrollbar {
     width: 10px;
   }
@@ -113,7 +122,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-primary/30 rounded-full hover:bg-primary/60 transition-colors;
+    @apply bg-primary/40 rounded-full hover:bg-primary/70 transition-colors;
     border: 3px solid transparent;
     background-clip: content-box;
   }
@@ -123,56 +132,101 @@
     min-height: 100vh;
   }
 
-  /* Headers ke liye Bold & Bouncy Font */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Fredoka', sans-serif;
-    letter-spacing: -0.02em; /* Thoda tight spacing modern look ke liye */
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
-  /* Unified Glass Panel with new Peach Frost Effect */
+  /* --- ULTIMATE GLASS PANEL --- */
   .glass-panel {
+    /* Background Color with Opacity */
     background-color: hsl(var(--glass-bg));
+    
+    /* The Blur Magic */
     backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur)); /* Safari support */
+    
+    /* Border & Shadow */
     border: 1px solid hsl(var(--glass-border));
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-    @apply rounded-3xl;
+    box-shadow: var(--glass-shadow);
+    
+    /* Smooth Transition for Hover */
+    @apply rounded-3xl transition-all duration-500 ease-out;
   }
 
-  /* BUTTON STYLES UPDATED - Rounded & Bouncy */
+  /* Glass Panel Hover Effect - Thoda uthega aur bright hoga */
+  .glass-panel:hover {
+    background-color: hsl(var(--glass-bg) / 0.6); /* Thoda less transparent on hover */
+    box-shadow: 0 15px 40px 0 rgba(255, 105, 0, 0.2); /* Shadow badh jayegi */
+    transform: translateY(-5px); /* Upar uthega */
+    border-color: hsl(var(--glass-border) / 0.8);
+  }
+
+  /* --- BUTTON UPDATED: Glow & Hover --- */
   .btn-primary {
-    /* Gradient Red/Rose to Violet */
-    @apply bg-gradient-to-r from-primary via-accent to-primary text-white font-bold px-8 py-4 rounded-full transition-all duration-300;
-    @apply hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1 active:scale-95;
+    @apply relative overflow-hidden;
+    /* Gradient */
+    @apply bg-gradient-to-r from-primary via-[#ff8904] to-primary text-white font-bold px-8 py-4 rounded-full;
+    /* Transitions */
+    @apply transition-all duration-300 ease-out;
+    /* Shadow */
+    @apply shadow-lg shadow-primary/30;
+    
     background-size: 200% auto;
     font-family: 'Quicksand', sans-serif;
     letter-spacing: 0.5px;
   }
+
+  .btn-primary:hover {
+    background-position: right center; /* Gradient animate hoga */
+    @apply shadow-2xl shadow-primary/50 -translate-y-1 scale-105;
+  }
+
+  .btn-primary:active {
+    @apply scale-95 shadow-inner;
+  }
   
-  /* Input Style - Pill Shape */
+  /* Input Field - Glassy Look */
   .input-field {
-    @apply w-full px-6 py-4 rounded-full bg-white/40 border-2 border-transparent;
-    @apply focus:border-primary focus:bg-white/80 focus:ring-4 focus:ring-primary/10 transition-all outline-none shadow-sm;
+    @apply w-full px-6 py-4 rounded-full;
+    background-color: rgba(255, 255, 255, 0.4); /* High transparency white */
+    backdrop-filter: blur(10px);
+    border: 2px solid transparent;
+    @apply transition-all duration-300 shadow-sm;
+    
     font-family: 'Nunito', sans-serif;
     font-weight: 600;
     color: hsl(var(--foreground));
   }
 
-  /* --- Animation Helpers for Framer Motion --- */
-  /* Ye class use karo apne motion.div par taake GPU use ho aur lag na kare */
+  .input-field:focus {
+    background-color: rgba(255, 255, 255, 0.85); /* Focus pe solid ho jayega */
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.15);
+    outline: none;
+    transform: scale(1.02);
+  }
+
+  /* GPU Acceleration */
   .gpu-accelerated {
-    will-change: transform, opacity;
+    will-change: transform, opacity, backdrop-filter;
     transform: translateZ(0);
     backface-visibility: hidden;
   }
 }
 
 @layer utilities {
-  /* Text Outline Utility agar heading ko pop karana ho */
   .text-outline {
     -webkit-text-stroke: 1px hsl(var(--foreground));
     color: transparent;
   }
+  
+  /* Text Shadow for better contrast on glass */
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
 }
+
 

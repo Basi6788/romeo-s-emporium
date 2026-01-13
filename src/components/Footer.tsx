@@ -285,8 +285,8 @@ const Footer: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs opacity-60">WhatsApp / Call</p>
-                    <a href="https://wa.me/923047299447" className="text-sm font-medium hover:text-yellow-500 transition-colors">
-                      +92 304 729 9447
+                    <a href="https://wa.me/923047299557" className="text-sm font-medium hover:text-yellow-500 transition-colors">
+                      +92 304 729 9557
                     </a>
                   </div>
                 </div>
