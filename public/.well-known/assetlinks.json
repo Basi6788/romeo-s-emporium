@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.romeo.uchiha",
+      "sha256_cert_fingerprints": [
+        "E6:EF:53:81:6A:95:15:6E:F2:D7:C8:CF:01:AA:7B:57:AE:AB:73:58:5A:6D:B5:9A:E3:23:4B:5C:6E:F5:BC:77"
+      ]
+    }
+  }
+]
+
