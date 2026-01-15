@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -48,8 +48,6 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
-    "@splinetool/react-spline": "^4.1.0",
-    "@splinetool/runtime": "^1.12.32",
     "@studio-freight/react-lenis": "^0.0.47",
     "@supabase/supabase-js": "^2.88.0",
     "@tabler/icons-react": "^3.36.1",
@@ -90,6 +88,7 @@
     "ua-parser-js": "^2.0.7",
     "uuid": "^13.0.0",
     "vaul": "^0.9.9",
+    "workbox-build": "^7.4.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
