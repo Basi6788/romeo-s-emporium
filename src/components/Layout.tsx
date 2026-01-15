@@ -9,18 +9,11 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
   return (
-    // FIX: Wrapper par w-full aur relative lagaya, main scroll issue niche fix kiya hai
-    <div className="min-h-screen w-full flex flex-col relative overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Header />
-
-      {/* MAIN SCROLL FIX:
-        - Yahan se 'overflow-x-hidden' hata diya hai (yehi desktop scroll rok raha tha).
-        - 'flex-grow' use kiya hai taake footer sahi se push ho.
-      */}
-      <main className="flex-grow w-full pt-16 md:pt-20">
+      <main className="flex-1 pt-16 md:pt-20 pb-20 md:pb-0 overflow-x-hidden">
         {children}
       </main>
-
       {showFooter && <Footer />}
     </div>
   );
