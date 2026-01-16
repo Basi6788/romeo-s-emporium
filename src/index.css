@@ -1,8 +1,4 @@
-/* --- Google Fonts: Bold & Rounded --- */
-/* Fredoka: Headlines ke liye */
-/* Nunito: Body text ke liye */
-/* Quicksand: Buttons aur Accents ke liye */
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&family=Quicksand:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -10,121 +6,72 @@
 
 @layer base {
   :root {
-    /* --- Light Mode (Orange/Rust Palette) --- */
-    
-    /* Background base color (Ab thoda transparency ke liye tayyar) */
-    --background: 31 100% 97%; 
-    
-    /* Foreground: The 950 Shade (Deep Rust/Brown for Text) */
-    --foreground: 13 84% 17%; 
-    
-    /* Card: High transparency + Blur ke liye set kiya */
-    --card: 31 100% 98%; 
-    --card-foreground: 13 84% 17%;
-    
-    --popover: 31 100% 98%;
-    --popover-foreground: 13 84% 17%;
-    
-    /* Primary: The 500 Shade (#ff6900 - Vibrant Orange) */
-    --primary: 25 100% 50%; 
-    --primary-foreground: 0 0% 100%; 
-    
-    /* Secondary: The 300 Shade (#ffb86a - Soft Orange) */
-    --secondary: 31 100% 71%;
-    --secondary-foreground: 13 84% 17%;
-    
-    --muted: 31 30% 90%;
-    --muted-foreground: 13 10% 45%;
-    
-    --accent: 260 80% 60%; 
+    /* --- Light Mode (Solid Cream Backgrounds) --- */
+    --background: 40 100% 97%;
+    --foreground: 220 20% 10%;
+    --card: 40 100% 99%;
+    --card-foreground: 220 20% 10%;
+    --popover: 40 100% 99%;
+    --popover-foreground: 220 20% 10%;
+    --primary: 250 95% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 30% 94%;
+    --secondary-foreground: 220 20% 10%;
+    --muted: 40 30% 94%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 160 84% 39%;
     --accent-foreground: 0 0% 100%;
-    
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    
-    --border: 31 100% 85%; 
-    --input: 31 100% 85%;
-    --ring: 25 100% 50%; 
-    
-    --radius: 1.5rem; 
+    --border: 40 20% 90%;
+    --input: 40 20% 90%;
+    --ring: 250 95% 60%;
+    --radius: 1rem;
 
-    /* --- ENHANCED Glass Variables (Stronger Blur & Transparency) --- */
-    /* Isse elements ke peeche ka background blur hoga */
-    --glass-bg: 31 100% 98% / 0.45; /* Zyada transparent (45% opacity) */
-    --glass-border: 255 255 255 / 0.6; /* White semi-transparent border */
-    --glass-blur: 20px; /* Strong blur */
-    --glass-shadow: 0 8px 32px 0 rgba(255, 105, 0, 0.15); /* Orange glow shadow */
+    /* --- Glass Variables (Light Mode) --- */
+    --glass-bg: 40 100% 98% / 0.85; 
+    --glass-border: 40 20% 90% / 0.5;
+    --glass-blur: 12px;
   }
 
   .dark {
-    /* --- Dark Mode Glass Settings --- */
-    --background: 13 20% 5%; 
-    --foreground: 31 50% 95%;
-    
-    --card: 13 20% 10%;
-    --card-foreground: 31 50% 95%;
-    
-    --popover: 13 20% 10%;
-    --popover-foreground: 31 50% 95%;
-    
-    --primary: 25 100% 60%;
-    --primary-foreground: 13 84% 10%;
-    
-    --secondary: 13 20% 15%;
-    --secondary-foreground: 31 50% 95%;
-    
-    --muted: 13 20% 15%;
-    --muted-foreground: 31 20% 65%;
-    
-    --accent: 260 80% 65%;
+    /* --- Dark Mode (Transparent for Canvas) --- */
+    --background: 0 0% 0%; 
+    --foreground: 0 0% 98%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 250 95% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 220 10% 65%;
+    --accent: 160 84% 39%;
     --accent-foreground: 0 0% 100%;
-    
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
-    
-    --border: 13 20% 20%;
-    --input: 13 20% 20%;
-    --ring: 25 100% 60%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 250 95% 60%;
 
-    /* --- Dark Glass Variables --- */
-    --glass-bg: 13 20% 5% / 0.3; /* Dark transparent */
+    /* --- Glass Variables (Dark Mode) --- */
+    --glass-bg: 0 0% 0% / 0.3; 
     --glass-border: 255 255 255 / 0.1;
-    --glass-blur: 30px; /* Dark mode me zyada blur accha lagta hai */
-    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    --glass-blur: 20px;
   }
 
   * {
     @apply border-border;
   }
-  
-  html {
-    scroll-behavior: smooth;
-  }
 
+  /* IMPORTANT: Body Transparent */
   body {
-    background-color: hsl(var(--background)) !important;
-    /* Agar background image hai to ye pattern use karo nice texture ke liye: */
-    background-image: radial-gradient(at 0% 0%, hsla(25,100%,70%,0.1) 0px, transparent 50%),
-                      radial-gradient(at 100% 0%, hsla(260,80%,70%,0.1) 0px, transparent 50%);
-    background-attachment: fixed; /* Background scroll nahi karega */
+    background-color: transparent !important;
     @apply text-foreground antialiased;
-    font-family: 'Nunito', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  ::-webkit-scrollbar {
-    width: 10px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-primary/40 rounded-full hover:bg-primary/70 transition-colors;
-    border: 3px solid transparent;
-    background-clip: content-box;
   }
   
   #root {
@@ -133,101 +80,35 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Fredoka', sans-serif;
-    letter-spacing: -0.02em;
+    font-family: 'Space Grotesk', sans-serif;
   }
 }
 
 @layer components {
-  /* --- ULTIMATE GLASS PANEL --- */
+  /* Unified Glass Panel */
   .glass-panel {
-    /* Background Color with Opacity */
     background-color: hsl(var(--glass-bg));
-    
-    /* The Blur Magic */
     backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur)); /* Safari support */
-    
-    /* Border & Shadow */
     border: 1px solid hsl(var(--glass-border));
-    box-shadow: var(--glass-shadow);
-    
-    /* Smooth Transition for Hover */
-    @apply rounded-3xl transition-all duration-500 ease-out;
+    @apply shadow-xl rounded-3xl;
   }
 
-  /* Glass Panel Hover Effect - Thoda uthega aur bright hoga */
-  .glass-panel:hover {
-    background-color: hsl(var(--glass-bg) / 0.6); /* Thoda less transparent on hover */
-    box-shadow: 0 15px 40px 0 rgba(255, 105, 0, 0.2); /* Shadow badh jayegi */
-    transform: translateY(-5px); /* Upar uthega */
-    border-color: hsl(var(--glass-border) / 0.8);
-  }
-
-  /* --- BUTTON UPDATED: Glow & Hover --- */
+  /* FIXED BUTTON CLASS (Error Fixed Here) */
   .btn-primary {
-    @apply relative overflow-hidden;
-    /* Gradient */
-    @apply bg-gradient-to-r from-primary via-[#ff8904] to-primary text-white font-bold px-8 py-4 rounded-full;
-    /* Transitions */
-    @apply transition-all duration-300 ease-out;
-    /* Shadow */
-    @apply shadow-lg shadow-primary/30;
-    
+    /* `via-violet-600` removed, using Hex [#7c3aed] instead */
+    @apply bg-gradient-to-r from-primary via-[#7c3aed] to-primary text-primary-foreground font-semibold px-6 py-3 rounded-2xl transition-all duration-300;
+    @apply hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98];
     background-size: 200% auto;
-    font-family: 'Quicksand', sans-serif;
-    letter-spacing: 0.5px;
-  }
-
-  .btn-primary:hover {
-    background-position: right center; /* Gradient animate hoga */
-    @apply shadow-2xl shadow-primary/50 -translate-y-1 scale-105;
-  }
-
-  .btn-primary:active {
-    @apply scale-95 shadow-inner;
+    font-family: 'Space Grotesk', sans-serif;
   }
   
-  /* Input Field - Glassy Look */
+  /* Input Style */
   .input-field {
-    @apply w-full px-6 py-4 rounded-full;
-    background-color: rgba(255, 255, 255, 0.4); /* High transparency white */
-    backdrop-filter: blur(10px);
-    border: 2px solid transparent;
-    @apply transition-all duration-300 shadow-sm;
-    
-    font-family: 'Nunito', sans-serif;
-    font-weight: 600;
-    color: hsl(var(--foreground));
-  }
-
-  .input-field:focus {
-    background-color: rgba(255, 255, 255, 0.85); /* Focus pe solid ho jayega */
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.15);
-    outline: none;
-    transform: scale(1.02);
-  }
-
-  /* GPU Acceleration */
-  .gpu-accelerated {
-    will-change: transform, opacity, backdrop-filter;
-    transform: translateZ(0);
-    backface-visibility: hidden;
+    @apply w-full px-5 py-4 rounded-2xl bg-muted/50 border border-border/50;
+    @apply focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: hsl(var(--glass-bg));
   }
 }
-
-@layer utilities {
-  .text-outline {
-    -webkit-text-stroke: 1px hsl(var(--foreground));
-    color: transparent;
-  }
-  
-  /* Text Shadow for better contrast on glass */
-  .text-shadow-sm {
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-  }
-}
-
 
 

@@ -1,4 +1,4 @@
-package com.uchiha;
+package com.uchihas.foundation;
 
 import com.getcapacitor.BridgeActivity;
 
