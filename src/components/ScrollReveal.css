@@ -1,0 +1,28 @@
+.scroll-reveal {
+  margin: 20px 0;
+  /* Blur effect cut hone se bachane ke liye: */
+  overflow: visible; 
+  /* Agar rotation 3D feel deni ho toh perspective add kar sakte hain (optional) */
+  perspective: 1000px;
+}
+
+.scroll-reveal-text {
+  font-size: clamp(1.6rem, 4vw, 3rem);
+  line-height: 1.5;
+  font-weight: 600;
+  /* Text ko smooth rakhne ke liye */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Margin reset zaroori hai agar hum <p> ki jagah kuch aur use karein */
+  margin: 0; 
+}
+
+.word {
+  /* Yeh zaroori hai taake transform aur opacity kaam karein */
+  display: inline-block;
+  /* Animation performance ke liye hint */
+  will-change: transform, opacity, filter;
+  /* Space preserve karne ke liye taake words chipak na jayein */
+  white-space: pre-wrap; 
+}
+

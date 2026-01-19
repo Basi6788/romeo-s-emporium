@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* --- Light Mode (Peach to Light Blue Gradient) --- */
+    /* Ye variables gradient ke start aur end points hain */
+    --gradient-start: 22 100% 88%;  /* Soft Peach/Apricot */
+    --gradient-end: 190 60% 92%;    /* Soft Sky Blue */
+
+    --background: 22 100% 95%;      /* Fallback solid color */
+    --foreground: 240 10% 10%;      /* Dark text */
+    
+    /* Cards - Image me cards White hain with shadow */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    
+    /* Primary Color (Button gradient handled in component layer) */
+    --primary: 330 80% 60%; /* Pinkish tone base */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 240 5.9% 10%;
+    
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 330 80% 60%;
+    --radius: 1rem;
+
+    /* Glass Effect for Light Mode */
+    --glass-bg: 0 0% 100% / 0.65; 
+    --glass-border: 0 0% 100% / 0.8;
+    --glass-blur: 16px;
+  }
+
+  .dark {
+    /* --- Dark Mode (Deep Purple to Deep Teal) --- */
+    --gradient-start: 260 60% 12%; /* Deep Purple (Top) */
+    --gradient-end: 180 70% 15%;   /* Deep Teal (Bottom) */
+
+    --background: 260 60% 12%;
+    --foreground: 0 0% 98%;
+
+    /* Cards - Darker Glassy look */
+    --card: 260 40% 15%;
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 260 40% 15%;
+    --popover-foreground: 0 0% 98%;
+    
+    /* Primary: Neon Cyan/Blue vibe */
+    --primary: 180 70% 50%; 
+    --primary-foreground: 260 60% 12%; 
+    
+    --secondary: 260 30% 20%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 260 30% 20%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 180 70% 50%;
+    --accent-foreground: 260 60% 12%;
+    
+    --border: 260 30% 25%;
+    --input: 260 30% 25%;
+    --ring: 180 70% 50%;
+
+    /* Glass Effect for Dark Mode */
+    --glass-bg: 260 40% 12% / 0.4; 
+    --glass-border: 260 40% 30% / 0.2;
+    --glass-blur: 24px;
+  }
+
+  /* --- GLOBAL SCROLLBAR REMOVAL --- */
+  html, body, #root {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    overflow-x: hidden !important;
+  }
+
+  * {
+    @apply border-border;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+
+  body {
+    @apply text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+    
+    /* --- MAIN MAGIC: Gradient Background --- */
+    /* Solid color hata kar image jaisa gradient lagaya hai */
+    background: linear-gradient(135deg, hsl(var(--gradient-start)), hsl(var(--gradient-end))) !important;
+    background-attachment: fixed !important; /* Scroll karte waqt background fix rahega */
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background-color: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-border));
+    @apply shadow-xl rounded-3xl;
+  }
+
+  .btn-primary {
+    /* Image jaisa Colorful Gradient Button (Pink to Blue) */
+    @apply text-white font-bold px-6 py-3 rounded-2xl transition-all duration-300;
+    background-image: linear-gradient(90deg, #FF758C 0%, #00C9FF 100%);
+    @apply hover:shadow-lg hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98];
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  
+  .input-field {
+    @apply w-full px-5 py-4 rounded-2xl bg-muted/20 border border-border/50 text-foreground;
+    @apply focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: hsl(var(--glass-bg));
+  }
+}
+

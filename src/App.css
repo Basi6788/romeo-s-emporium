@@ -1,0 +1,25 @@
+/* App.css - Clean Version for Full Width Layout */
+
+#root {
+  width: 100%;
+  min-height: 100vh; /* App hamesha full screen lega */
+  margin: 0;
+  padding: 0;
+  
+  /* Layout settings */
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  overflow-x: hidden; /* Horizontal scroll rokne ke liye */
+  
+  /* CRITICAL: Background transparent rakhna zaroori hai */
+  background-color: transparent !important;
+  
+  /* Z-index 2 taake ye Canvas (Z-index 1) ke upar rahe */
+  position: relative;
+  z-index: 2;
+}
+
+/* Agar future me koi global utility chahiye ho toh yahan daal sakte hain,
+   filhal Tailwind (index.css) sab sambhal lega. */
+
