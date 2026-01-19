@@ -2,8 +2,6 @@ import { useRef, useState, useEffect, useMemo, memo, useCallback, useLayoutEffec
 import { Check } from 'lucide-react'; 
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-// Navigate hook import kiya hai (agar Next.js use kar rahe hain to useRouter use karein)
-import { useNavigate } from 'react-router-dom'; 
 
 // Components
 import Layout from '@/components/Layout';  
@@ -27,8 +25,6 @@ const MemoizedParticles = memo(ParticleBackground);
 
 const HomePage = () => {  
   
-  const navigate = useNavigate(); // Navigation ke liye hook
-
   // --- LOAD LOCAL FONT (MOMO TRUST) ---
   useEffect(() => {
     const font = new FontFace('MomoTrustLocal', `url(${momoFontPath})`);
@@ -175,18 +171,13 @@ const HomePage = () => {
     setDragOffset(0); setIsDragging(false);
   };
 
-  // --- Click Handler for Products ---
-  const handleProductClick = (id) => {
-    // Yahan apne route structure ke hisaab se URL update karein
-    navigate(`/product/${id}`); 
-  };
-
   return (  
     <Layout>  
-      <div ref={containerRef} className="min-h-screen w-full bg-background overflow-x-hidden">
+      {/* FIX 1: 'min-h-screen' remove kar diya taake layout stretch na ho */}
+      <div ref={containerRef} className="w-full bg-transparent overflow-x-hidden">
         
-        {/* HERO */}
-        <section className="hero-section relative w-full h-[550px] md:h-[750px] z-30 overflow-hidden rounded-t-[32px] md:rounded-t-[48px] bg-black">  
+        {/* HERO SECTION */}
+        <section className="hero-section relative w-full h-[550px] md:h-[750px] z-30 overflow-hidden rounded-t-[32px] md:rounded-t-[48px] bg-transparent">  
           <MemoizedParticles />  
           <div 
             ref={sliderRef}
@@ -215,21 +206,21 @@ const HomePage = () => {
             {dbHeroImages.length > 1 && (
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-20">
                 {dbHeroImages.map((_, index) => (
-                  <button key={index} onClick={() => setCurrentSlide(index)} className={cn("h-1.5 rounded-full transition-all duration-500", index === currentSlide ? "bg-white w-10" : "bg-white/40 w-3 hover:bg-white/60")} />
+                  <button key={index} onClick={() => setCurrentSlide(index)} className={cn("h-1.5 rounded-full transition-all duration-500", index === currentSlide ? "bg-primary w-10 shadow-glow" : "bg-white/40 w-3 hover:bg-white/60")} />
                 ))}
               </div>
             )}
           </div>  
         </section>  
   
-        {/* Rounded Container */}
-        <div className="relative z-40 bg-zinc-50 dark:bg-zinc-900 rounded-t-[40px] -mt-12 pt-12 pb-32 shadow-2xl overflow-visible">  
+        {/* WRAPPER CONTAINER */}
+        {/* FIX 2: Background color ab 'bg-card' use karega (CSS Variable supported) */}
+        <div className="relative z-40 bg-card/90 dark:bg-card/80 backdrop-blur-2xl border-t border-white/20 dark:border-white/5 rounded-t-[40px] -mt-12 pt-12 pb-32 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] overflow-visible">  
           <div className="container mx-auto px-6">  
             
             {/* --- TITLE SECTION --- */}
             <div className="mb-12 flex justify-center w-full">
                <h1 
-                 // FIX 1: Added 'py-4', 'pr-4' and 'leading-normal' to fix clipping of 'W'
                  className="text-4xl md:text-6xl font-black text-foreground tracking-tighter uppercase text-center flex items-center gap-3 py-4 pr-4 leading-normal"
                  style={{ fontFamily: 'MomoTrustLocal, sans-serif', fontWeight: 900 }}
                >
@@ -239,15 +230,14 @@ const HomePage = () => {
 
             {/* FILTERS & CATEGORIES */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-               {/* ... (Category list code remains same) ... */}
                <div className="category-list flex gap-3 overflow-x-auto pb-4 no-scrollbar items-center max-w-full md:max-w-3xl">  
                 <button 
                     onClick={() => setSelectedCategory('All')} 
                     className={cn(
-                    "category-item px-6 py-2.5 rounded-[30px] text-sm font-medium transition-all flex-shrink-0", 
+                    "category-item px-6 py-2.5 rounded-[30px] text-sm font-medium transition-all flex-shrink-0 border border-transparent", 
                     selectedCategory === 'All' 
-                        ? "bg-black text-white dark:bg-white dark:text-black" 
-                        : "bg-transparent text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                        ? "bg-primary text-primary-foreground shadow-glow" 
+                        : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground hover:border-glass-border"
                     )}
                 >
                     All
@@ -257,10 +247,10 @@ const HomePage = () => {
                     key={cat.id} 
                     onClick={() => setSelectedCategory(cat.id)} 
                     className={cn(
-                        "category-item px-6 py-2.5 rounded-[30px] text-sm font-medium transition-all flex items-center gap-2 flex-shrink-0", 
+                        "category-item px-6 py-2.5 rounded-[30px] text-sm font-medium transition-all flex items-center gap-2 flex-shrink-0 border border-transparent", 
                         selectedCategory === cat.id 
-                        ? "bg-black text-white dark:bg-white dark:text-black" 
-                        : "bg-transparent text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                        ? "bg-primary text-primary-foreground shadow-glow" 
+                        : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground hover:border-glass-border"
                     )}
                     >
                         {(cat.image_url || cat.icon) && (
@@ -276,7 +266,7 @@ const HomePage = () => {
                     <button 
                         ref={filterIconRef} 
                         onClick={() => setIsFilterOpen(!isFilterOpen)} 
-                        className="p-3 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors flex items-center justify-center gap-2 group"
+                        className="p-3 hover:bg-muted/50 rounded-full transition-colors flex items-center justify-center gap-2 group border border-transparent hover:border-glass-border"
                     >  
                         <div className="flex flex-col gap-[5px] items-center justify-center w-6 h-5 relative">
                            <span className="filter-line-1 w-full h-[2.5px] bg-foreground rounded-full origin-center"></span>
@@ -286,9 +276,9 @@ const HomePage = () => {
                     </button>
 
                     {isFilterOpen && (
-                    <div className="absolute right-0 mt-3 w-64 bg-popover border border-border shadow-2xl rounded-3xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-300">
-                        <button onClick={() => { setSortOrder('lowToHigh'); setIsFilterOpen(false); }} className="w-full flex items-center justify-between px-6 py-4 text-sm font-bold hover:bg-accent transition-colors">Price: Low to High {sortOrder === 'lowToHigh' && <Check className="w-4 h-4 text-primary" />}</button>
-                        <button onClick={() => { setSortOrder('highToLow'); setIsFilterOpen(false); }} className="w-full flex items-center justify-between px-6 py-4 text-sm font-bold hover:bg-accent transition-colors">Price: High to Low {sortOrder === 'highToLow' && <Check className="w-4 h-4 text-primary" />}</button>
+                    <div className="absolute right-0 mt-3 w-64 bg-card/95 backdrop-blur-xl border border-border shadow-2xl rounded-3xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-300">
+                        <button onClick={() => { setSortOrder('lowToHigh'); setIsFilterOpen(false); }} className="w-full flex items-center justify-between px-6 py-4 text-sm font-bold text-foreground hover:bg-primary/10 transition-colors">Price: Low to High {sortOrder === 'lowToHigh' && <Check className="w-4 h-4 text-primary" />}</button>
+                        <button onClick={() => { setSortOrder('highToLow'); setIsFilterOpen(false); }} className="w-full flex items-center justify-between px-6 py-4 text-sm font-bold text-foreground hover:bg-primary/10 transition-colors">Price: High to Low {sortOrder === 'highToLow' && <Check className="w-4 h-4 text-primary" />}</button>
                     </div>
                     )}
                 </div>
@@ -298,11 +288,9 @@ const HomePage = () => {
             <div className="product-grid grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12 min-h-[400px]">  
               {processedProducts.length > 0 ? (  
                 processedProducts.map((product) => (
-                  // FIX 2: Added onClick handler and cursor-pointer to enable navigation
                   <div 
                     key={product.id} 
-                    className="product-card-item opacity-0 cursor-pointer"
-                    onClick={() => handleProductClick(product.id)}
+                    className="product-card-item opacity-0"
                   > 
                     <ProductCard product={product} />
                   </div>

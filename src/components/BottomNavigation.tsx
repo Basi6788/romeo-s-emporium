@@ -2,22 +2,17 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   House, 
-  LayoutGrid, // "Products" ke liye best (Grid view)
+  LayoutGrid, 
   Heart, 
-  ShoppingCart, // Classic Cart
-  User, 
-  Truck, // Tracking ke liye Truck (Modern)
-  Plane 
+  User 
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import gsap from 'gsap';
 
 const BottomNavigation: React.FC = () => {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
-  const { itemCount } = useCart();
   const { itemCount: wishlistCount } = useWishlist();
   
   const navRef = useRef<HTMLElement>(null);
@@ -27,38 +22,36 @@ const BottomNavigation: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [prevIndex, setPrevIndex] = useState(0);
-  const [isMoving, setIsMoving] = useState(false);
   
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
   const isAdminPage = location.pathname.startsWith('/admin');
 
-  // CONFIGURATION: Har icon ka apna "Asal Colour" (True Color)
+  // --- CONFIGURATION: Cart aur Truck remove kar diye ---
   const navItems = [
     { to: '/', label: 'Home', icon: House, activeColor: '#3b82f6' }, // Blue
-    { to: '/products', label: 'Shop', icon: LayoutGrid, activeColor: '#f59e0b' }, // Amber/Orange
-    { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount, activeColor: '#ef4444' }, // RED
-    { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: itemCount, activeColor: '#10b981' }, // Green
-    { to: '/track-order', label: 'Track', icon: Truck, activeColor: '#06b6d4' }, // Cyan
+    { to: '/products', label: 'Shop', icon: LayoutGrid, activeColor: '#f59e0b' }, // Amber
+    { to: '/wishlist', label: 'Wishlist', icon: Heart, badge: wishlistCount, activeColor: '#ef4444' }, // Red
     { to: isAuthenticated ? '/profile' : '/auth', label: 'Account', icon: User, activeColor: '#8b5cf6' }, // Purple
   ];
 
-  // 1. Keyboard Logic
+  // 1. KEYBOARD DETECTION (Typing fix)
   useEffect(() => {
     const handleResize = () => {
+      // Agar viewport ki height original se 20% kam ho jaye, matlab keyboard khula hai
       if (window.visualViewport && window.visualViewport.height < window.innerHeight * 0.8) {
         setIsKeyboardOpen(true);
       } else {
         setIsKeyboardOpen(false);
       }
     };
+
     window.visualViewport?.addEventListener('resize', handleResize);
     return () => window.visualViewport?.removeEventListener('resize', handleResize);
   }, []);
 
-  // 2. Initial Pop-up Animation
+  // 2. Initial Animation
   useEffect(() => {
     if (navRef.current && !isAdminPage) {
       gsap.fromTo(navRef.current,
@@ -76,12 +69,11 @@ const BottomNavigation: React.FC = () => {
     });
     
     if (newIndex !== -1 && newIndex !== activeIndex) {
-      setPrevIndex(activeIndex);
       setActiveIndex(newIndex);
     }
   }, [location.pathname]);
 
-  // 4. ANIMATION LOGIC (Plane -> Blob + Color Transition)
+  // 4. SMOOTH ANIMATION LOGIC (No Plane, just Smooth Slide)
   useEffect(() => {
     if (activeIndex !== -1 && itemRefs.current[activeIndex] && indicatorRef.current) {
       const activeItem = itemRefs.current[activeIndex];
@@ -89,45 +81,40 @@ const BottomNavigation: React.FC = () => {
       const currentConfig = navItems[activeIndex];
       
       if (activeItem && navRect) {
-        setIsMoving(true); // Start Flight
-
         const itemRect = activeItem.getBoundingClientRect();
+        // Calculate Center Position
         const targetX = itemRect.left - navRect.left + (itemRect.width / 2);
 
-        // Move the Indicator
+        // A. Move Indicator (Elastic Effect)
         gsap.to(indicatorRef.current, {
           x: targetX,
-          duration: 0.5,
-          ease: 'power2.inOut',
-          onComplete: () => {
-            setIsMoving(false); // Flight Over
-          }
+          duration: 0.6,
+          ease: 'elastic.out(1, 0.7)', // Bouncy slide
         });
 
-        // Animate Icons (Color & Position)
+        // B. Animate Icons
         itemRefs.current.forEach((item, index) => {
           if (!item) return;
           const icon = item.querySelector('.nav-icon');
-          const config = navItems[index];
-
+          
           if (index === activeIndex) {
-            // ACTIVE: Float Up + Change to "True Color"
+            // ACTIVE ICON: Float Up + Color
             gsap.to(icon, {
-              y: -12,
-              scale: 1.25,
-              color: config.activeColor, // Turning RED/BLUE/GREEN
-              filter: `drop-shadow(0 0 12px ${config.activeColor}80)`, // Colored Glow
-              duration: 0.5,
-              ease: 'back.out(2)'
+              y: -10,
+              scale: 1.2,
+              color: currentConfig.activeColor,
+              filter: `drop-shadow(0 0 15px ${currentConfig.activeColor}60)`, // Soft Glow
+              duration: 0.4,
+              ease: 'back.out(1.7)'
             });
           } else {
-            // INACTIVE: Reset to Black/White Filled
+            // INACTIVE ICON: Reset
             gsap.to(icon, {
               y: 0,
               scale: 1,
-              color: 'currentColor', // Wapas Text Color (Black/White) par
+              color: 'currentColor', // Reset to Theme Color
               filter: 'none',
-              duration: 0.4,
+              duration: 0.3,
               ease: 'power2.out'
             });
           }
@@ -136,18 +123,21 @@ const BottomNavigation: React.FC = () => {
     }
   }, [activeIndex]);
 
-  // 5. Scroll Handling
+  // 5. Scroll Handling (Hide on Scroll Down)
   useEffect(() => {
     const handleScroll = () => {
       if (!ticking.current) {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
           const scrollDiff = currentScrollY - lastScrollY.current;
-          if (currentScrollY > 50 && scrollDiff > 20) {
-            setIsVisible(false);
-          } else if (scrollDiff < -10 || currentScrollY < 50) {
-            setIsVisible(true);
+
+          // Scroll Logic
+          if (currentScrollY > 50 && scrollDiff > 10) {
+            setIsVisible(false); // Scroll Down -> Hide
+          } else if (scrollDiff < -5 || currentScrollY < 50) {
+            setIsVisible(true); // Scroll Up -> Show
           }
+          
           lastScrollY.current = currentScrollY;
           ticking.current = false;
         });
@@ -158,16 +148,6 @@ const BottomNavigation: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleItemClick = (e: React.MouseEvent, to: string, index: number) => {
-    if (location.pathname === to || (to !== '/' && location.pathname.startsWith(to))) {
-      e.preventDefault();
-      window.location.reload();
-    } else {
-      setPrevIndex(activeIndex);
-      setActiveIndex(index);
-    }
-  };
-
   if (isAdminPage) return null;
 
   return (
@@ -176,44 +156,31 @@ const BottomNavigation: React.FC = () => {
         ref={navRef}
         className={`
           pointer-events-auto
-          mb-4 mx-4 w-full max-w-[360px]
-          bg-white/90 dark:bg-black/90 
-          backdrop-blur-xl border border-white/20 dark:border-white/10
-          rounded-full shadow-2xl
+          mb-5 mx-6 w-full max-w-[320px] 
+          bg-white/80 dark:bg-zinc-900/80 
+          backdrop-blur-xl border border-white/20 dark:border-white/5
+          rounded-2xl shadow-2xl
           will-change-transform
-          transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1)
-          ${(isVisible && !isKeyboardOpen) ? 'translate-y-0' : 'translate-y-[180%]'}
+          transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
+          ${(isVisible && !isKeyboardOpen) 
+              ? 'translate-y-0 opacity-100 scale-100' 
+              : 'translate-y-[150%] opacity-0 scale-95' // Keyboard open hone par neeche chhup jayega
+          }
         `}
-        style={{ height: '70px' }}
+        style={{ height: '64px' }}
       >
-        {/* MOVING INDICATOR (Plane / Blob) */}
+        {/* MOVING INDICATOR (Soft Blob) */}
         <div 
           ref={indicatorRef}
-          className="absolute top-1/2 -translate-y-1/2 left-0 -ml-7 pointer-events-none z-0"
+          className="absolute top-1/2 -translate-y-1/2 left-0 -ml-6 pointer-events-none z-0"
         >
-          {isMoving ? (
-            /* ✈️ AIRPLANE MODE */
-            <div className="relative w-14 h-14 flex items-center justify-center">
-              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-              <Plane 
-                className="w-8 h-8 text-primary transition-transform duration-300"
-                fill="currentColor"
-                style={{ 
-                  transform: `rotate(${activeIndex > prevIndex ? '45deg' : '-135deg'})` 
-                }} 
-              />
-            </div>
-          ) : (
-            /* 💡 PURPLE BLOB MODE */
-            <div className="relative w-14 h-14 flex items-center justify-center animate-in fade-in zoom-in duration-300">
-              <div className="w-full h-full bg-primary rounded-full blur-2xl opacity-40 animate-pulse" />
-              <div className="absolute inset-2 bg-gradient-to-tr from-primary to-violet-500 rounded-full opacity-60" />
-            </div>
-          )}
+           {/* Simple Glowing Dot/Blob instead of Plane */}
+           <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary/20 to-primary/10 blur-md" />
+           <div className="absolute inset-3 rounded-full bg-primary/10 blur-sm" />
         </div>
 
         {/* Nav Items */}
-        <div className="relative flex items-center justify-between px-5 h-full z-10">
+        <div className="relative flex items-center justify-between px-6 h-full z-10 w-full">
           {navItems.map((item, index) => {
             const isActive = index === activeIndex;
             
@@ -222,29 +189,24 @@ const BottomNavigation: React.FC = () => {
                 key={item.to}
                 ref={el => itemRefs.current[index] = el}
                 to={item.to}
-                onClick={(e) => handleItemClick(e, item.to, index)}
-                className="relative flex items-center justify-center h-full w-12 group"
+                onClick={(e) => {
+                    if (location.pathname === item.to) {
+                        e.preventDefault();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                }}
+                className="relative flex items-center justify-center h-full w-10 group"
               >
-                <div className="nav-icon transition-colors duration-300">
+                <div className="nav-icon text-foreground/60">
                   <item.icon 
-                    size={26}
-                    // FILLED LOGIC: 
-                    // - isActive: Fill will be handled by GSAP 'color' (Red/Blue etc).
-                    // - !isActive: Fill is 'currentColor' (Black/White).
+                    size={24}
                     fill="currentColor"
-                    strokeWidth={0} // Always solid filled
-                    className={`
-                      transition-all duration-300
-                      ${isActive 
-                        ? '' // Active color handled by GSAP
-                        : 'text-foreground/80 dark:text-foreground/90' // Inactive: Solid Black/White
-                      }
-                    `}
+                    strokeWidth={0} 
                   />
                   
-                  {/* Notification Badge */}
+                  {/* Badge Logic */}
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute top-3 -right-1 min-w-[16px] h-[16px] px-0.5 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center border border-white dark:border-black shadow-sm">
+                    <span className="absolute -top-1 -right-2 min-w-[16px] h-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm animate-in zoom-in">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
@@ -259,3 +221,4 @@ const BottomNavigation: React.FC = () => {
 };
 
 export default BottomNavigation;
+

@@ -4,7 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate, Link, useNavigate } from "react-router-dom";
 import { ReactLenis } from "lenis/react";
-import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/clerk-react"; 
+// Added GoogleOneTap import
+import { ClerkProvider, useAuth as useClerkAuth, GoogleOneTap } from "@clerk/clerk-react"; 
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -53,35 +54,29 @@ const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXY
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading, isAuthenticated } = useAuth();
   
-  // Loading state
   if (loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
   
-  // Check auth
   if (!isAuthenticated || !isAdmin) return <Navigate to="/auth/sign-in" replace />;
   
   return <>{children}</>;
 };
 
-// --- 2. FIXED GUEST ROUTE (Loop Killer) ---
+// --- 2. FIXED GUEST ROUTE ---
 const GuestRoute = ({ children }: { children: React.ReactNode }) => {
-  // Direct Clerk auth use karo taa ke custom context ka delay na ho
   const { isLoaded, userId } = useClerkAuth();
 
-  // Agar Clerk abhi check kar raha hai, to kuch mat dikhao (Wait karo)
   if (!isLoaded) {
     return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
   }
 
-  // Agar banda login hai, to seedha Home bhej do
   if (userId) {
     return <Navigate to="/" replace />;
   }
 
-  // Agar login nahi hai, tabhi AuthPage dikhao
   return <>{children}</>;
 };
 
-// --- 3. FIXED CLERK BRIDGE (Force Redirects) ---
+// --- 3. FIXED CLERK BRIDGE ---
 const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   return (
@@ -89,10 +84,8 @@ const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
       publishableKey={PUBLISHABLE_KEY}
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
-      // Login/Signup URLs
       signInUrl="/auth/sign-in"
       signUpUrl="/auth/sign-up"
-      // Loop Fix: Login hote hi seedha '/' par phekega, wapis login page par nahi
       signInForceRedirectUrl="/"
       signUpForceRedirectUrl="/"
       afterSignOutUrl="/"
@@ -106,10 +99,16 @@ const MainContent = () => {
   const location = useLocation();
   const { isAdmin } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isProfilePage = location.pathname === '/profile';
 
   return (
-    <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background">
-      <main className="flex-1 w-full">
+    // Added specific classes to hide scrollbars globally while keeping functionality
+    <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+      
+      {/* Google One Tap: Automatically shows bottom sheet if not logged in */}
+      {!isAdminRoute && <GoogleOneTap />}
+
+      <main className={`flex-1 w-full ${isProfilePage ? 'pt-0 mt-0' : ''}`}>
         <PageTransition key={location.pathname}>
           <Routes location={location}>
             <Route path="/" element={<HomePage />} />
@@ -118,25 +117,24 @@ const MainContent = () => {
             <Route path="/mepco-bill" element={<MepcoBill />} />
             <Route path="/help" element={<HelpCenter />} />
             
-            {/* SSO Callback Route - Ye zaroori hai Google login ke liye */}
             <Route path="/sso-callback" element={<SSOCallback />} />
 
-            {/* Auth Routes wrapped in GuestRoute */}
             <Route path="/auth/sign-in/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
             <Route path="/auth/sign-up/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
             <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
             
-            {/* User Routes */}
             <Route path="/cart" element={<CartPage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/confirmation" element={<ConfirmationPage />} />
+            
+            {/* Profile Page specific handling */}
             <Route path="/profile" element={<ProfilePage />} />
+            
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/track-order" element={<TrackOrderPage />} />
             
-            {/* Admin Routes */}
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
             <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
@@ -161,6 +159,7 @@ const MainContent = () => {
 
       {!isAdminRoute && (
         <>
+          {/* Hide BottomNavigation on Profile Page if requested, otherwise keep it */}
           <BottomNavigation />
           <CompareBar />
           <CompareModal />

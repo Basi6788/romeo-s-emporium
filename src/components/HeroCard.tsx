@@ -19,9 +19,9 @@ interface HeroCardProps {
 
 const HeroCard = ({ slide, isActive }: HeroCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null); // Ref for Left side content (Text)
   const imageRef = useRef<HTMLImageElement>(null);
-  const buttonRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);   // Ref for Right side content (Button)
 
   useEffect(() => {
     if (!cardRef.current || !contentRef.current || !imageRef.current) return;
@@ -32,6 +32,7 @@ const HeroCard = ({ slide, isActive }: HeroCardProps) => {
 
     if (isActive) {
       gsap.set(cardRef.current, { opacity: 1, scale: 1, zIndex: 10, y: 0 });
+      // Clear props for both content and button separately
       gsap.set([contentRef.current.children, buttonRef.current], { clearProps: 'all' });
       gsap.set(imageRef.current, { scale: 1.15, opacity: 0.8 });
 
@@ -40,8 +41,8 @@ const HeroCard = ({ slide, isActive }: HeroCardProps) => {
           { y: 40, opacity: 0 },
           { y: 0, opacity: 1, duration: 1, stagger: 0.1, ease: 'power4.out' }, 0.4)
         .fromTo(buttonRef.current,
-          { scale: 0.9, opacity: 0 },
-          { scale: 1, opacity: 1, duration: 0.8, ease: 'back.out(1.2)' }, 0.8);
+          { scale: 0.9, opacity: 0, x: 20 }, // Added slight x movement for effect
+          { scale: 1, opacity: 1, x: 0, duration: 0.8, ease: 'back.out(1.2)' }, 0.8);
 
       gsap.to(buttonRef.current, { y: -4, duration: 2, repeat: -1, yoyo: true, ease: 'sine.inOut' });
     } else {
@@ -73,28 +74,37 @@ const HeroCard = ({ slide, isActive }: HeroCardProps) => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
         <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient || 'from-primary/30 via-transparent to-transparent'} mix-blend-overlay`} />
 
-        {/* Content */}
-        <div className="absolute inset-0 flex items-center md:items-end pb-16 md:pb-28 px-6 md:px-16 container mx-auto">
-          <div ref={contentRef} className="max-w-4xl space-y-6 md:space-y-8 relative z-10">
-            {slide.badge && (
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-lg border border-white/20">
-                <Sparkles className="w-4 h-4 text-yellow-400" />
-                <span className="text-xs md:text-sm font-bold text-white uppercase tracking-widest">{slide.badge}</span>
-              </div>
-            )}
-            <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-white leading-[1] tracking-tighter uppercase italic">
-              {slide.title}
-            </h1>
-            <p className="text-lg md:text-2xl text-gray-200 font-medium max-w-2xl leading-tight opacity-90">
-              {slide.subtitle}
-            </p>
-            <div ref={buttonRef} className="pt-2">
+        {/* Content Container - Updated for Left/Right Split */}
+        <div className="absolute inset-0 flex items-end pb-16 md:pb-20 px-6 md:px-16 container mx-auto">
+          
+          {/* Flex wrapper to handle separation */}
+          <div className="w-full flex flex-col md:flex-row md:justify-between md:items-end gap-8 relative z-10">
+            
+            {/* LEFT SIDE: Badge, Title, Subtitle */}
+            <div ref={contentRef} className="max-w-4xl space-y-6 md:space-y-8">
+              {slide.badge && (
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-lg border border-white/20">
+                  <Sparkles className="w-4 h-4 text-yellow-400" />
+                  <span className="text-xs md:text-sm font-bold text-white uppercase tracking-widest">{slide.badge}</span>
+                </div>
+              )}
+              <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-white leading-[1] tracking-tighter uppercase italic">
+                {slide.title}
+              </h1>
+              <p className="text-lg md:text-2xl text-gray-200 font-medium max-w-2xl leading-tight opacity-90">
+                {slide.subtitle}
+              </p>
+            </div>
+
+            {/* RIGHT SIDE: Button */}
+            <div ref={buttonRef} className="shrink-0 pb-2 md:pb-0">
               <Button asChild size="lg" className="h-14 md:h-16 px-10 md:px-14 text-lg md:text-xl rounded-full bg-white text-black hover:bg-gray-100 transition-all duration-300 shadow-2xl">
                 <Link to={slide.link} className="flex items-center gap-3 font-bold">
                   Shop Now <ArrowRight className="w-6 h-6" />
                 </Link>
               </Button>
             </div>
+
           </div>
         </div>
       </div>

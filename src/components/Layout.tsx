@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 
@@ -8,23 +9,38 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
-  return (
-    // FIX 1: 'relative' hata diya aur 'overflow-x-hidden' ko safe tareeqe se lagaya
-    <div className="min-h-screen w-full flex flex-col bg-background text-foreground">
-      
-      {/* Header ko sabse upar rakhna zaroori hai layout flow mein */}
-      <Header />
+  const location = useLocation();
+  const pathname = location.pathname;
 
-      {/* FIX 2: Main Content Area 
-         - 'flex-1' ensure karega ke ye bachi hui space le.
-         - 'relative' yahan lagaya hai taake internal absolute elements yahan restrict rahein, 
-           lekin Fixed Header azad rahe.
+  // Check karein ke hum Auth ya Profile page par hain ya nahi
+  // '/auth' check karega agar URL me kahin bhi auth ata hai (login/signup)
+  const isAuthPage = pathname.startsWith('/auth');
+  const isProfilePage = pathname === '/profile';
+
+  // In pages par Header ko HIDE karna hai
+  const shouldHideHeader = isAuthPage || isProfilePage;
+
+  // Agar Auth ya Profile page hai tu Footer bhi hide kar sakte hain (Optional, maine logic daal di hai)
+  const shouldHideFooter = isAuthPage; 
+
+  return (
+    <div className="min-h-screen w-full flex flex-col relative overflow-x-hidden bg-background text-foreground">
+      
+      {/* Header sirf tab dikhao jab hum Auth ya Profile page par NA hon */}
+      {!shouldHideHeader && <Header />}
+
+      {/* Dynamic Padding Fix:
+         - Agar header hidden hai, to 'pt-0' (top padding 0) karo taake gap na aye.
+         - Agar header hai, to 'pt-16' rakho taake content header ke neeche na chupe.
       */}
-      <main className="flex-1 w-full pt-16 md:pt-20 relative">
+      <main 
+        className={`flex-grow w-full ${shouldHideHeader ? 'pt-0' : 'pt-16 md:pt-20'}`}
+      >
         {children}
       </main>
 
-      {showFooter && <Footer />}
+      {/* Footer render logic */}
+      {showFooter && !shouldHideFooter && <Footer />}
     </div>
   );
 };
