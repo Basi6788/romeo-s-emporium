@@ -6,23 +6,21 @@
 
 @layer base {
   :root {
-    /* --- Light Mode (Peach to Light Blue Gradient) --- */
-    /* Ye variables gradient ke start aur end points hain */
-    --gradient-start: 22 100% 88%;  /* Soft Peach/Apricot */
-    --gradient-end: 190 60% 92%;    /* Soft Sky Blue */
+    /* --- Light Mode (Orange/Peach to Light Blue) --- */
+    --gradient-start: 25 100% 88%;  /* Soft Orange/Peach */
+    --gradient-end: 195 60% 92%;    /* Soft Sky Blue */
 
-    --background: 22 100% 95%;      /* Fallback solid color */
-    --foreground: 240 10% 10%;      /* Dark text */
+    --background: 25 100% 98%;
+    --foreground: 240 10% 10%;
     
-    /* Cards - Image me cards White hain with shadow */
     --card: 0 0% 100%;
     --card-foreground: 240 10% 10%;
     
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 10%;
     
-    /* Primary Color (Button gradient handled in component layer) */
-    --primary: 330 80% 60%; /* Pinkish tone base */
+    /* Primary: Vibrant Orange */
+    --primary: 25 95% 53%; 
     --primary-foreground: 0 0% 100%;
     
     --secondary: 220 14% 96%;
@@ -34,48 +32,53 @@
     
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 330 80% 60%;
+    
+    --ring: 25 95% 53%;
     --radius: 1rem;
 
-    /* Glass Effect for Light Mode */
+    /* Glass Effect Light */
     --glass-bg: 0 0% 100% / 0.65; 
     --glass-border: 0 0% 100% / 0.8;
     --glass-blur: 16px;
   }
 
   .dark {
-    /* --- Dark Mode (Deep Purple to Deep Teal) --- */
-    --gradient-start: 260 60% 12%; /* Deep Purple (Top) */
-    --gradient-end: 180 70% 15%;   /* Deep Teal (Bottom) */
+    /* --- Dark Mode (Black with Purple Blur Gradient) --- */
+    
+    /* Start: Pitch Black */
+    --gradient-start: 0 0% 0%; 
+    
+    /* End: Deep Dark Purple (Blur effect ke liye) */
+    --gradient-end: 270 60% 15%; 
 
-    --background: 260 60% 12%;
+    --background: 0 0% 0%;
     --foreground: 0 0% 98%;
 
-    /* Cards - Darker Glassy look */
-    --card: 260 40% 15%;
+    /* Cards - Black Glassy look */
+    --card: 270 40% 8%;
     --card-foreground: 0 0% 98%;
     
-    --popover: 260 40% 15%;
+    --popover: 270 40% 8%;
     --popover-foreground: 0 0% 98%;
     
-    /* Primary: Neon Cyan/Blue vibe */
-    --primary: 180 70% 50%; 
-    --primary-foreground: 260 60% 12%; 
+    /* UI Highlights ke liye abhi bhi Sky Blue/Orange use kar rahe hain taake content pop kare */
+    --primary: 199 89% 48%; 
+    --primary-foreground: 0 0% 100%; 
     
-    --secondary: 260 30% 20%;
+    --secondary: 270 30% 15%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 260 30% 20%;
+    --muted: 270 30% 15%;
     --muted-foreground: 240 5% 65%;
-    --accent: 180 70% 50%;
-    --accent-foreground: 260 60% 12%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 0 0% 100%;
     
-    --border: 260 30% 25%;
-    --input: 260 30% 25%;
-    --ring: 180 70% 50%;
+    --border: 270 30% 20%;
+    --input: 270 30% 20%;
+    --ring: 199 89% 48%;
 
-    /* Glass Effect for Dark Mode */
-    --glass-bg: 260 40% 12% / 0.4; 
-    --glass-border: 260 40% 30% / 0.2;
+    /* Glass Effect Dark */
+    --glass-bg: 270 40% 5% / 0.4; 
+    --glass-border: 270 40% 30% / 0.2;
     --glass-blur: 24px;
   }
 
@@ -104,10 +107,9 @@
     font-family: 'Plus Jakarta Sans', sans-serif;
     min-height: 100vh;
     
-    /* --- MAIN MAGIC: Gradient Background --- */
-    /* Solid color hata kar image jaisa gradient lagaya hai */
+    /* Gradient Background Logic */
     background: linear-gradient(135deg, hsl(var(--gradient-start)), hsl(var(--gradient-end))) !important;
-    background-attachment: fixed !important; /* Scroll karte waqt background fix rahega */
+    background-attachment: fixed !important;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -124,10 +126,10 @@
   }
 
   .btn-primary {
-    /* Image jaisa Colorful Gradient Button (Pink to Blue) */
+    /* Button Gradient: Orange (#FF8C00) to Sky Blue (#00BFFF) */
     @apply text-white font-bold px-6 py-3 rounded-2xl transition-all duration-300;
-    background-image: linear-gradient(90deg, #FF758C 0%, #00C9FF 100%);
-    @apply hover:shadow-lg hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98];
+    background-image: linear-gradient(90deg, #FF8C00 0%, #00BFFF 100%);
+    @apply hover:shadow-lg hover:shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98];
     font-family: 'Space Grotesk', sans-serif;
   }
   
