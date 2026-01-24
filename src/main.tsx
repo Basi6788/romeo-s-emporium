@@ -2,6 +2,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// ⚠️ StrictMode hata diya hai taake Clerk Captcha crash na kare
+// Maine wo 'vite-plugin-terminal' wali line hata di hai jo crash kar rahi thi.
+// Ab ye seedha chalega.
+
 createRoot(document.getElementById("root")!).render(<App />);
 

@@ -1,26 +1,28 @@
-import { useState, useEffect } from "react"; // Added imports
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate, Link, useNavigate } from "react-router-dom";
 import { ReactLenis } from "lenis/react";
-import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/clerk-react"; 
+import { ClerkProvider, useAuth as useClerkAuth, useUser } from "@clerk/clerk-react"; 
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { CompareProvider } from "@/contexts/CompareContext";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import ScrollToTop from "@/components/ScrollToTop";
-import PageTransition from "@/components/PageTransition";
 import BottomNavigation from "@/components/BottomNavigation";
 import CompareBar from "@/components/CompareBar";
 import CompareModal from "@/components/CompareModal";
 
-// Intro Page Import
+// --- Imports ---
 import IntroPage from "./pages/IntroPage"; 
+import SSOCallback from "./pages/SSOCallback"; 
+import OledLoader from "./components/OledLoader"; 
+import HackerDashboard from "@/components/HackerDashboard"; // 👈 YE RAHA NAYA DASHBOARD
 
 // Pages
 import HomePage from "./pages/HomePage";
@@ -37,9 +39,8 @@ import OrderDetailPage from "./pages/OrderDetailPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import MepcoBill from "./pages/MepcoBill";
 import HelpCenter from "./pages/HelpCenter";
-import SSOCallback from "./pages/SSOCallback"; 
 
-// Admin
+// Admin Imports...
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -56,36 +57,20 @@ const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXY
 // --- 1. FIXED ADMIN ROUTE ---
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading, isAuthenticated } = useAuth();
-  
-  // Loading state
-  if (loading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
-  
-  // Check auth
+  if (loading) return <OledLoader />;
   if (!isAuthenticated || !isAdmin) return <Navigate to="/auth/sign-in" replace />;
-  
   return <>{children}</>;
 };
 
-// --- 2. FIXED GUEST ROUTE (Loop Killer) ---
+// --- 2. FIXED GUEST ROUTE ---
 const GuestRoute = ({ children }: { children: React.ReactNode }) => {
-  // Direct Clerk auth use karo taa ke custom context ka delay na ho
   const { isLoaded, userId } = useClerkAuth();
-
-  // Agar Clerk abhi check kar raha hai, to kuch mat dikhao (Wait karo)
-  if (!isLoaded) {
-    return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-12 h-12" /></div>;
-  }
-
-  // Agar banda login hai, to seedha Home bhej do
-  if (userId) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Agar login nahi hai, tabhi AuthPage dikhao
+  if (!isLoaded) return <OledLoader />;
+  if (userId) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
-// --- 3. FIXED CLERK BRIDGE (Force Redirects) ---
+// --- 3. CLERK BRIDGE ---
 const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   return (
@@ -93,10 +78,8 @@ const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
       publishableKey={PUBLISHABLE_KEY}
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
-      // Login/Signup URLs
       signInUrl="/auth/sign-in"
       signUpUrl="/auth/sign-up"
-      // Loop Fix: Login hote hi seedha '/' par phekega, wapis login page par nahi
       signInForceRedirectUrl="/"
       signUpForceRedirectUrl="/"
       afterSignOutUrl="/"
@@ -109,78 +92,95 @@ const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
 const MainContent = () => {
   const location = useLocation();
   const { isAdmin } = useAuth();
-  const isAdminRoute = location.pathname.startsWith('/admin');
   
-  // --- Intro Logic Start ---
+  // Clerk hooks for auth state
+  const { isLoaded, isSignedIn } = useUser(); 
+
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  // Dashboard aur Admin routes par bottom navigation chhupana achi practice hai
+  const isDashboardRoute = location.pathname === '/dashboard';
+  
+  // --- Intro Logic Fixed ---
   const [showIntro, setShowIntro] = useState(false);
-  const [isCheckingIntro, setIsCheckingIntro] = useState(true);
+  const [introChecked, setIntroChecked] = useState(false);
 
   useEffect(() => {
-    // Check karo agar pehle aa chuka hai
+    if (!isLoaded) return;
+
+    if (location.pathname.includes("sso-callback")) {
+        setShowIntro(false);
+        setIntroChecked(true);
+        return;
+    }
+
+    if (isSignedIn) {
+        setShowIntro(false);
+        setIntroChecked(true);
+        return;
+    }
+
     const hasVisited = localStorage.getItem("mirae_visited");
     if (!hasVisited) {
       setShowIntro(true);
     }
-    setIsCheckingIntro(false);
-  }, []);
+    
+    setIntroChecked(true);
+  }, [isLoaded, isSignedIn, location.pathname]);
 
   const handleIntroComplete = () => {
-    // Save karo ke user aa gaya hai, taake dubara na dikhe
     localStorage.setItem("mirae_visited", "true");
     setShowIntro(false);
   };
 
-  // Jab tak check kar rahe hain, kuch mat dikhao (ya spinner dikha sakte ho)
-  if (isCheckingIntro) return null;
+  if (!isLoaded || !introChecked) return <OledLoader />;
 
-  // Agar Intro dikhana hai, to baqi app return mat karo, sirf IntroPage return karo
   if (showIntro) {
     return <IntroPage onComplete={handleIntroComplete} />;
   }
-  // --- Intro Logic End ---
 
+  // --- Main App Logic ---
   return (
     <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background">
       <main className="flex-1 w-full">
-        <PageTransition key={location.pathname}>
-          <Routes location={location}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/products/:id" element={<ProductDetailPage />} />
-            <Route path="/mepco-bill" element={<MepcoBill />} />
-            <Route path="/help" element={<HelpCenter />} />
-            
-            {/* SSO Callback Route */}
-            <Route path="/sso-callback" element={<SSOCallback />} />
+        <Routes location={location}>
+          <Route path="/" element={<HomePage />} />
+          
+          {/* 👇 YE RAHA TUMHARA DASHBOARD ROUTE */}
+          <Route path="/dashboard" element={<HackerDashboard />} />
 
-            {/* Auth Routes wrapped in GuestRoute */}
-            <Route path="/auth/sign-in/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
-            <Route path="/auth/sign-up/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
-            <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
-            
-            {/* User Routes */}
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/wishlist" element={<WishlistPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/confirmation" element={<ConfirmationPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/orders/:id" element={<OrderDetailPage />} />
-            <Route path="/track-order" element={<TrackOrderPage />} />
-            
-            {/* Admin Routes */}
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
-            <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
-            <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-            <Route path="/admin/ai" element={<AdminRoute><AdminAI /></AdminRoute>} />
-            <Route path="/admin/security" element={<AdminRoute><AdminSecurity /></AdminRoute>} />
-            <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
-            <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </PageTransition>
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/products/:id" element={<ProductDetailPage />} />
+          <Route path="/mepco-bill" element={<MepcoBill />} />
+          <Route path="/help" element={<HelpCenter />} />
+          
+          {/* SSO Callback Route */}
+          <Route path="/sso-callback" element={<SSOCallback />} />
+
+          <Route path="/auth/sign-in/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
+          <Route path="/auth/sign-up/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
+          <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
+          
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/confirmation" element={<ConfirmationPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/orders/:id" element={<OrderDetailPage />} />
+          <Route path="/track-order" element={<TrackOrderPage />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
+          <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+          <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+          <Route path="/admin/ai" element={<AdminRoute><AdminAI /></AdminRoute>} />
+          <Route path="/admin/security" element={<AdminRoute><AdminSecurity /></AdminRoute>} />
+          <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
+          <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </main>
 
       {isAdmin && !isAdminRoute && (
@@ -191,7 +191,8 @@ const MainContent = () => {
         </div>
       )}
 
-      {!isAdminRoute && (
+      {/* Admin ya Hacker Dashboard par footer hide karne ke liye logic update ki */}
+      {!isAdminRoute && !isDashboardRoute && (
         <>
           <BottomNavigation />
           <CompareBar />

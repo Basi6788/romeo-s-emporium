@@ -4,7 +4,8 @@ import { CreditCard, Truck, MapPin, ChevronLeft, Shield, Package, CheckCircle2, 
 import { gsap } from 'gsap';
 import Layout from '@/components/Layout';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
+// 👇 UPDATE: Clerk se direct import karein
+import { useAuth, useUser } from '@clerk/clerk-react'; 
 import { createOrder, OrderData } from '@/lib/firebase';
 import { createDbOrder } from '@/lib/dbOrders';
 import { sendOrderNotification } from '@/lib/orderNotifications';
@@ -15,13 +16,17 @@ import { Label } from '@/components/ui/label';
 
 const CheckoutPage: React.FC = () => {
   const { items, total, clearCart } = useCart();
-  const { user } = useAuth();
+  
+  // 👇 UPDATE: Hooks ko alag alag call karein
+  const { getToken, userId } = useAuth(); // Yahan se token milega
+  const { user } = useUser(); // Yahan se user ki details milengi
+  
   const navigate = useNavigate();
   const containerRef = useRef<HTMLFormElement>(null);
 
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
+    name: user?.fullName || user?.firstName || '',
+    email: user?.primaryEmailAddress?.emailAddress || '',
     phone: '',
     address: '',
     city: '',
@@ -56,6 +61,10 @@ const CheckoutPage: React.FC = () => {
     setLoading(true);
 
     try {
+      // 1. Clerk Token Generate karein
+      // Agar getToken undefined hai to empty string use karein taake crash na ho
+      const token = getToken ? await getToken({ template: 'supabase' }) : null;
+      
       const orderItems = items.map(item => ({
         productId: item.productId,
         name: item.name,
@@ -64,9 +73,9 @@ const CheckoutPage: React.FC = () => {
         image: item.image
       }));
 
-      // Create order in database (for realtime notifications)
+      // 2. Database Order create karein
       const dbOrderId = await createDbOrder({
-        user_id: user?.id,
+        user_id: userId, // useAuth se userId lein
         customer_name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -80,11 +89,11 @@ const CheckoutPage: React.FC = () => {
         shipping,
         tax,
         total: grandTotal,
-      });
+      }, token);
 
-      // Also save to localStorage as fallback
+      // 3. Fallback to Firebase/LocalStorage if DB fails
       const orderId = dbOrderId || await createOrder({
-        userId: user?.id,
+        userId: userId,
         customerName: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -100,10 +109,10 @@ const CheckoutPage: React.FC = () => {
         total: grandTotal,
       });
 
-      // Send order confirmation email
+      // 4. Send Email Notification
       const orderData: OrderData = {
         id: orderId,
-        userId: user?.id,
+        userId: userId,
         customerName: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -121,21 +130,17 @@ const CheckoutPage: React.FC = () => {
         createdAt: new Date(),
       };
 
-      // Send order confirmation email (don't block order placement)
       const emailResult = await sendOrderNotification(orderData);
       if (!emailResult.success) {
-        toast.error('Order placed, but email was not delivered', {
-          description:
-            emailResult.error ||
-            'Email delivery is not configured yet. Please verify your sender domain.',
-        });
+        console.warn('Email warning:', emailResult.error);
       }
 
       clearCart();
       navigate('/confirmation', { state: { orderId } });
       toast.success('Order placed successfully!');
-    } catch (error) {
-      toast.error('Failed to place order. Please try again.');
+    } catch (error: any) {
+      console.error('Checkout Error:', error);
+      toast.error(`Failed to place order: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -485,3 +490,4 @@ const CheckoutPage: React.FC = () => {
 };
 
 export default CheckoutPage;
+

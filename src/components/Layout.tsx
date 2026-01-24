@@ -13,34 +13,42 @@ const Layout: React.FC<LayoutProps> = ({ children, showFooter = true }) => {
   const pathname = location.pathname;
 
   // Check karein ke hum Auth ya Profile page par hain ya nahi
-  // '/auth' check karega agar URL me kahin bhi auth ata hai (login/signup)
   const isAuthPage = pathname.startsWith('/auth');
   const isProfilePage = pathname === '/profile';
 
   // In pages par Header ko HIDE karna hai
   const shouldHideHeader = isAuthPage || isProfilePage;
 
-  // Agar Auth ya Profile page hai tu Footer bhi hide kar sakte hain (Optional, maine logic daal di hai)
+  // Auth pages par Footer hide karein
   const shouldHideFooter = isAuthPage; 
 
   return (
-    <div className="min-h-screen w-full flex flex-col relative overflow-x-hidden bg-background text-foreground">
+    // Parent Div: bg-background puri app ka main color set karega.
+    <div className="min-h-screen w-full flex flex-col relative overflow-x-hidden bg-background text-foreground font-sans">
       
-      {/* Header sirf tab dikhao jab hum Auth ya Profile page par NA hon */}
-      {!shouldHideHeader && <Header />}
+      {/* Header: z-50 taake scroll karte waqt sabse upar rahe */}
+      {!shouldHideHeader && (
+        <div className="relative z-50">
+          <Header />
+        </div>
+      )}
 
-      {/* Dynamic Padding Fix:
-         - Agar header hidden hai, to 'pt-0' (top padding 0) karo taake gap na aye.
-         - Agar header hai, to 'pt-16' rakho taake content header ke neeche na chupe.
-      */}
+      {/* Main Content: flex-grow taake ye available space le le */}
       <main 
-        className={`flex-grow w-full ${shouldHideHeader ? 'pt-0' : 'pt-16 md:pt-20'}`}
+        className={`flex-grow w-full relative z-0 ${shouldHideHeader ? 'pt-0' : 'pt-16 md:pt-20'}`}
       >
         {children}
       </main>
 
-      {/* Footer render logic */}
-      {showFooter && !shouldHideFooter && <Footer />}
+      {/* Footer Container:
+          - mt-auto: Ye footer ko hamesha bottom par push karega agar content kam ho.
+          - bg-transparent: Yahan koi background nahi diya, taake Footer ke sections 'hawa mein' (float) lagein.
+      */}
+      {showFooter && !shouldHideFooter && (
+        <div className="relative z-10 w-full mt-auto bg-transparent">
+           <Footer />
+        </div>
+      )}
     </div>
   );
 };
