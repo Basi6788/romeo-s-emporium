@@ -4,39 +4,56 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
-    <title>BASITSHOP.</title>
+    <title>ZUNO.</title>
     <meta name="description" content="Designer:Romeo" />
-    <meta name="author" content="Shopping" />
+    <meta name="author" content="Romeo" />
 
-    <meta property="og:title" content="BASITSHOP. " />
-    <meta property="og:description" content="BasitShop. " />
+    <meta property="og:title" content="ZUNO Marketplace" />
+    <meta property="og:description" content="Premium Shopping Experience" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:site" content="@Zuno" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+      :root {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      }
+
       html {
-        /* Fix for scroll: Allow html to grow */
+        /* Standard Smooth Scroll Fallback */
+        scroll-behavior: smooth;
         height: auto;
         min-height: 100%;
-        overflow-x: hidden;
+        /* Hide Scrollbar for Firefox */
+        scrollbar-width: none; 
       }
 
       body {
         margin: 0;
         padding: 0;
         width: 100%;
-        
-        /* Body ko grow karne den taake scroll ho sake */
         min-height: 100vh;
-        overflow-y: auto; /* Important for PC Scroll */
-        overflow-x: hidden; 
-        
-        background-color: #000000;
+        overflow-x: hidden;
+        /* Premium Font Smoothing */
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: #000000;
+        /* Hide Standard Scrollbar */
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+      }
+
+      /* Hide Scrollbar for Chrome, Safari and Opera */
+      body::-webkit-scrollbar,
+      html::-webkit-scrollbar,
+      #root::-webkit-scrollbar {
+        display: none;
       }
 
       #root {
@@ -46,27 +63,73 @@
         width: 100%;
         isolation: isolate;
       }
+
+      /* --- GLOBAL TRANSITION SMOOTHNESS --- */
+      * {
+        /* Ye basic hover effects ko buttery smooth karega */
+        transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      /* --- VIEW TRANSITION API SUPPORT (For Header Wipe Effect) --- */
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation: none;
+        mix-blend-mode: normal;
+        height: 100%;
+      }
       
-      /* Scrollbar styling (Optional - for better look) */
-      ::-webkit-scrollbar {
-        width: 8px;
+      /* Dark mode wipe layer order */
+      ::view-transition-new(root) { z-index: 9999; }
+      ::view-transition-old(root) { z-index: 1; }
+
+      /* Prevent interaction during transition */
+      .is-transitioning {
+        pointer-events: none;
+        cursor: wait;
       }
-      ::-webkit-scrollbar-track {
-        background: #000; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #333; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #555; 
+
+      /* Text Selection Color (Brand Touch) */
+      ::selection {
+        background: #f97316; /* Orange-500 */
+        color: white;
       }
     </style>
   </head>
 
   <body>
     <div id="root"></div>
+    
     <script type="module" src="/src/main.tsx"></script>
+
+    <script src="https://unpkg.com/@studio-freight/lenis@1.0.29/dist/lenis.min.js"></script> 
+    <script>
+      // Initialize Lenis for luxury scrolling feel
+      const lenis = new Lenis({
+        duration: 1.2, // Scroll speed (Higher = Smoother/Slower)
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Apple-style easing
+        direction: 'vertical',
+        gestureDirection: 'vertical',
+        smooth: true,
+        mouseMultiplier: 1,
+        smoothTouch: false, // Mobile par native scroll behtar rehta hai usually
+        touchMultiplier: 2,
+      });
+
+      function raf(time) {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+      }
+
+      requestAnimationFrame(raf);
+
+      // Connect Lenis to View Transitions
+      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+          e.preventDefault();
+          lenis.scrollTo(this.getAttribute('href'));
+        });
+      });
+    </script>
   </body>
 </html>
 

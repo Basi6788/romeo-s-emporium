@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface DbOrder {
   id?: string;
   user_id?: string;
+  store_id: string; 
   customer_name: string;
   email: string;
   phone?: string;
@@ -24,67 +25,100 @@ export interface DbOrder {
   total: number;
   status?: 'pending' | 'processing' | 'shipped' | 'delivered';
   created_at?: string;
-  updated_at?: string;
 }
 
-// Token parameter add kiya hai yahan (token?: string | null)
 export const createDbOrder = async (
   orderData: Omit<DbOrder, 'id' | 'created_at' | 'updated_at' | 'status'>,
   token?: string | null
 ): Promise<string | null> => {
   try {
-    // Query builder start karo
-    let query = supabase.from('orders').insert({
-      user_id: orderData.user_id,
+    console.log("Processing Order for Database...", orderData);
+
+    // 1. Random Order Number Generate karo (Zaroori hai DB ke liye)
+    const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+
+    // 2. Address fields ko combine kar lo kyunke DB me alag columns nahi hain abhi
+    const fullAddress = `${orderData.address}, ${orderData.city || ''}, ${orderData.postal_code || ''}, ${orderData.country || ''}`;
+
+    // 3. Pehle 'orders' table me insert karo
+    let orderQuery = supabase.from('orders').insert({
+      store_id: orderData.store_id,
+      order_number: orderNumber, // 🔥 FIXED: Required field added
+      
       customer_name: orderData.customer_name,
-      email: orderData.email,
-      phone: orderData.phone,
-      address: orderData.address, // Check karein: DB mein ye column 'address' hai ya 'shipping_address'?
-      city: orderData.city,
-      postal_code: orderData.postal_code,
-      country: orderData.country,
-      payment_method: orderData.payment_method,
-      items: orderData.items,
-      subtotal: orderData.subtotal,
-      shipping: orderData.shipping,
-      tax: orderData.tax,
-      total: orderData.total,
+      customer_email: orderData.email,
+      customer_phone: orderData.phone,
+      customer_address: fullAddress, // 🔥 FIXED: Combined address
+
+      // Note: user_id, payment_method, city waghera agar DB me nahi hain to remove kar diye hain taake error na aye.
+      // Agar future me columns banao to yahan add kar dena.
+      
+      total_amount: orderData.total,
+      shipping_amount: orderData.shipping,
       status: 'pending'
     });
 
-    // AGAR token hai (Clerk user), to Header set karo warna 401 aayega
     if (token) {
-      // Typescript error bachane ke liye 'any' cast kiya hai, kyunke purane versions mein setHeader missing ho sakta hai
-      (query as any).setHeader('Authorization', `Bearer ${token}`);
+      (orderQuery as any).setHeader('Authorization', `Bearer ${token}`);
     }
 
-    const { data, error } = await query.select('id').single();
+    const { data: orderResult, error: orderError } = await orderQuery.select('id').single();
 
-    if (error) {
-      console.error('Error creating order:', error);
-      throw error;
+    if (orderError) {
+      console.error('Supabase Order Insert Error:', orderError);
+      throw orderError;
     }
 
-    return data.id;
+    const newOrderId = orderResult.id;
+    console.log("Order Table Created, ID:", newOrderId);
+
+    // 4. Ab 'order_items' table me items insert karo (Loop ke zariye)
+    const orderItemsData = orderData.items.map((item) => ({
+      order_id: newOrderId,          // Link item to the order
+      product_id: item.productId,
+      product_name: item.name,
+      product_image: item.image || '',
+      quantity: item.quantity,
+      unit_price: item.price,
+      total_price: item.price * item.quantity
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItemsData);
+
+    if (itemsError) {
+      console.error('Supabase Order Items Error:', itemsError);
+      // Optional: Agar items fail hon to main order delete kar sakte ho, lekin abhi throw kar do
+      throw itemsError;
+    }
+
+    console.log("Order Items Placed Successfully");
+    return newOrderId;
+
   } catch (error) {
     console.error('Failed to create order:', error);
     return null;
   }
 };
 
-// Token parameter yahan bhi add kiya hai agar user apni history dekh raha ho
+// Orders Fetch Karne Ka Function
 export const getDbOrders = async (userId?: string, token?: string | null): Promise<DbOrder[]> => {
   try {
+    // Join query to fetch orders AND their items
     let query = supabase
       .from('orders')
-      .select('*')
+      .select(`
+        *,
+        order_items (*)
+      `)
       .order('created_at', { ascending: false });
 
-    if (userId) {
-      query = query.eq('user_id', userId);
-    }
+    // Note: 'user_id' column shayad orders table me nahi hai (screenshots me nahi dikha), 
+    // agar seller_id ya store_id se filter karna hai to wo use karo.
+    // Filhal main user_id check hata raha hun agar column missing hai.
+    // if (userId) { query = query.eq('user_id', userId); } 
 
-    // Auth header injection for RLS
     if (token) {
       (query as any).setHeader('Authorization', `Bearer ${token}`);
     }
@@ -92,10 +126,38 @@ export const getDbOrders = async (userId?: string, token?: string | null): Promi
     const { data, error } = await query;
 
     if (error) throw error;
-    return (data || []).map(order => ({
-      ...order,
-      items: order.items as DbOrder['items']
+
+    return (data || []).map((order: any) => ({
+      id: order.id,
+      store_id: order.store_id,
+      created_at: order.created_at,
+      status: order.status,
+      customer_name: order.customer_name,
+      email: order.customer_email,
+      phone: order.customer_phone,
+      address: order.customer_address,
+      
+      // Ye fields DB se wapis nahi aayengi kyunke DB me save nahi huin (unless columns bana lo)
+      city: '', 
+      country: '',
+      postal_code: '',
+      payment_method: '', // Agar payment gateway integrate ho to metadata me rakhna
+
+      // Items ko wapis frontend format me map karna
+      items: order.order_items.map((item: any) => ({
+        productId: item.product_id,
+        name: item.product_name,
+        price: item.unit_price,
+        quantity: item.quantity,
+        image: item.product_image
+      })),
+
+      total: order.total_amount,
+      shipping: order.shipping_amount,
+      tax: 0,
+      subtotal: (order.total_amount || 0) - (order.shipping_amount || 0)
     })) as DbOrder[];
+
   } catch (error) {
     console.error('Error fetching orders:', error);
     return [];
@@ -103,12 +165,10 @@ export const getDbOrders = async (userId?: string, token?: string | null): Promi
 };
 
 export const updateDbOrderStatus = async (
-  orderId: string, 
+  orderId: string,
   newStatus: DbOrder['status']
 ): Promise<boolean> => {
   try {
-    // Admin function hai, usually service role key use hoti hai backend pe, 
-    // par client side hai to ensure karo user admin hai.
     const { error } = await supabase
       .from('orders')
       .update({ status: newStatus })
@@ -117,8 +177,8 @@ export const updateDbOrderStatus = async (
     if (error) throw error;
     return true;
   } catch (error) {
-    console.error('Error updating order status:', error);
+    console.error('Error updating status:', error);
     return false;
   }
 };
-
+	

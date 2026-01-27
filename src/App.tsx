@@ -1,28 +1,22 @@
-import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, Navigate, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
 import { ReactLenis } from "lenis/react";
-import { ClerkProvider, useAuth as useClerkAuth, useUser } from "@clerk/clerk-react"; 
+import { ClerkProvider, useAuth as useClerkAuth, useUser } from "@clerk/clerk-react";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { CompareProvider } from "@/contexts/CompareContext";
-import { ShieldCheck } from "lucide-react";
 
 import ScrollToTop from "@/components/ScrollToTop";
-import BottomNavigation from "@/components/BottomNavigation";
 import CompareBar from "@/components/CompareBar";
 import CompareModal from "@/components/CompareModal";
 
 // --- Imports ---
-import IntroPage from "./pages/IntroPage"; 
-import SSOCallback from "./pages/SSOCallback"; 
-import OledLoader from "./components/OledLoader"; 
-import HackerDashboard from "@/components/HackerDashboard"; // 👈 YE RAHA NAYA DASHBOARD
+import OledLoader from "./components/OledLoader";
 
 // Pages
 import HomePage from "./pages/HomePage";
@@ -37,10 +31,10 @@ import ProfilePage from "./pages/ProfilePage";
 import OrdersPage from "./pages/OrdersPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import TrackOrderPage from "./pages/TrackOrderPage";
-import MepcoBill from "./pages/MepcoBill";
+// MepcoBill Removed
 import HelpCenter from "./pages/HelpCenter";
 
-// Admin Imports...
+// Admin Imports
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -52,7 +46,20 @@ import AdminInventory from "./pages/admin/AdminInventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
-const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXYk"; 
+const PUBLISHABLE_KEY = "pk_test_cHJvbXB0LXR1cmtleS03Ni5jbGVyay5hY2NvdW50cy5kZXYk";
+
+// --- CSS for Hiding Scrollbar but keeping functionality ---
+const GlobalScrollStyles = () => (
+  <style>{`
+    html, body {
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE/Edge */
+    }
+    html::-webkit-scrollbar, body::-webkit-scrollbar {
+      display: none; /* Chrome/Safari/Opera */
+    }
+  `}</style>
+);
 
 // --- 1. FIXED ADMIN ROUTE ---
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -91,75 +98,30 @@ const ClerkRouterBridge = ({ children }: { children: React.ReactNode }) => {
 
 const MainContent = () => {
   const location = useLocation();
-  const { isAdmin } = useAuth();
-  
-  // Clerk hooks for auth state
-  const { isLoaded, isSignedIn } = useUser(); 
+  const { isLoaded } = useUser();
 
   const isAdminRoute = location.pathname.startsWith('/admin');
-  // Dashboard aur Admin routes par bottom navigation chhupana achi practice hai
-  const isDashboardRoute = location.pathname === '/dashboard';
-  
-  // --- Intro Logic Fixed ---
-  const [showIntro, setShowIntro] = useState(false);
-  const [introChecked, setIntroChecked] = useState(false);
 
-  useEffect(() => {
-    if (!isLoaded) return;
+  // Basic Loading Check
+  if (!isLoaded) return <OledLoader />;
 
-    if (location.pathname.includes("sso-callback")) {
-        setShowIntro(false);
-        setIntroChecked(true);
-        return;
-    }
-
-    if (isSignedIn) {
-        setShowIntro(false);
-        setIntroChecked(true);
-        return;
-    }
-
-    const hasVisited = localStorage.getItem("mirae_visited");
-    if (!hasVisited) {
-      setShowIntro(true);
-    }
-    
-    setIntroChecked(true);
-  }, [isLoaded, isSignedIn, location.pathname]);
-
-  const handleIntroComplete = () => {
-    localStorage.setItem("mirae_visited", "true");
-    setShowIntro(false);
-  };
-
-  if (!isLoaded || !introChecked) return <OledLoader />;
-
-  if (showIntro) {
-    return <IntroPage onComplete={handleIntroComplete} />;
-  }
-
-  // --- Main App Logic ---
   return (
     <div className="flex flex-col min-h-[100dvh] w-full overflow-x-hidden relative bg-background">
       <main className="flex-1 w-full">
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
-          
-          {/* 👇 YE RAHA TUMHARA DASHBOARD ROUTE */}
-          <Route path="/dashboard" element={<HackerDashboard />} />
-
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
-          <Route path="/mepco-bill" element={<MepcoBill />} />
+          {/* Mepco Route Removed */}
           <Route path="/help" element={<HelpCenter />} />
-          
+
           {/* SSO Callback Route */}
-          <Route path="/sso-callback" element={<SSOCallback />} />
+          <Route path="/sso-callback" element={<Navigate to="/" replace />} />
 
           <Route path="/auth/sign-in/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
           <Route path="/auth/sign-up/*" element={<GuestRoute><AuthPage /></GuestRoute>} />
           <Route path="/auth" element={<Navigate to="/auth/sign-in" replace />} />
-          
+
           <Route path="/cart" element={<CartPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
@@ -168,7 +130,7 @@ const MainContent = () => {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/track-order" element={<TrackOrderPage />} />
-          
+
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
@@ -178,26 +140,17 @@ const MainContent = () => {
           <Route path="/admin/security" element={<AdminRoute><AdminSecurity /></AdminRoute>} />
           <Route path="/admin/login-control" element={<AdminRoute><AdminLoginControl /></AdminRoute>} />
           <Route path="/admin/inventory" element={<AdminRoute><AdminInventory /></AdminRoute>} />
-          
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
 
-      {isAdmin && !isAdminRoute && (
-        <div className="fixed bottom-24 right-4 z-50">
-          <Link to="/admin" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-2xl hover:scale-105 transition-transform">
-            <ShieldCheck className="w-5 h-5" /> Admin Panel
-          </Link>
-        </div>
-      )}
+      {/* Floating Admin Button Removed Here */}
 
-      {/* Admin ya Hacker Dashboard par footer hide karne ke liye logic update ki */}
-      {!isAdminRoute && !isDashboardRoute && (
+      {!isAdminRoute && (
         <>
-          <BottomNavigation />
           <CompareBar />
           <CompareModal />
-          <div className="h-[80px] w-full md:hidden" aria-hidden="true" />
         </>
       )}
     </div>
@@ -216,7 +169,10 @@ const App = () => (
                   <TooltipProvider>
                     <Toaster />
                     <Sonner />
-                    <ReactLenis root options={{ lerp: 0.1, duration: 1.2, smoothWheel: true }}>
+                    {/* Global Styles for removing scrollbar */}
+                    <GlobalScrollStyles />
+                    {/* Lenis configuration for smooth scroll */}
+                    <ReactLenis root options={{ lerp: 0.1, duration: 1.5, smoothWheel: true }}>
                       <ScrollToTop />
                       <MainContent />
                     </ReactLenis>
